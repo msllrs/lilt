@@ -32,10 +32,9 @@ final class ArtworkStyle {
     var spotlightOpacity: Double = 0.28
     var spotlightBlend: ArtworkBlend = .plusLighter
 
-    // Inset border: brighter at the top where the light hits.
+    // Inset border: a uniform hairline on all edges, dark in light mode and light in dark mode.
     var borderWidth: Double = 1
-    var borderTopOpacity: Double = 0.45
-    var borderBottomOpacity: Double = 0.06
+    var borderOpacity: Double = 0.25
     var borderBlend: ArtworkBlend = .overlay
 
     func reset() {
@@ -45,8 +44,7 @@ final class ArtworkStyle {
         spotlightOpacity = 0.28
         spotlightBlend = .plusLighter
         borderWidth = 1
-        borderTopOpacity = 0.45
-        borderBottomOpacity = 0.06
+        borderOpacity = 0.25
         borderBlend = .overlay
     }
 
@@ -59,8 +57,7 @@ final class ArtworkStyle {
         spotlightOpacity = \(f(spotlightOpacity))
         spotlightBlend = .\(spotlightBlend.rawValue)
         borderWidth = \(f(borderWidth))
-        borderTopOpacity = \(f(borderTopOpacity))
-        borderBottomOpacity = \(f(borderBottomOpacity))
+        borderOpacity = \(f(borderOpacity))
         borderBlend = .\(borderBlend.rawValue)
         """
     }

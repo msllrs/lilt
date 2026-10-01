@@ -22,8 +22,7 @@ struct TweakPanel: View {
             }
             Section("Inset border") {
                 slider("Width", $style.borderWidth, 0...3)
-                slider("Top opacity", $style.borderTopOpacity, 0...1)
-                slider("Bottom opacity", $style.borderBottomOpacity, 0...1)
+                slider("Opacity", $style.borderOpacity, 0...1)
                 Picker("Blend", selection: $style.borderBlend) {
                     ForEach(ArtworkBlend.allCases) { Text($0.rawValue).tag($0) }
                 }

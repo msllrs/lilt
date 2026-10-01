@@ -46,18 +46,11 @@ struct ArtworkView: View {
         .blendMode(style.spotlightBlend.blendMode)
     }
 
-    /// A hairline inner edge, brighter where the light hits, so the artwork reads as a physical
-    /// sleeve rather than a flat rectangle.
+    /// A uniform hairline inner edge on all sides, so the artwork reads as a physical sleeve
+    /// rather than a flat rectangle.
     private var insetBorder: some View {
-        shape.strokeBorder(
-            LinearGradient(
-                colors: [borderTint.opacity(style.borderTopOpacity), borderTint.opacity(style.borderBottomOpacity)],
-                startPoint: .top,
-                endPoint: .bottom
-            ),
-            lineWidth: style.borderWidth
-        )
-        .blendMode(style.borderBlend.blendMode)
+        shape.strokeBorder(borderTint.opacity(style.borderOpacity), lineWidth: style.borderWidth)
+            .blendMode(style.borderBlend.blendMode)
     }
 
     private var placeholder: some View {
