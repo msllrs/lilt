@@ -4,7 +4,7 @@ import SwiftUI
 struct BrowseScreen: View {
     @Environment(YTMusicClient.self) private var music
     @Environment(PlayerService.self) private var player
-    @Environment(\.dismiss) private var dismiss
+    @Environment(NavigationModel.self) private var navigation
 
     let item: BrowseItem
 
@@ -30,14 +30,13 @@ struct BrowseScreen: View {
         content
             .safeAreaBar(edge: .top, spacing: 0) { navigationHeader }
             .task(id: item.id) { await load() }
-            .toolbar(.hidden)
     }
 
     /// Back button, plus a compact artwork/title/artist that fades in as the hero scrolls out.
     private var navigationHeader: some View {
         HStack(spacing: Theme.Space.sm) {
             Button {
-                dismiss()
+                navigation.pop()
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))

@@ -28,7 +28,14 @@ final class NavigationModel {
     }
 
     func open(_ item: BrowseItem) {
+        // Re-opening the current page is a no-op rather than a duplicate push.
+        guard path.last != item else { return }
         path.append(item)
+    }
+
+    func pop() {
+        guard !path.isEmpty else { return }
+        path.removeLast()
     }
 
     private func save() {

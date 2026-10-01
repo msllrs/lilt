@@ -4,10 +4,13 @@ import SwiftUI
 struct BrowseRow: View {
     let item: BrowseItem
 
+    @Environment(NavigationModel.self) private var navigation
     @State private var isHovering = false
 
     var body: some View {
-        NavigationLink(value: item) {
+        Button {
+            navigation.open(item)
+        } label: {
             HStack(spacing: Theme.Space.md) {
                 ArtworkView(
                     url: item.artworkURL,

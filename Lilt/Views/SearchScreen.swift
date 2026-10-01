@@ -29,7 +29,6 @@ struct SearchScreen: View {
                     .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
             }
             .task(id: navigation.query) { await search() }
-            .toolbar(.hidden)
     }
 
     @ViewBuilder
