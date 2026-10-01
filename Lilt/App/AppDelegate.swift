@@ -150,4 +150,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func hidePanel() {
         panel?.orderOut(nil)
     }
+
+    #if DEBUG
+    private var tweakWindow: NSPanel?
+
+    /// Floating sliders for tuning the artwork finish while the app runs.
+    func showTweakPanel() {
+        if tweakWindow == nil {
+            let window = NSPanel(
+                contentRect: NSRect(x: 0, y: 0, width: 360, height: 460),
+                styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "Tweak Artwork"
+            window.isReleasedWhenClosed = false
+            window.isFloatingPanel = true
+            window.hidesOnDeactivate = false
+            window.contentView = NSHostingView(rootView: TweakPanel())
+            if let panelFrame = panel?.frame {
+                window.setFrameTopLeftPoint(NSPoint(x: panelFrame.minX - 360 - Theme.Size.screenInset, y: panelFrame.maxY))
+            } else {
+                window.center()
+            }
+            tweakWindow = window
+        }
+        tweakWindow?.makeKeyAndOrderFront(nil)
+    }
+    #endif
 }

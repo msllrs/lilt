@@ -16,6 +16,11 @@ struct BrowseScreen: View {
 
     @State private var phase: Phase = .loading
     @State private var page: BrowsePage?
+    /// How far the hero has scrolled away, 0 (at rest) to 1 (collapsed into the header).
+    @State private var collapse: CGFloat = 0
+
+    /// Scroll distance over which the hero hands off to the compact header.
+    private static let collapseDistance: CGFloat = 150
 
     var body: some View {
         content
@@ -24,6 +29,7 @@ struct BrowseScreen: View {
             .toolbar(.hidden)
     }
 
+    /// Back button, plus a compact artwork/title/artist that fades in as the hero scrolls out.
     private var navigationHeader: some View {
         HStack(spacing: Theme.Space.sm) {
             Button {
@@ -36,9 +42,26 @@ struct BrowseScreen: View {
             }
             .buttonStyle(.plain)
             .keyboardShortcut("[", modifiers: .command)
-            Text(page?.item.title ?? item.title)
-                .font(.callout.weight(.medium))
-                .lineLimit(1)
+
+            if let page {
+                HStack(spacing: Theme.Space.sm) {
+                    ArtworkView(url: page.item.artworkURL, size: 28, radius: page.item.kind == .artist ? 14 : 6)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(page.item.title)
+                            .font(.callout.weight(.medium))
+                            .lineLimit(1)
+                        if !page.item.subtitle.isEmpty {
+                            Text(page.item.subtitle)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+                .opacity(collapse)
+                .offset(y: (1 - collapse) * 10)
+                .allowsHitTesting(collapse > 0.5)
+            }
             Spacer()
         }
         .padding(.top, Theme.Space.panelInset)
@@ -84,6 +107,13 @@ struct BrowseScreen: View {
         }
         .scrollIndicators(.never)
         .scrollEdgeEffectStyle(.soft, for: .all)
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top
+        } action: { _, offset in
+            // Smoothstep so the hand-off eases in and out instead of snapping at the ends.
+            let t = min(max(offset / Self.collapseDistance, 0), 1)
+            collapse = t * t * (3 - 2 * t)
+        }
     }
 
     private func header(_ page: BrowsePage) -> some View {
@@ -122,6 +152,9 @@ struct BrowseScreen: View {
         .frame(maxWidth: .infinity)
         .padding(.top, Theme.Space.sm)
         .padding(.bottom, Theme.Space.sm)
+        // The hero scrolls away naturally; fading and shrinking it sells the hand-off.
+        .opacity(1 - collapse)
+        .scaleEffect(1 - 0.1 * collapse, anchor: .top)
     }
 
     private func load() async {

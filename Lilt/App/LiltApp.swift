@@ -19,6 +19,11 @@ struct LiltApp: App {
                     .keyboardShortcut("l", modifiers: [.command, .shift])
                 Button("Hide Lilt") { delegate.hidePanel() }
                     .keyboardShortcut("w", modifiers: .command)
+                #if DEBUG
+                Divider()
+                Button("Tweak Artwork…") { delegate.showTweakPanel() }
+                    .keyboardShortcut("t", modifiers: [.command, .option])
+                #endif
             }
         }
     }

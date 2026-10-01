@@ -75,22 +75,19 @@ struct NowPlayingBar: View {
 
     private var scrubber: some View {
         VStack(spacing: Theme.Space.xs) {
-            Slider(
-                value: Binding(
-                    get: { isScrubbing ? scrubValue : player.currentTime },
-                    set: { scrubValue = $0 }
-                ),
-                in: 0...max(player.duration, 1)
-            ) { editing in
-                if editing {
-                    scrubValue = player.currentTime
-                    isScrubbing = true
-                } else {
-                    player.seek(to: scrubValue)
+            Scrubber(
+                value: .constant(isScrubbing ? scrubValue : player.currentTime),
+                range: 0...max(player.duration, 1)
+            ) { value, ended in
+                scrubValue = value
+                if ended {
+                    player.seek(to: value)
                     isScrubbing = false
+                } else {
+                    isScrubbing = true
                 }
             }
-            .controlSize(.mini)
+            .frame(height: 12)
             HStack {
                 Text(timeString(isScrubbing ? scrubValue : player.currentTime))
                 Spacer()

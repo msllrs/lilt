@@ -7,7 +7,12 @@ struct ArtworkView: View {
     let size: CGFloat
     let radius: CGFloat
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius, style: .continuous) }
+
+    /// The inset edge is drawn dark on light backgrounds and light on dark ones.
+    private var borderTint: Color { colorScheme == .dark ? .white : .black }
 
     var body: some View {
         AsyncImage(url: url) { phase in
@@ -23,33 +28,36 @@ struct ArtworkView: View {
         .clipShape(shape)
     }
 
-    /// Light falling from the top-left, fading out before the middle. `plusLighter` lifts the
-    /// artwork's own hues instead of washing them out with white.
+    private var style: ArtworkStyle { .shared }
+
+    /// A radial light from the top edge. `plusLighter` lifts the artwork's own hues instead of
+    /// washing them out with white.
     private var spotlight: some View {
-        LinearGradient(
+        RadialGradient(
             stops: [
-                .init(color: .white.opacity(0.22), location: 0),
-                .init(color: .white.opacity(0.06), location: 0.35),
-                .init(color: .clear, location: 0.65),
+                .init(color: .white.opacity(style.spotlightOpacity), location: 0),
+                .init(color: .white.opacity(style.spotlightOpacity * 0.35), location: 0.45),
+                .init(color: .clear, location: 1),
             ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            center: UnitPoint(x: style.spotlightCenterX, y: style.spotlightCenterY),
+            startRadius: 0,
+            endRadius: size * style.spotlightRadius
         )
-        .blendMode(.plusLighter)
+        .blendMode(style.spotlightBlend.blendMode)
     }
 
-    /// A one-pixel inner edge, brighter where the light hits, so the artwork reads as a physical
+    /// A hairline inner edge, brighter where the light hits, so the artwork reads as a physical
     /// sleeve rather than a flat rectangle.
     private var insetBorder: some View {
         shape.strokeBorder(
             LinearGradient(
-                colors: [.white.opacity(0.45), .white.opacity(0.12), .white.opacity(0.05)],
+                colors: [borderTint.opacity(style.borderTopOpacity), borderTint.opacity(style.borderBottomOpacity)],
                 startPoint: .top,
                 endPoint: .bottom
             ),
-            lineWidth: 1
+            lineWidth: style.borderWidth
         )
-        .blendMode(.overlay)
+        .blendMode(style.borderBlend.blendMode)
     }
 
     private var placeholder: some View {
