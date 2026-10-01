@@ -14,6 +14,8 @@ final class ImageCache {
     private let images = NSCache<NSString, NSImage>()
     /// Average colour per cached URL, for balancing ambient shadows and tinting the platter.
     private var averages: [String: (r: CGFloat, g: CGFloat, b: CGFloat)] = [:]
+    /// Average luminance of the outer perimeter per cached URL, for picking the keyline colour.
+    private var edges: [String: CGFloat] = [:]
     /// base key → URLs of the variants currently cached.
     private var variants: [String: [URL]] = [:]
     private var inflight: [URL: Task<NSImage?, Never>] = [:]
@@ -38,6 +40,14 @@ final class ImageCache {
         let sample = averages[key] ?? (variants[Self.baseKey(url)] ?? []).lazy.compactMap { self.averages[$0.absoluteString] }.first
         guard let c = sample else { return 0.5 }
         return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+    }
+
+    /// How bright the artwork is along its edges (0 dark … 1 white), which is what a keyline
+    /// actually sits against. Falls back to any measured size of the same cover, then mid-grey.
+    func edgeLuminance(for url: URL) -> CGFloat {
+        edges[url.absoluteString]
+            ?? (variants[Self.baseKey(url)] ?? []).lazy.compactMap { self.edges[$0.absoluteString] }.first
+            ?? 0.5
     }
 
     /// Warm the cache for artwork that's about to appear, so rows render on their first frame
@@ -89,6 +99,30 @@ final class ImageCache {
         if let average = Self.averageColor(of: image) {
             averages[url.absoluteString] = average
         }
+        if let edge = Self.edgeLuminance(of: image) {
+            edges[url.absoluteString] = edge
+        }
+    }
+
+    /// Downsamples to a small grid and averages the outer ring of pixels.
+    private static func edgeLuminance(of image: NSImage) -> CGFloat? {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let side = 24
+        var pixels = [UInt8](repeating: 0, count: side * side)
+        guard let context = CGContext(
+            data: &pixels, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side,
+            space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else { return nil }
+        context.interpolationQuality = .high
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: side, height: side))
+        var total = 0, count = 0
+        for y in 0..<side {
+            for x in 0..<side where x == 0 || y == 0 || x == side - 1 || y == side - 1 {
+                total += Int(pixels[y * side + x])
+                count += 1
+            }
+        }
+        return count > 0 ? CGFloat(total) / CGFloat(count) / 255 : nil
     }
 
     /// Draws the image into a single pixel and reads back its average colour.

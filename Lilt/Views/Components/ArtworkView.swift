@@ -12,6 +12,7 @@ struct ArtworkView: View {
     var context: ArtworkContext = .row
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.displayScale) private var displayScale
     @State private var image: NSImage?
     /// True while `image` is a stand-in rendition at another size.
     @State private var isStandIn = false
@@ -46,8 +47,22 @@ struct ArtworkView: View {
     private var style: ArtworkStyle { .shared }
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius, style: .continuous) }
 
-    /// The inset edge is drawn dark on light backgrounds and light on dark ones.
-    private var borderTint: Color { colorScheme == .dark ? .white : .black }
+    /// One physical pixel (times the tweakable width), so the keyline stays crisp on Retina
+    /// instead of becoming a two-pixel grey band.
+    private var keylineWidth: CGFloat { CGFloat(style.keylineWidth) / max(displayScale, 1) }
+
+    /// Neutral keyline picked from the artwork's perimeter: dark on pale edges, light on dark.
+    private var keyline: Color? {
+        switch style.keylineMode {
+        case .off: nil
+        case .dark: .black.opacity(style.keylineDarkOpacity)
+        case .light: .white.opacity(style.keylineLightOpacity)
+        case .adaptive:
+            (url.map { ImageCache.shared.edgeLuminance(for: $0) } ?? 0.5) > style.keylineThreshold
+                ? .black.opacity(style.keylineDarkOpacity)
+                : .white.opacity(style.keylineLightOpacity)
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -71,8 +86,9 @@ struct ArtworkView: View {
             // one lands; a near-enough one is shown as is.
             .blur(radius: standInBlur)
             .overlay(spotlight)
-            .overlay(insetBorder)
             .clipShape(shape)
+            .overlay(insetKeyline)
+            .overlay(outerSeparator)
             .background { ambientShadow(picture) }
             .animation(Theme.Motion.quick, value: isStandIn)
     }
@@ -115,11 +131,22 @@ struct ArtworkView: View {
         .blendMode(style.spotlightBlend.blendMode)
     }
 
-    /// A uniform hairline inner edge on all sides, so the artwork reads as a physical sleeve
-    /// rather than a flat rectangle.
-    private var insetBorder: some View {
-        shape.strokeBorder(borderTint.opacity(style.borderOpacity), lineWidth: style.borderWidth)
-            .blendMode(style.borderBlend.blendMode)
+    /// Crisp inset keyline, one physical pixel, no blend mode.
+    @ViewBuilder
+    private var insetKeyline: some View {
+        if let keyline {
+            shape.strokeBorder(keyline, lineWidth: keylineWidth)
+        }
+    }
+
+    /// A barely-there line just outside the artwork, separating it from whatever surface it
+    /// sits on, in the surface's own foreground tone.
+    @ViewBuilder
+    private var outerSeparator: some View {
+        if style.separatorOpacity > 0 {
+            shape.inset(by: -keylineWidth / 2)
+                .stroke(Color.primary.opacity(style.separatorOpacity), lineWidth: keylineWidth)
+        }
     }
 
     /// The artwork's own colours, blurred and pushed down behind it. Spills past the frame on

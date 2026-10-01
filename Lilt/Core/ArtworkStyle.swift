@@ -17,6 +17,17 @@ enum ArtworkBlend: String, CaseIterable, Identifiable {
     }
 }
 
+/// How the artwork keyline picks its colour.
+enum KeylineMode: String, CaseIterable, Identifiable {
+    /// Dark on light-edged covers, light on dark-edged ones (sampled from the perimeter).
+    case adaptive
+    case dark
+    case light
+    case off
+
+    var id: String { rawValue }
+}
+
 /// Where a piece of artwork is shown; each context gets its own shadow preset.
 enum ArtworkContext: String, CaseIterable, Identifiable {
     case row, player, hero, header
@@ -91,10 +102,17 @@ final class ArtworkStyle {
     var spotlightOpacity: Double = 0.48
     var spotlightBlend: ArtworkBlend = .plusLighter
 
-    // Inset border: a uniform hairline on all edges, dark in light mode and light in dark mode.
-    var borderWidth: Double = 1
-    var borderOpacity: Double = 0.20
-    var borderBlend: ArtworkBlend = .normal
+    // Edge: a crisp keyline one physical pixel wide, fully inset, in a neutral picked from the
+    // artwork's own perimeter luminance (no blend modes: they shift colour unpredictably), plus
+    // a very faint separator just outside against the surrounding surface.
+    var keylineMode: KeylineMode = .adaptive
+    /// Physical pixels.
+    var keylineWidth: Double = 1
+    var keylineDarkOpacity: Double = 0.08
+    var keylineLightOpacity: Double = 0.10
+    /// Perimeter luminance above which the keyline goes dark.
+    var keylineThreshold: Double = 0.72
+    var separatorOpacity: Double = 0.05
 
     var rowShadow: ShadowStyle = .row
     var playerShadow: ShadowStyle = .ambient
@@ -129,9 +147,12 @@ final class ArtworkStyle {
         spotlightRadius = 1.0
         spotlightOpacity = 0.48
         spotlightBlend = .plusLighter
-        borderWidth = 1
-        borderOpacity = 0.20
-        borderBlend = .normal
+        keylineMode = .adaptive
+        keylineWidth = 1
+        keylineDarkOpacity = 0.08
+        keylineLightOpacity = 0.10
+        keylineThreshold = 0.72
+        separatorOpacity = 0.05
         rowShadow = .row
         playerShadow = .ambient
         heroShadow = .ambient
@@ -147,9 +168,12 @@ final class ArtworkStyle {
         spotlightRadius = \(f(spotlightRadius))
         spotlightOpacity = \(f(spotlightOpacity))
         spotlightBlend = .\(spotlightBlend.rawValue)
-        borderWidth = \(f(borderWidth))
-        borderOpacity = \(f(borderOpacity))
-        borderBlend = .\(borderBlend.rawValue)
+        keylineMode = .\(keylineMode.rawValue)
+        keylineWidth = \(f(keylineWidth))
+        keylineDarkOpacity = \(f(keylineDarkOpacity))
+        keylineLightOpacity = \(f(keylineLightOpacity))
+        keylineThreshold = \(f(keylineThreshold))
+        separatorOpacity = \(f(separatorOpacity))
         rowShadow = \(snippet(rowShadow))
         playerShadow = \(snippet(playerShadow))
         heroShadow = \(snippet(heroShadow))

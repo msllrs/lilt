@@ -26,12 +26,16 @@ struct TweakPanel: View {
                     ForEach(ArtworkBlend.allCases) { Text($0.rawValue).tag($0) }
                 }
             }
-            Section("Inset border") {
-                slider("Width", $style.borderWidth, 0...3)
-                slider("Opacity", $style.borderOpacity, 0...1)
-                Picker("Blend", selection: $style.borderBlend) {
-                    ForEach(ArtworkBlend.allCases) { Text($0.rawValue).tag($0) }
+            Section("Keyline") {
+                Picker("Mode", selection: $style.keylineMode) {
+                    ForEach(KeylineMode.allCases) { Text($0.rawValue).tag($0) }
                 }
+                .pickerStyle(.segmented)
+                slider("Width (px)", $style.keylineWidth, 0...3)
+                slider("Dark opacity", $style.keylineDarkOpacity, 0...0.4)
+                slider("Light opacity", $style.keylineLightOpacity, 0...0.4)
+                slider("Light/dark threshold", $style.keylineThreshold, 0...1)
+                slider("Outer separator", $style.separatorOpacity, 0...0.2)
             }
             Section("Ambient shadow") {
                 Picker("For", selection: $shadowContext) {
