@@ -20,7 +20,9 @@ final class NavigationModel {
         if let data = UserDefaults.standard.data(forKey: Self.key),
            let saved = try? JSONDecoder().decode(Saved.self, from: data) {
             query = saved.query
-            path = saved.path
+            // Drop any duplicate ids a previous build may have persisted.
+            var seen = Set<String>()
+            path = saved.path.filter { seen.insert($0.id).inserted }
         } else {
             query = ""
             path = []
@@ -28,8 +30,14 @@ final class NavigationModel {
     }
 
     func open(_ item: BrowseItem) {
-        // Re-opening the current page is a no-op rather than a duplicate push.
-        guard path.last != item else { return }
+        // The same page can arrive with slightly different metadata (a search row versus the
+        // player's byline), so identity is the browse id. Re-opening the current page is a
+        // no-op; opening one further down the stack pops back to it rather than duplicating it,
+        // since two screens with one identity render as nothing at all.
+        if let existing = path.firstIndex(where: { $0.id == item.id }) {
+            path.removeSubrange((existing + 1)...)
+            return
+        }
         path.append(item)
     }
 
