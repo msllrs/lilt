@@ -9,7 +9,7 @@ struct NowPlayingBar: View {
     var body: some View {
         VStack(spacing: Theme.Space.sm) {
             HStack(spacing: Theme.Space.md) {
-                ArtworkView(url: player.displayArtworkURL, size: Theme.Size.barArtwork, radius: Theme.Radius.md)
+                ArtworkView(url: player.displayArtworkURL, size: Theme.Size.barArtwork, radius: Theme.Radius.barArtwork)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(player.displayTitle)
                         .font(.callout.weight(.medium))
@@ -36,8 +36,8 @@ struct NowPlayingBar: View {
                 }
             }
         }
-        .padding(Theme.Space.md)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.xl, style: .continuous))
+        .padding(Theme.Space.barPadding)
+        .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
     }
 
     private var scrubber: some View {

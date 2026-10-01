@@ -24,7 +24,7 @@ struct SearchField: View {
         .font(.body)
         .padding(.horizontal, Theme.Space.md)
         .padding(.vertical, Theme.Space.sm)
-        .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+        .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous))
         .onAppear { isFocused = true }
     }
 }

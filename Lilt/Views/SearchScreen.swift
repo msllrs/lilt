@@ -3,27 +3,29 @@ import SwiftUI
 struct SearchScreen: View {
     @Environment(AuthService.self) private var auth
     @Environment(YTMusicClient.self) private var music
-    @Environment(PlayerService.self) private var player
+    @Environment(NavigationModel.self) private var navigation
 
     private enum Phase: Equatable {
         case idle
         case loading
-        case loaded([Track])
+        case loaded
         case failed(String)
     }
 
-    @State private var query = ""
     @State private var phase: Phase = .idle
+    @State private var results = SearchResults()
 
     var body: some View {
+        @Bindable var navigation = navigation
         VStack(spacing: 0) {
-            SearchField(text: $query)
-                .padding(.top, Theme.Size.titlebarInset)
-                .padding(.horizontal, Theme.Space.md)
+            SearchField(text: $navigation.query)
+                .padding(.top, Theme.Space.panelInset)
+                .padding(.horizontal, Theme.Space.panelInset)
                 .padding(.bottom, Theme.Space.sm)
             content
         }
-        .task(id: query) { await search() }
+        .task(id: navigation.query) { await search() }
+        .toolbar(.hidden)
     }
 
     @ViewBuilder
@@ -33,31 +35,62 @@ struct SearchScreen: View {
         } else {
             switch phase {
             case .idle:
-                EmptyHint(symbol: "magnifyingglass", title: "Search YouTube Music", detail: "Songs you find here play in the panel.")
+                EmptyHint(symbol: "magnifyingglass", title: "Search YouTube Music", detail: "Songs, artists, albums and playlists.")
             case .loading:
                 ProgressView()
                     .controlSize(.small)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .failed(let message):
                 EmptyHint(symbol: "exclamationmark.triangle", title: "Something went wrong", detail: message)
-            case .loaded(let tracks) where tracks.isEmpty:
-                EmptyHint(symbol: "music.note", title: "No songs found", detail: "Try a different search.")
-            case .loaded(let tracks):
-                TrackList(tracks: tracks)
+            case .loaded where results.isEmpty:
+                EmptyHint(symbol: "music.note", title: "Nothing found", detail: "Try a different search.")
+            case .loaded:
+                resultsList
             }
         }
     }
 
+    private var resultsList: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                if let top = results.top {
+                    SectionHeader("Top result")
+                    BrowseRow(item: top)
+                }
+                if !results.songs.isEmpty {
+                    SectionHeader("Songs")
+                    TrackRows(tracks: results.songs)
+                }
+                browseSection("Artists", results.artists)
+                browseSection("Albums", results.albums)
+                browseSection("Playlists", results.playlists)
+            }
+            .padding(.horizontal, Theme.Space.rowInset)
+            .padding(.bottom, Theme.Space.sm)
+        }
+        .scrollIndicators(.never)
+        .scrollEdgeEffectStyle(.soft, for: .bottom)
+    }
+
+    @ViewBuilder
+    private func browseSection(_ title: String, _ items: [BrowseItem]) -> some View {
+        if !items.isEmpty {
+            SectionHeader(title)
+            ForEach(items) { BrowseRow(item: $0) }
+        }
+    }
+
     private func search() async {
-        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        let trimmed = navigation.query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { phase = .idle; return }
         try? await Task.sleep(for: .milliseconds(300))
         guard !Task.isCancelled else { return }
-        if case .idle = phase { phase = .loading }
+        if phase == .idle { phase = .loading }
         do {
-            let tracks = try await music.searchSongs(trimmed)
+            let found = try await music.search(trimmed)
             guard !Task.isCancelled else { return }
-            phase = .loaded(tracks)
+            results = found
+            phase = .loaded
         } catch is CancellationError {
         } catch {
             guard !Task.isCancelled else { return }

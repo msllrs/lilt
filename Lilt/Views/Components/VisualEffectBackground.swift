@@ -7,7 +7,7 @@ struct GlassBackground: NSViewRepresentable {
     func makeNSView(context: Context) -> NSGlassEffectView {
         let view = NSGlassEffectView()
         view.style = .regular
-        view.cornerRadius = 0
+        view.cornerRadius = Theme.Radius.window
         return view
     }
 

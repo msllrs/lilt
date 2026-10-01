@@ -17,6 +17,8 @@ struct LiltApp: App {
             CommandGroup(after: .windowList) {
                 Button("Show Lilt") { delegate.showPanel() }
                     .keyboardShortcut("l", modifiers: [.command, .shift])
+                Button("Hide Lilt") { delegate.hidePanel() }
+                    .keyboardShortcut("w", modifiers: .command)
             }
         }
     }

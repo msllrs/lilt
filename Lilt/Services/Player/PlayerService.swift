@@ -35,10 +35,23 @@ final class PlayerService {
     private var wantsAutoplayNudge = false
     /// After an optimistic play/pause, ignore the web view's stale `isPlaying` until this time.
     private var trustWebPlayStateAfter: Date = .distantPast
+    /// The restored queue hasn't been loaded into the web view yet; the first play does that.
+    private var needsLoad = false
+    /// Position to seek to once the restored track is playing.
+    private var pendingSeek: Double?
+    private var lastSavedTime: Double = 0
+
+    private static let savedKey = "playbackState"
+    private struct Saved: Codable {
+        var queue: [Track]
+        var index: Int?
+        var time: Double
+    }
 
     init(auth: AuthService) {
         bridge = PlayerBridge(dataStore: auth.dataStore)
         bridge.onEvent = { [weak self] event in self?.handle(event) }
+        restore()
     }
 
     // MARK: Commands
@@ -59,7 +72,12 @@ final class PlayerService {
     }
 
     func resume() {
-        guard current != nil else { return }
+        guard let index = currentIndex, current != nil else { return }
+        if needsLoad {
+            pendingSeek = currentTime > 1 ? currentTime : nil
+            load(index: index)
+            return
+        }
         setPlayingOptimistically(true)
         bridge.play()
     }
@@ -94,16 +112,37 @@ final class PlayerService {
         currentIndex = nil
         resetLiveState()
         bridge.unload()
+        save()
+    }
+
+    // MARK: Persistence
+
+    private func save() {
+        lastSavedTime = currentTime
+        let saved = Saved(queue: queue, index: currentIndex, time: currentTime)
+        UserDefaults.standard.set(try? JSONEncoder().encode(saved), forKey: Self.savedKey)
+    }
+
+    private func restore() {
+        guard let data = UserDefaults.standard.data(forKey: Self.savedKey),
+              let saved = try? JSONDecoder().decode(Saved.self, from: data),
+              let index = saved.index, saved.queue.indices.contains(index) else { return }
+        queue = saved.queue
+        currentIndex = index
+        currentTime = saved.time
+        needsLoad = true
     }
 
     // MARK: Internals
 
     private func load(index: Int) {
         currentIndex = index
+        needsLoad = false
         resetLiveState()
         isLoading = true
         wantsAutoplayNudge = true
         bridge.load(videoId: queue[index].id)
+        save()
     }
 
     private func setPlayingOptimistically(_ playing: Bool) {
@@ -144,15 +183,22 @@ final class PlayerService {
     private func apply(_ s: PlaybackSnapshot) {
         guard let videoId = s.videoId else { return }
         if videoId != current?.id {
-            // Stale state from the previous document while a load is in flight.
-            if isLoading { return }
+            // Stale state from the previous document while a load is in flight, or YouTube's own
+            // restored player while we still hold a restored queue of our own.
+            if isLoading || needsLoad { return }
             adopt(videoId: videoId, from: s)
         }
         isLoading = false
         if s.isPlaying == isPlaying || Date.now >= trustWebPlayStateAfter {
             isPlaying = s.isPlaying
         }
+        if let target = pendingSeek, s.isPlaying {
+            pendingSeek = nil
+            bridge.seek(to: target)
+            return
+        }
         currentTime = s.currentTime
+        if abs(currentTime - lastSavedTime) > 5 { save() }
         duration = s.duration
         liveTitle = s.title
         liveArtist = s.artist
@@ -179,5 +225,6 @@ final class PlayerService {
             queue.append(track)
             currentIndex = queue.count - 1
         }
+        save()
     }
 }

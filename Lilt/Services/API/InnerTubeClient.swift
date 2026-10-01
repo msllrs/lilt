@@ -14,6 +14,12 @@ enum InnerTubeError: LocalizedError {
     }
 }
 
+/// A parsed JSON object. JSONSerialization returns immutable Foundation values, so handing the
+/// tree between tasks is safe even though `[String: Any]` can't be marked Sendable.
+struct JSONObject: @unchecked Sendable {
+    let value: [String: Any]
+}
+
 /// Minimal InnerTube transport: a JSON POST to `music.youtube.com/youtubei/v1/<endpoint>`
 /// with browser-shaped headers, the shared WebKit cookies and a SAPISIDHASH signature.
 @MainActor
@@ -34,7 +40,7 @@ final class InnerTubeClient {
         session = URLSession(configuration: config)
     }
 
-    func post(_ endpoint: String, body: [String: Any]) async throws -> [String: Any] {
+    func post(_ endpoint: String, body: [String: Any]) async throws -> JSONObject {
         let cookies = await auth.youtubeCookies()
         guard let sapisid = InnerTubeAuth.sapisid(in: cookies) else {
             throw InnerTubeError.notSignedIn
@@ -69,7 +75,7 @@ final class InnerTubeClient {
         guard let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] else {
             throw InnerTubeError.badResponse
         }
-        return json
+        return JSONObject(value: json)
     }
 
     private static func context() -> [String: Any] {

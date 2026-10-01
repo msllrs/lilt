@@ -2,9 +2,9 @@ import AppKit
 
 /// A narrow, translucent column that lives on the edge of the screen.
 ///
-/// It is an `NSPanel` rather than a plain window on purpose: utility panels are ignored by tiling
-/// window managers, and a non-activating panel lets you hit play without pulling focus away from
-/// whatever you were working in. Clicking the search field still makes it key for typing.
+/// Borderless so we own the shape (the system radius on a panel is fixed at 15pt, too tight for
+/// concentric inner corners), and a non-activating utility panel so tiling/window managers leave
+/// it alone and hitting play doesn't pull focus from whatever you were working in.
 @MainActor
 final class PanelWindow: NSPanel {
     static let autosaveName = "LiltPanel"
@@ -12,13 +12,11 @@ final class PanelWindow: NSPanel {
     init(contentRect: NSRect) {
         super.init(
             contentRect: contentRect,
-            styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .utilityWindow, .nonactivatingPanel],
+            styleMask: [.borderless, .resizable, .utilityWindow, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         title = "Lilt"
-        titlebarAppearsTransparent = true
-        titleVisibility = .hidden
         isMovableByWindowBackground = true
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
@@ -29,11 +27,12 @@ final class PanelWindow: NSPanel {
         hasShadow = true
         animationBehavior = .utilityWindow
         collectionBehavior = [.managed, .fullScreenAuxiliary]
-        standardWindowButton(.zoomButton)?.isHidden = true
-        standardWindowButton(.miniaturizeButton)?.isHidden = true
         minSize = NSSize(width: Theme.Size.panelMinWidth, height: Theme.Size.panelMinHeight)
         maxSize = NSSize(width: Theme.Size.panelMaxWidth, height: .greatestFiniteMagnitude)
     }
+
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
 
     /// Full-height column hugging the right edge of `screen`, inset from the edges.
     static func edgeFrame(on screen: NSScreen) -> NSRect {

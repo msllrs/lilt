@@ -1,6 +1,9 @@
 import SwiftUI
 
 /// Design tokens. Every spacing, radius and size in the UI comes from here.
+///
+/// Radii are concentric: a shape inset by `d` inside another shape of radius `r` gets radius
+/// `r - d`, so corners share a centre instead of fighting each other.
 enum Theme {
     enum Space {
         static let xs: CGFloat = 4
@@ -8,13 +11,28 @@ enum Theme {
         static let md: CGFloat = 12
         static let lg: CGFloat = 16
         static let xl: CGFloat = 24
+
+        /// Gap between the window edge and the first content shape (search field, bar).
+        static let panelInset: CGFloat = 12
+        /// Gap between the window edge and list rows.
+        static let rowInset: CGFloat = 8
+        /// Padding inside the now-playing bar.
+        static let barPadding: CGFloat = 10
     }
 
     enum Radius {
-        static let sm: CGFloat = 6
-        static let md: CGFloat = 10
-        static let lg: CGFloat = 16
-        static let xl: CGFloat = 22
+        /// The window itself (we draw the shape, so this is ours to choose).
+        static let window: CGFloat = 28
+        /// Shapes inset by `panelInset`: search field, now-playing bar.
+        static let panel: CGFloat = window - Space.panelInset   // 16
+        /// Row highlight, inset by `rowInset`.
+        static let row: CGFloat = window - Space.rowInset       // 20
+        /// Artwork inside a row (row radius minus the row's horizontal padding).
+        static let rowArtwork: CGFloat = row - Space.sm         // 12
+        /// Artwork inside the bar.
+        static let barArtwork: CGFloat = panel - Space.barPadding // 6
+        /// Free-standing shapes not nested in anything.
+        static let standalone: CGFloat = 16
     }
 
     enum Size {
@@ -25,8 +43,6 @@ enum Theme {
         static let panelMinHeight: CGFloat = 480
         /// Gap between the panel and the screen edges.
         static let screenInset: CGFloat = 12
-        /// Room left under the hidden title bar for the traffic lights.
-        static let titlebarInset: CGFloat = 38
         static let rowArtwork: CGFloat = 40
         static let barArtwork: CGFloat = 48
         static let controlIcon: CGFloat = 16

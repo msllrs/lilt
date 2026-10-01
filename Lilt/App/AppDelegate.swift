@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let auth = AuthService()
     private(set) lazy var player = PlayerService(auth: auth)
     private(set) lazy var music = YTMusicClient(auth: auth)
+    let navigation = NavigationModel()
 
     private var panel: PanelWindow?
     private var loginWindow: NSWindow?
@@ -23,6 +24,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    /// A borderless non-activating panel doesn't become key on its own; when the user brings the
+    /// app forward (Dock, ⌘-Tab, shortcut) they expect to type straight away.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        guard let panel, panel.isVisible, loginWindow == nil else { return }
+        panel.makeKey()
+    }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         showPanel()
@@ -113,6 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .environment(auth)
             .environment(player)
             .environment(music)
+            .environment(navigation)
         let hosting = NSHostingView(rootView: root)
         hosting.sizingOptions = []
 
@@ -135,5 +144,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         window.setFrameAutosaveName(PanelWindow.autosaveName)
         panel = window
+    }
+
+    /// No close button on the panel; ⌘W hides it and playback carries on.
+    func hidePanel() {
+        panel?.orderOut(nil)
     }
 }
