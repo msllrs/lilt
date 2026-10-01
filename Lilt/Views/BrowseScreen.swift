@@ -197,12 +197,12 @@ struct BrowseScreen: View {
                         .font(.callout.weight(.semibold))
                         .padding(.horizontal, Theme.Space.lg + Theme.Space.xs)
                         .padding(.vertical, Theme.Space.sm + Theme.Space.xs)
+                        // Glass and rim live on the label so the press scale moves the whole capsule.
+                        .glassEffect(.regular.interactive(), in: .capsule)
+                        .glassEdge(Capsule())
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.pressable)
-                // Interactive glass: lensing at rest, and the liquid hover/press response.
-                .glassEffect(.regular.interactive(), in: .capsule)
-                .glassEdge(Capsule())
             }
         }
         .frame(maxWidth: .infinity)
