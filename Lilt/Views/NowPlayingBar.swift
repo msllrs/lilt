@@ -102,8 +102,11 @@ struct NowPlayingBar: View {
         }
     }
 
+    /// Elapsed on the left, the line in the middle, total on the right.
     private var scrubber: some View {
-        VStack(spacing: Theme.Space.xs) {
+        HStack(spacing: Theme.Space.sm) {
+            Text(timeString(isScrubbing ? scrubValue : player.currentTime))
+                .frame(width: 34, alignment: .leading)
             Scrubber(
                 value: .constant(isScrubbing ? scrubValue : player.currentTime),
                 range: 0...max(player.duration, 1)
@@ -117,14 +120,11 @@ struct NowPlayingBar: View {
                 }
             }
             .frame(height: 12)
-            HStack {
-                Text(timeString(isScrubbing ? scrubValue : player.currentTime))
-                Spacer()
-                Text(timeString(player.duration))
-            }
-            .font(.caption2.monospacedDigit())
-            .foregroundStyle(.tertiary)
+            Text(timeString(player.duration))
+                .frame(width: 34, alignment: .trailing)
         }
+        .font(.caption2.monospacedDigit())
+        .foregroundStyle(.tertiary)
     }
 
     private func timeString(_ seconds: Double) -> String {
