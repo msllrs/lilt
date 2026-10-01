@@ -115,6 +115,10 @@ enum SearchParser {
             if let art = firstThumbnail(in: header, size: 480) {
                 page.item.artworkURL = art
             }
+            // Album headers link the artist in the strapline (or subtitle on older layouts).
+            let artistRuns = (JSON.array(JSON.value(at: ["straplineTextOne", "runs"], in: header)) ?? [])
+                + (JSON.array(JSON.value(at: ["subtitle", "runs"], in: header)) ?? [])
+            page.artistId = artistRuns.compactMap(JSON.dict).first { pageType(of: $0) == "MUSIC_PAGE_TYPE_ARTIST" }.flatMap(browseId(of:))
         }
 
         // Tracks: album/playlist contents, or an artist's top songs.

@@ -37,5 +37,7 @@ struct BrowsePage: Sendable {
     var tracks: [Track] = []
     /// For artists: the browse id of the "all songs" playlist, when YouTube offers one.
     var allSongsId: String?
+    /// For albums: the primary artist, used to fill the page out with related content.
+    var artistId: String?
     var sections: [BrowseSection] = []
 }

@@ -226,11 +226,47 @@ struct BrowseScreen: View {
 
     private func load() async {
         do {
-            page = try await music.page(for: item)
+            var loaded = try await music.page(for: item)
+            page = loaded
             phase = .loaded
+            // Fill short album pages out with the artist's other releases and related artists
+            // rather than leaving dead space under the tracks.
+            if loaded.item.kind == .album, let artistId = loaded.artistId {
+                let artist = BrowseItem(id: artistId, kind: .artist, title: loaded.item.subtitle, subtitle: "Artist", artworkURL: nil)
+                if let artistPage = try? await music.page(for: artist), !Task.isCancelled {
+                    loaded.sections.append(contentsOf: Self.relatedSections(from: artistPage, excluding: loaded))
+                    withAnimation(Theme.Motion.standard) { page = loaded }
+                }
+            }
         } catch is CancellationError {
         } catch {
             phase = .failed(error.localizedDescription)
         }
+    }
+
+    /// Albums, singles and similar artists from an artist page, renamed for an album context and
+    /// without repeating the album being viewed or sections the page already has.
+    private static func relatedSections(from artistPage: BrowsePage, excluding album: BrowsePage) -> [BrowseSection] {
+        let existing = Set(album.sections.map(\.title))
+        var result: [BrowseSection] = []
+        for section in artistPage.sections {
+            let lower = section.title.lowercased()
+            let title: String
+            if lower.contains("album") || lower.contains("single") {
+                title = "More from \(artistPage.item.title)"
+            } else if lower.contains("fans") || lower.contains("similar") || lower.contains("related") {
+                title = "Related artists"
+            } else {
+                continue
+            }
+            let items = section.items.filter { $0.id != album.item.id }
+            guard !items.isEmpty, !existing.contains(title) else { continue }
+            if let index = result.firstIndex(where: { $0.title == title }) {
+                result[index].items.append(contentsOf: items.filter { item in !result[index].items.contains(where: { $0.id == item.id }) })
+            } else {
+                result.append(BrowseSection(title: title, items: items))
+            }
+        }
+        return result
     }
 }

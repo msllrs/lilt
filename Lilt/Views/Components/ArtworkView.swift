@@ -1,52 +1,81 @@
 import SwiftUI
 
-/// Album/artist artwork with a Sleeve-style finish: a soft spotlight from the top-left and a
-/// hairline inset border, both blended so they take on the artwork's own colours.
+/// Album/artist artwork with a Sleeve-style finish: a spotlight from the top, a hairline inset
+/// border and an ambient shadow in the artwork's own colours. Images come from `ImageCache`, so
+/// revisiting a row never flashes a placeholder, and a smaller cached rendition stands in,
+/// blurred, while a larger one loads.
 struct ArtworkView: View {
     let url: URL?
     let size: CGFloat
     let radius: CGFloat
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var image: NSImage?
+    /// True while `image` is a stand-in rendition at another size.
+    @State private var isStandIn = false
 
+    init(url: URL?, size: CGFloat, radius: CGFloat) {
+        self.url = url
+        self.size = size
+        self.radius = radius
+        // Seed synchronously so a cache hit renders on the first frame.
+        let seed = MainActor.assumeIsolated { () -> (NSImage?, Bool) in
+            guard let url else { return (nil, false) }
+            if let hit = ImageCache.shared.cached(url) { return (hit, false) }
+            if let variant = ImageCache.shared.anyVariant(for: url) { return (variant, true) }
+            return (nil, false)
+        }
+        _image = State(initialValue: seed.0)
+        _isStandIn = State(initialValue: seed.1)
+    }
+
+    private var style: ArtworkStyle { .shared }
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius, style: .continuous) }
 
     /// The inset edge is drawn dark on light backgrounds and light on dark ones.
     private var borderTint: Color { colorScheme == .dark ? .white : .black }
 
     var body: some View {
-        AsyncImage(url: url) { phase in
-            if let image = phase.image {
-                image.resizable().aspectRatio(contentMode: .fill)
-                    .frame(width: size, height: size)
-                    .overlay(spotlight)
-                    .overlay(insetBorder)
-                    .clipShape(shape)
-                    .background { ambientShadow(image) }
+        Group {
+            if let image {
+                sleeve(Image(nsImage: image))
             } else {
                 placeholder
             }
         }
         .frame(width: size, height: size)
+        .task(id: url) { await load() }
     }
 
-    /// The artwork's own colours, blurred and pushed down behind it. Spills past the frame on
-    /// purpose; that's what a shadow does.
-    @ViewBuilder
-    private func ambientShadow(_ image: Image) -> some View {
-        if size >= style.shadowMinSize, style.shadowOpacity > 0 {
-            image.resizable().aspectRatio(contentMode: .fill)
-                .frame(width: size * style.shadowSpread, height: size * style.shadowSpread)
-                .clipShape(shape)
-                .saturation(style.shadowSaturation)
-                .blur(radius: size * style.shadowBlur)
-                .opacity(style.shadowOpacity)
-                .offset(y: size * style.shadowOffsetY)
-                .allowsHitTesting(false)
+    private func sleeve(_ picture: Image) -> some View {
+        picture.resizable().aspectRatio(contentMode: .fill)
+            .frame(width: size, height: size)
+            // A stand-in is a different size; blur hides the resampling until the real one lands.
+            .blur(radius: isStandIn ? size * 0.06 : 0)
+            .overlay(spotlight)
+            .overlay(insetBorder)
+            .clipShape(shape)
+            .background { ambientShadow(picture) }
+            .animation(Theme.Motion.quick, value: isStandIn)
+    }
+
+    private func load() async {
+        guard let url else { image = nil; return }
+        if let hit = ImageCache.shared.cached(url) {
+            image = hit
+            isStandIn = false
+            return
+        }
+        if image == nil, let variant = ImageCache.shared.anyVariant(for: url) {
+            image = variant
+            isStandIn = true
+        }
+        guard let loaded = await ImageCache.shared.load(url), !Task.isCancelled else { return }
+        withAnimation(Theme.Motion.quick) {
+            image = loaded
+            isStandIn = false
         }
     }
-
-    private var style: ArtworkStyle { .shared }
 
     /// A radial light from the top edge. `plusLighter` lifts the artwork's own hues instead of
     /// washing them out with white.
@@ -71,8 +100,24 @@ struct ArtworkView: View {
             .blendMode(style.borderBlend.blendMode)
     }
 
+    /// The artwork's own colours, blurred and pushed down behind it. Spills past the frame on
+    /// purpose; that's what a shadow does.
+    @ViewBuilder
+    private func ambientShadow(_ picture: Image) -> some View {
+        if size >= style.shadowMinSize, style.shadowOpacity > 0 {
+            picture.resizable().aspectRatio(contentMode: .fill)
+                .frame(width: size * style.shadowSpread, height: size * style.shadowSpread)
+                .clipShape(shape)
+                .saturation(style.shadowSaturation)
+                .blur(radius: size * style.shadowBlur)
+                .opacity(style.shadowOpacity)
+                .offset(y: size * style.shadowOffsetY)
+                .allowsHitTesting(false)
+        }
+    }
+
     private var placeholder: some View {
-        RoundedRectangle(cornerRadius: radius, style: .continuous)
+        shape
             .fill(.fill.quaternary)
             .overlay {
                 Image(systemName: "music.note")
