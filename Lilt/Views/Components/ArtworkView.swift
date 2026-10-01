@@ -108,15 +108,30 @@ struct ArtworkView: View {
     @ViewBuilder
     private func ambientShadow(_ picture: Image) -> some View {
         let shadow = style.shadow(for: context)
-        if shadow.opacity > 0 {
-            picture.resizable().aspectRatio(contentMode: .fill)
-                .frame(width: size * shadow.spread, height: size * shadow.spread)
-                .clipShape(shape)
-                .saturation(shadow.saturation)
-                .blur(radius: size * shadow.blur)
-                .opacity(shadow.opacity)
-                .offset(y: size * shadow.offsetY)
-                .allowsHitTesting(false)
+        if shadow.isVisible {
+            // Brighter covers get pulled darker so a white sleeve still casts something.
+            let luminance = url.map { ImageCache.shared.luminance(for: $0) } ?? 0.5
+            let darken = luminance * shadow.lightCompensation
+            ZStack {
+                if shadow.baseOpacity > 0 {
+                    shape
+                        .fill(.black.opacity(shadow.baseOpacity))
+                        .frame(width: size * shadow.spread, height: size * shadow.spread)
+                        .blur(radius: size * shadow.blur)
+                        .offset(y: size * shadow.offsetY)
+                }
+                if shadow.opacity > 0 {
+                    picture.resizable().aspectRatio(contentMode: .fill)
+                        .frame(width: size * shadow.spread, height: size * shadow.spread)
+                        .clipShape(shape)
+                        .saturation(shadow.saturation)
+                        .brightness(-darken)
+                        .blur(radius: size * shadow.blur)
+                        .opacity(shadow.opacity)
+                        .offset(y: size * shadow.offsetY)
+                }
+            }
+            .allowsHitTesting(false)
         }
     }
 

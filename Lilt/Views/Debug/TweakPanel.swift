@@ -38,6 +38,8 @@ struct TweakPanel: View {
                 slider("Offset Y", shadow(\.offsetY), -0.2...0.4)
                 slider("Spread", shadow(\.spread), 0.5...1.2)
                 slider("Saturation", shadow(\.saturation), 0...6)
+                slider("Light comp.", shadow(\.lightCompensation), 0...1)
+                slider("Neutral base", shadow(\.baseOpacity), 0...0.6)
             }
             Section {
                 HStack {
@@ -57,7 +59,7 @@ struct TweakPanel: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 360, height: 640)
+        .frame(width: 360, height: 700)
     }
 
     /// A binding into the shadow preset currently selected in the segmented control.

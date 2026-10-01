@@ -41,10 +41,17 @@ struct ShadowStyle: Equatable {
     var offsetY: Double
     var spread: Double
     var saturation: Double
+    /// Darkens the ambient copy in proportion to how bright the artwork is, so near-white covers
+    /// still cast something. 0 leaves light art shadowless; 1 pulls white down to mid-grey.
+    var lightCompensation: Double = 0.4
+    /// A plain dark shadow under the ambient one, grounding every cover regardless of colour.
+    var baseOpacity: Double = 0.12
 
-    static let none = ShadowStyle(opacity: 0, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 1)
+    static let none = ShadowStyle(opacity: 0, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 1, lightCompensation: 0.4, baseOpacity: 0)
     /// Tuned by Matt in the tweak panel on 2026-10-01.
     static let ambient = ShadowStyle(opacity: 0.88, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 3.0)
+
+    var isVisible: Bool { opacity > 0 || baseOpacity > 0 }
 }
 
 /// The artwork finish: a spotlight falling from the top edge, a hairline inset border and a
@@ -127,7 +134,7 @@ final class ArtworkStyle {
     }
 
     private func snippet(_ s: ShadowStyle) -> String {
-        "ShadowStyle(opacity: \(f(s.opacity)), blur: \(f(s.blur)), offsetY: \(f(s.offsetY)), spread: \(f(s.spread)), saturation: \(f(s.saturation)))"
+        "ShadowStyle(opacity: \(f(s.opacity)), blur: \(f(s.blur)), offsetY: \(f(s.offsetY)), spread: \(f(s.spread)), saturation: \(f(s.saturation)), lightCompensation: \(f(s.lightCompensation)), baseOpacity: \(f(s.baseOpacity)))"
     }
 
     private func f(_ value: Double) -> String { String(format: "%.2f", value) }
