@@ -62,13 +62,14 @@ struct PlatterStyle: Equatable {
     var shadowRadius: Double = 16
     /// Points.
     var shadowOffsetY: Double = 8
-    var borderOpacity: Double = 0.10
+    var borderOpacity: Double = 0.40
     /// The ambient fill: the artwork itself, blurred across the platter.
-    var tintOpacity: Double = 0.55
-    var tintSaturation: Double = 1.8
+    var tintOpacity: Double = 0.20
+    var tintSaturation: Double = 4.0
     /// Blur radius in points.
-    var tintBlur: Double = 28
+    var tintBlur: Double = 160
 
+    /// Tuned by Matt in the tweak panel on 2026-10-01.
     static let standard = PlatterStyle()
 }
 

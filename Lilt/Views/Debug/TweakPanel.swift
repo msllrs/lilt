@@ -52,8 +52,8 @@ struct TweakPanel: View {
                 slider("Shadow offset", $style.platter.shadowOffsetY, 0...24)
                 slider("Border", $style.platter.borderOpacity, 0...0.4)
                 slider("Ambient opacity", $style.platter.tintOpacity, 0...1)
-                slider("Ambient saturation", $style.platter.tintSaturation, 0...4)
-                slider("Ambient blur", $style.platter.tintBlur, 0...160)
+                slider("Ambient saturation", $style.platter.tintSaturation, 0...8)
+                slider("Ambient blur", $style.platter.tintBlur, 0...300)
             }
             Section {
                 HStack {
