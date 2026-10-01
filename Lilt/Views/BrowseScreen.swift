@@ -22,6 +22,8 @@ struct BrowseScreen: View {
     @State private var collapse: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0
     @State private var heroHeight: CGFloat = 280
+    /// Extra bottom padding that guarantees enough scroll range for the hero to hand off fully.
+    @State private var extraBottom: CGFloat = 0
     @State private var isHoveringCompactArtwork = false
 
     var body: some View {
@@ -133,28 +135,35 @@ struct BrowseScreen: View {
                 }
             }
             .padding(.horizontal, Theme.Space.rowInset)
-            .padding(.bottom, Theme.Space.sm)
+            .padding(.bottom, Theme.Space.sm + extraBottom)
         }
         .scrollIndicators(.never)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
-            let visible = geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
-            return ScrollMetrics(
+            ScrollMetrics(
                 offset: geometry.contentOffset.y + geometry.contentInsets.top,
-                maxOffset: max(geometry.contentSize.height - visible, 0)
+                contentHeight: geometry.contentSize.height,
+                visibleHeight: geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
             )
         } action: { _, metrics in
             scrollOffset = metrics.offset
-            // The hero fades across its own height, so it is gone exactly when it has scrolled
-            // under the header. When the list is too short to scroll that far, the hand-off is
-            // compressed into the range that exists, and skipped entirely if that range is tiny.
-            guard metrics.maxOffset >= Self.minimumCollapseRange else {
+
+            // How far the list could scroll on its own, before our padding.
+            let naturalRange = metrics.contentHeight - extraBottom - metrics.visibleHeight
+            guard naturalRange > 0 else {
+                // Fits without scrolling: nothing moves, so nothing collapses.
+                extraBottom = 0
                 heroFade = 0
                 collapse = 0
                 return
             }
-            let distance = min(max(heroHeight, 1), metrics.maxOffset)
-            let travel = min(max(metrics.offset / distance, 0), 1)
+            // Guarantee a full hero's worth of travel so the hand-off can never stall halfway
+            // with a half-faded hero and a half-visible compact header.
+            extraBottom = max(0, heroHeight - naturalRange)
+
+            // The hero fades across its own height, so it is gone exactly when it has scrolled
+            // under the header and never leaves a blank gap above the tracks.
+            let travel = min(max(metrics.offset / max(heroHeight, 1), 0), 1)
             heroFade = Self.smoothstep(travel)
             collapse = Self.smoothstep(min(max((travel - 0.45) / 0.55, 0), 1))
         }
@@ -162,11 +171,9 @@ struct BrowseScreen: View {
 
     private struct ScrollMetrics: Equatable {
         var offset: CGFloat
-        var maxOffset: CGFloat
+        var contentHeight: CGFloat
+        var visibleHeight: CGFloat
     }
-
-    /// Below this much scrollable range the hero simply stays put.
-    private static let minimumCollapseRange: CGFloat = 80
 
     /// Eases in and out instead of snapping at the ends.
     private static func smoothstep(_ t: CGFloat) -> CGFloat {
