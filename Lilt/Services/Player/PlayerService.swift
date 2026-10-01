@@ -98,6 +98,12 @@ final class PlayerService {
         guard current != nil else { return }
         setPlayingOptimistically(false)
         bridge.pause()
+        save()
+    }
+
+    /// Flush the queue and playhead to disk (called when the app is about to quit).
+    func persistNow() {
+        save()
     }
 
     func next() {
@@ -150,7 +156,11 @@ final class PlayerService {
     private func load(index: Int) {
         currentIndex = index
         needsLoad = false
+        let resumeAt = pendingSeek
         resetLiveState()
+        // Resuming a restored track: keep the saved position on screen instead of dipping to
+        // 0:00 until the seek lands.
+        if let resumeAt { currentTime = resumeAt }
         // Switching tracks is still "playing" as far as the listener is concerned; don't let the
         // button flip to play while the next track spins up.
         isPlaying = true

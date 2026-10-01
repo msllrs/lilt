@@ -27,6 +27,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        player.persistNow()
+    }
+
     /// A borderless non-activating panel doesn't become key on its own; when the user brings the
     /// app forward (Dock, ⌘-Tab, shortcut) they expect to type straight away.
     func applicationDidBecomeActive(_ notification: Notification) {
