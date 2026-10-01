@@ -203,6 +203,7 @@ final class PlayerService {
         liveTitle = s.title
         liveArtist = s.artist
         liveArtworkURL = s.artworkURL ?? liveArtworkURL
+        fillLinks(from: s)
 
         if wantsAutoplayNudge {
             if s.isPlaying {
@@ -212,6 +213,26 @@ final class PlayerService {
                 bridge.play()
             }
         }
+    }
+
+    /// Tracks from the home feed or YouTube's own continuation arrive without artist/album ids;
+    /// the web player's byline has them, so backfill the current track once they show up.
+    private func fillLinks(from s: PlaybackSnapshot) {
+        guard let i = currentIndex, queue.indices.contains(i) else { return }
+        var track = queue[i]
+        var changed = false
+        if track.artistId == nil, let artistId = s.artistId {
+            track.artistId = artistId
+            changed = true
+        }
+        if track.albumId == nil, let albumId = s.albumId {
+            track.albumId = albumId
+            if track.album == nil { track.album = s.albumTitle }
+            changed = true
+        }
+        guard changed else { return }
+        queue[i] = track
+        save()
     }
 
     /// YouTube Music moved on to a track we didn't queue (its radio continuation). Append it so

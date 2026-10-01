@@ -9,6 +9,9 @@ struct PlaybackSnapshot: Sendable {
     var title: String
     var artist: String
     var artworkURL: URL?
+    var artistId: String?
+    var albumId: String?
+    var albumTitle: String?
 }
 
 enum PlayerEvent {
@@ -125,7 +128,10 @@ final class PlayerBridge: NSObject {
                 duration: body["duration"] as? Double ?? 0,
                 title: body["title"] as? String ?? "",
                 artist: body["artist"] as? String ?? "",
-                artworkURL: (body["artworkURL"] as? String).flatMap { $0.isEmpty ? nil : URL(string: $0) }
+                artworkURL: (body["artworkURL"] as? String).flatMap { $0.isEmpty ? nil : URL(string: $0) },
+                artistId: (body["artistId"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+                albumId: (body["albumId"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+                albumTitle: (body["albumTitle"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             )
             onEvent?(.state(snapshot))
         default:

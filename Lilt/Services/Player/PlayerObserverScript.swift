@@ -29,6 +29,18 @@ enum PlayerObserverScript {
         if (!artworkURL) { const img = document.querySelector('ytmusic-player-bar img.image'); artworkURL = img ? img.src : ''; }
         return { title, artist, artworkURL };
       };
+      // The player bar's byline links to the artist (channel/UC…) and album (browse/MPREb…).
+      const links = () => {
+        const out = { artistId: '', albumId: '', albumTitle: '' };
+        document.querySelectorAll('ytmusic-player-bar .byline a[href]').forEach((a) => {
+          const href = a.getAttribute('href') || '';
+          const artist = href.match(/channel\/(UC[\w-]+)/);
+          if (artist && !out.artistId) { out.artistId = artist[1]; }
+          const album = href.match(/browse\/(MPREb_[\w-]+)/);
+          if (album && !out.albumId) { out.albumId = album[1]; out.albumTitle = (a.textContent || '').trim(); }
+        });
+        return out;
+      };
       const report = () => {
         const v = state.video;
         if (!v) { return; }
@@ -37,7 +49,7 @@ enum PlayerObserverScript {
           isPlaying: !v.paused && !v.ended,
           currentTime: v.currentTime || 0,
           duration: isFinite(v.duration) ? v.duration : 0,
-        }, metadata()));
+        }, metadata(), links()));
       };
       const attach = (v) => {
         if (state.video === v) { return; }
