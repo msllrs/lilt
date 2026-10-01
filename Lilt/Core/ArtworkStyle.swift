@@ -54,6 +54,21 @@ struct ShadowStyle: Equatable {
     var isVisible: Bool { opacity > 0 || baseOpacity > 0 }
 }
 
+/// The now-playing platter's own finish. Shadow and border only appear while content scrolls
+/// beneath it; the tint is a wash of the artwork's average colour.
+struct PlatterStyle: Equatable {
+    var shadowOpacity: Double = 0.18
+    /// Points.
+    var shadowRadius: Double = 16
+    /// Points.
+    var shadowOffsetY: Double = 8
+    var borderOpacity: Double = 0.10
+    var tintOpacity: Double = 0.22
+    var tintSaturation: Double = 1.6
+
+    static let standard = PlatterStyle()
+}
+
 /// The artwork finish: a spotlight falling from the top edge, a hairline inset border and a
 /// per-context ambient shadow. Values are tunable live from the debug tweak panel; `reset()`
 /// holds the shipped defaults.
@@ -80,6 +95,8 @@ final class ArtworkStyle {
     var heroShadow: ShadowStyle = .ambient
     /// The small artwork in a page's collapsed header.
     var headerShadow: ShadowStyle = .none
+
+    var platter: PlatterStyle = .standard
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
@@ -113,6 +130,7 @@ final class ArtworkStyle {
         playerShadow = .ambient
         heroShadow = .ambient
         headerShadow = .none
+        platter = .standard
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -130,6 +148,7 @@ final class ArtworkStyle {
         playerShadow = \(snippet(playerShadow))
         heroShadow = \(snippet(heroShadow))
         headerShadow = \(snippet(headerShadow))
+        platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)))
         """
     }
 

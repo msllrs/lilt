@@ -7,10 +7,17 @@ struct NowPlayingBar: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous) }
+    private var platter: PlatterStyle { ArtworkStyle.shared.platter }
 
     /// 0 when nothing scrolls beneath the platter, 1 once rows are passing under it.
     private var glassVisibility: CGFloat {
         min(max(scrollTracker.activeRemainingBelow / 24, 0), 1)
+    }
+
+    /// A wash of the current artwork's colour.
+    private var tint: Color? {
+        guard platter.tintOpacity > 0, let url = player.displayArtworkURL else { return nil }
+        return ImageCache.shared.tint(for: url, saturationBoost: platter.tintSaturation)
     }
 
     @State private var isScrubbing = false
@@ -45,20 +52,31 @@ struct NowPlayingBar: View {
         }
         .padding(Theme.Space.barPadding)
         .background {
-            // Glass only earns its place when there's content to blur beneath it.
-            Color.clear
-                .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
-                .opacity(glassVisibility)
+            ZStack {
+                // Glass, edge and shadow only earn their place when rows pass beneath.
+                Color.clear
+                    .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
+                    .shadow(
+                        color: .black.opacity(platter.shadowOpacity * glassVisibility),
+                        radius: platter.shadowRadius,
+                        y: platter.shadowOffsetY
+                    )
+                    .opacity(glassVisibility)
+                // The artwork's colour, always on (dial to zero in the tweak panel to drop it).
+                if let tint {
+                    shape.fill(tint.opacity(platter.tintOpacity))
+                }
+            }
         }
         .overlay {
-            // A hairline edge keeps the platter's shape when the glass is off.
             shape.strokeBorder(
                 (colorScheme == .dark ? Color.white : Color.black)
-                    .opacity((colorScheme == .dark ? 0.14 : 0.08) * (0.6 + 0.4 * glassVisibility)),
+                    .opacity(platter.borderOpacity * (colorScheme == .dark ? 1.6 : 1) * glassVisibility),
                 lineWidth: 1
             )
         }
         .animation(Theme.Motion.quick, value: glassVisibility)
+        .animation(Theme.Motion.standard, value: player.displayArtworkURL)
     }
 
     /// Artwork opens the album when we know which one it is.

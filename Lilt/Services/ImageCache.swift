@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 
 /// In-memory artwork cache in front of a disk-backed URLSession.
 ///
@@ -11,8 +12,8 @@ final class ImageCache {
     static let shared = ImageCache()
 
     private let images = NSCache<NSString, NSImage>()
-    /// Average luminance (0 dark … 1 white) per cached URL, for balancing ambient shadows.
-    private var luminances: [String: CGFloat] = [:]
+    /// Average colour per cached URL, for balancing ambient shadows and tinting the platter.
+    private var averages: [String: (r: CGFloat, g: CGFloat, b: CGFloat)] = [:]
     /// base key → URLs of the variants currently cached.
     private var variants: [String: [URL]] = [:]
     private var inflight: [URL: Task<NSImage?, Never>] = [:]
@@ -32,7 +33,19 @@ final class ImageCache {
 
     /// How bright the artwork is overall, when we've seen it (falls back to mid-grey).
     func luminance(for url: URL) -> CGFloat {
-        luminances[url.absoluteString] ?? 0.5
+        guard let c = averages[url.absoluteString] else { return 0.5 }
+        return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+    }
+
+    /// The artwork's average colour with its saturation pushed, for tinting surfaces. Brightness
+    /// is kept in a middle band so the tint reads on both light and dark glass.
+    func tint(for url: URL, saturationBoost: CGFloat) -> Color? {
+        guard let c = averages[url.absoluteString] else { return nil }
+        let color = NSColor(red: c.r, green: c.g, blue: c.b, alpha: 1)
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        color.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        let adjusted = NSColor(hue: h, saturation: min(1, s * saturationBoost), brightness: min(max(b, 0.35), 0.85), alpha: 1)
+        return Color(nsColor: adjusted)
     }
 
     /// Any cached rendition of the same artwork, regardless of size.
@@ -62,13 +75,13 @@ final class ImageCache {
         let pixels = image.representations.first.map { $0.pixelsWide * $0.pixelsHigh } ?? Int(image.size.width * image.size.height)
         images.setObject(image, forKey: url.absoluteString as NSString, cost: pixels * 4)
         variants[Self.baseKey(url), default: []].append(url)
-        if let luminance = Self.averageLuminance(of: image) {
-            luminances[url.absoluteString] = luminance
+        if let average = Self.averageColor(of: image) {
+            averages[url.absoluteString] = average
         }
     }
 
-    /// Draws the image into a single pixel and reads back its relative luminance.
-    private static func averageLuminance(of image: NSImage) -> CGFloat? {
+    /// Draws the image into a single pixel and reads back its average colour.
+    private static func averageColor(of image: NSImage) -> (r: CGFloat, g: CGFloat, b: CGFloat)? {
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         var pixel = [UInt8](repeating: 0, count: 4)
         guard let context = CGContext(
@@ -78,8 +91,7 @@ final class ImageCache {
         ) else { return nil }
         context.interpolationQuality = .high
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: 1, height: 1))
-        let r = CGFloat(pixel[0]) / 255, g = CGFloat(pixel[1]) / 255, b = CGFloat(pixel[2]) / 255
-        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+        return (CGFloat(pixel[0]) / 255, CGFloat(pixel[1]) / 255, CGFloat(pixel[2]) / 255)
     }
 
     /// The URL with its size parameters removed.

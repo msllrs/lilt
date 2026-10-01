@@ -41,6 +41,14 @@ struct TweakPanel: View {
                 slider("Light comp.", shadow(\.lightCompensation), 0...1)
                 slider("Neutral base", shadow(\.baseOpacity), 0...0.6)
             }
+            Section("Now playing platter") {
+                slider("Shadow opacity", $style.platter.shadowOpacity, 0...0.6)
+                slider("Shadow radius", $style.platter.shadowRadius, 0...40)
+                slider("Shadow offset", $style.platter.shadowOffsetY, 0...24)
+                slider("Border", $style.platter.borderOpacity, 0...0.4)
+                slider("Tint opacity", $style.platter.tintOpacity, 0...1)
+                slider("Tint saturation", $style.platter.tintSaturation, 0...4)
+            }
             Section {
                 HStack {
                     Button("Reset") { style.reset() }
@@ -59,7 +67,7 @@ struct TweakPanel: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 360, height: 700)
+        .frame(width: 360, height: 860)
     }
 
     /// A binding into the shadow preset currently selected in the segmented control.
