@@ -36,16 +36,8 @@ struct BrowseScreen: View {
     /// Back button, plus a compact artwork/title/artist that fades in as the hero scrolls out.
     private var navigationHeader: some View {
         HStack(spacing: Theme.Space.sm) {
-            Button {
-                navigation.pop()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 28, height: 28)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.pressable(scale: 0.88))
-            .keyboardShortcut("[", modifiers: .command)
+            // Slot for the back button, which the navigation column draws statically on top.
+            Color.clear.frame(width: 28, height: 28)
 
             if let page = page ?? Optional(BrowsePage(item: item)) {
                 HStack(spacing: Theme.Space.sm) {

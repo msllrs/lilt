@@ -54,9 +54,36 @@ private struct NavigationColumn: View {
             }
         }
         .animation(Self.enter, value: path)
+        // The back button stays put while pages slide beneath it; it only fades in and out.
+        .overlay(alignment: .topLeading) {
+            if !path.isEmpty {
+                BackButton()
+                    .padding(.top, Theme.Space.panelInset)
+                    .padding(.leading, Theme.Space.panelInset)
+                    .transition(.opacity.animation(Self.enter))
+            }
+        }
         .onChange(of: path.last?.id, initial: true) { _, top in
             scrollTracker.activeKey = top ?? ScrollTracker.searchKey
         }
+    }
+}
+
+private struct BackButton: View {
+    @Environment(NavigationModel.self) private var navigation
+
+    var body: some View {
+        Button {
+            navigation.pop()
+        } label: {
+            Image(systemName: "chevron.left")
+                .font(.body.weight(.semibold))
+                .frame(width: 28, height: 28)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.pressable(scale: 0.88))
+        .keyboardShortcut("[", modifiers: .command)
+        .help("Back")
     }
 }
 
