@@ -1,0 +1,69 @@
+import SwiftUI
+
+/// A clock button beside the search field that drops down recently played tracks and recently
+/// opened pages.
+struct RecentsMenu: View {
+    @Environment(RecentsStore.self) private var recents
+    @Environment(PlayerService.self) private var player
+    @Environment(NavigationModel.self) private var navigation
+
+    var body: some View {
+        Menu {
+            if !recents.played.isEmpty {
+                Section("Recently played") {
+                    ForEach(recents.played) { track in
+                        Button {
+                            player.play([track], startingAt: 0)
+                        } label: {
+                            label(title: track.title, subtitle: track.artist, artwork: track.artworkURL, fallback: "music.note")
+                        }
+                    }
+                }
+            }
+            if !recents.viewed.isEmpty {
+                Section("Recently viewed") {
+                    ForEach(recents.viewed) { item in
+                        Button {
+                            navigation.open(item)
+                        } label: {
+                            label(
+                                title: item.title,
+                                subtitle: item.subtitle,
+                                artwork: item.artworkURL,
+                                fallback: item.kind == .artist ? "person.crop.circle" : "square.stack"
+                            )
+                        }
+                    }
+                }
+            }
+            if recents.isEmpty {
+                Text("Nothing yet")
+            } else {
+                Divider()
+                Button("Clear Recents", role: .destructive) { recents.clear() }
+            }
+        } label: {
+            Image(systemName: "clock")
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
+                .contentShape(Circle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Recents")
+    }
+
+    /// Menus render the label's image as the item icon, so use cached artwork when we have it.
+    @ViewBuilder
+    private func label(title: String, subtitle: String, artwork: URL?, fallback: String) -> some View {
+        let text = subtitle.isEmpty ? title : "\(title) — \(subtitle)"
+        if let artwork, let image = ImageCache.shared.cached(artwork) ?? ImageCache.shared.anyVariant(for: artwork) {
+            Label { Text(text) } icon: { Image(nsImage: image) }
+        } else {
+            Label(text, systemImage: fallback)
+        }
+    }
+}

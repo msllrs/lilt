@@ -39,6 +39,8 @@ final class PlayerService {
     let bridge: PlayerBridge
     /// Looks up artist/album ids for a track that arrived without them. Wired by the app.
     @ObservationIgnored var linkResolver: ((String) async throws -> TrackLinks?)?
+    /// Receives every track that starts, for the recents menu. Wired by the app.
+    @ObservationIgnored weak var recents: RecentsStore?
     @ObservationIgnored private var resolvingLinksFor: String?
 
     /// True between asking the web view to load a track and seeing state for that track.
@@ -168,6 +170,7 @@ final class PlayerService {
         isLoading = true
         wantsAutoplayNudge = true
         bridge.load(videoId: queue[index].id)
+        recents?.recordPlayed(queue[index])
         save()
     }
 

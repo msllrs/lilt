@@ -10,6 +10,8 @@ final class NavigationModel {
 
     var query: String { didSet { save() } }
     var path: [BrowseItem] { didSet { save() } }
+    /// Receives every page opened, for the recents menu. Wired by the app.
+    @ObservationIgnored weak var recents: RecentsStore?
 
     private struct Saved: Codable {
         var query: String
@@ -39,6 +41,7 @@ final class NavigationModel {
             return
         }
         path.append(item)
+        recents?.recordViewed(item)
     }
 
     func pop() {

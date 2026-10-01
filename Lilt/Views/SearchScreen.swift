@@ -23,11 +23,14 @@ struct SearchScreen: View {
             // A safe-area *bar* (not inset): results scroll beneath it and the system draws its
             // progressive scroll-edge blur under the field.
             .safeAreaBar(edge: .top, spacing: 0) {
-                SearchField(text: $navigation.query)
-                    .padding(.top, Theme.Space.panelInset)
-                    .padding(.horizontal, Theme.Space.panelInset)
-                    .padding(.bottom, Theme.Space.sm)
-                    .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
+                HStack(spacing: Theme.Space.xs) {
+                    SearchField(text: $navigation.query)
+                    RecentsMenu()
+                }
+                .padding(.top, Theme.Space.panelInset)
+                .padding(.horizontal, Theme.Space.panelInset)
+                .padding(.bottom, Theme.Space.sm)
+                .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
             }
             .task(id: navigation.query) { await search() }
     }

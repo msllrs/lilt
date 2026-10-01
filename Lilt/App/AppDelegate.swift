@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private(set) lazy var music = YTMusicClient(auth: auth)
     let navigation = NavigationModel()
     let scrollTracker = ScrollTracker()
+    let recents = RecentsStore()
 
     private var panel: PanelWindow?
     private var loginWindow: NSWindow?
@@ -15,6 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         player.linkResolver = { [music] videoId in try await music.links(forVideoId: videoId) }
+        player.recents = recents
+        navigation.recents = recents
         makePanel()
         showPanel()
         observeLoginPresentation()
@@ -129,6 +132,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .environment(music)
             .environment(navigation)
             .environment(scrollTracker)
+            .environment(recents)
         let hosting = NSHostingView(rootView: root)
         hosting.sizingOptions = []
 
