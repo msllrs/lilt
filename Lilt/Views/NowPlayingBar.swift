@@ -78,7 +78,11 @@ struct NowPlayingBar: View {
                 }
             }
             .opacity(glassVisibility)
+            // The blurred fill is laid out larger than the platter; clipping hides that but
+            // doesn't stop it stealing clicks from the row above. Decoration never takes hits.
+            .allowsHitTesting(false)
         }
+        .contentShape(shape)
         // Border slider scales the rim; 0.10 default reads as a subtle glass edge.
         .glassEdge(shape, opacity: min(platter.borderOpacity * 6, 1) * glassVisibility)
         .animation(Theme.Motion.quick, value: glassVisibility)
