@@ -122,6 +122,7 @@ final class ArtworkStyle {
         rowShadow = \(snippet(rowShadow))
         playerShadow = \(snippet(playerShadow))
         heroShadow = \(snippet(heroShadow))
+        headerShadow = \(snippet(headerShadow))
         """
     }
 
