@@ -187,7 +187,6 @@ struct BrowseScreen: View {
                 size: 140,
                 radius: page.item.kind == .artist ? 70 : Theme.Radius.standalone
             )
-            .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
             VStack(spacing: 2) {
                 Text(page.item.title)
                     .font(.title3.weight(.semibold))

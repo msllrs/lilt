@@ -37,6 +37,16 @@ final class ArtworkStyle {
     var borderOpacity: Double = 0.20
     var borderBlend: ArtworkBlend = .normal
 
+    // Ambient shadow: a blurred, saturated copy of the artwork behind it, so the shadow carries
+    // the cover's own colours. Fractions are relative to the artwork size.
+    var shadowOpacity: Double = 0.45
+    var shadowBlur: Double = 0.16
+    var shadowOffsetY: Double = 0.08
+    var shadowSpread: Double = 0.92
+    var shadowSaturation: Double = 1.4
+    /// Artwork smaller than this gets no shadow (row thumbnails stay crisp).
+    var shadowMinSize: Double = 44
+
     /// Tuned by Matt in the tweak panel on 2026-10-01.
     func reset() {
         spotlightCenterX = 0.5
@@ -47,6 +57,12 @@ final class ArtworkStyle {
         borderWidth = 1
         borderOpacity = 0.20
         borderBlend = .normal
+        shadowOpacity = 0.45
+        shadowBlur = 0.16
+        shadowOffsetY = 0.08
+        shadowSpread = 0.92
+        shadowSaturation = 1.4
+        shadowMinSize = 44
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -60,6 +76,12 @@ final class ArtworkStyle {
         borderWidth = \(f(borderWidth))
         borderOpacity = \(f(borderOpacity))
         borderBlend = .\(borderBlend.rawValue)
+        shadowOpacity = \(f(shadowOpacity))
+        shadowBlur = \(f(shadowBlur))
+        shadowOffsetY = \(f(shadowOffsetY))
+        shadowSpread = \(f(shadowSpread))
+        shadowSaturation = \(f(shadowSaturation))
+        shadowMinSize = \(f(shadowMinSize))
         """
     }
 

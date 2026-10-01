@@ -18,14 +18,32 @@ struct ArtworkView: View {
         AsyncImage(url: url) { phase in
             if let image = phase.image {
                 image.resizable().aspectRatio(contentMode: .fill)
+                    .frame(width: size, height: size)
                     .overlay(spotlight)
                     .overlay(insetBorder)
+                    .clipShape(shape)
+                    .background { ambientShadow(image) }
             } else {
                 placeholder
             }
         }
         .frame(width: size, height: size)
-        .clipShape(shape)
+    }
+
+    /// The artwork's own colours, blurred and pushed down behind it. Spills past the frame on
+    /// purpose; that's what a shadow does.
+    @ViewBuilder
+    private func ambientShadow(_ image: Image) -> some View {
+        if size >= style.shadowMinSize, style.shadowOpacity > 0 {
+            image.resizable().aspectRatio(contentMode: .fill)
+                .frame(width: size * style.shadowSpread, height: size * style.shadowSpread)
+                .clipShape(shape)
+                .saturation(style.shadowSaturation)
+                .blur(radius: size * style.shadowBlur)
+                .opacity(style.shadowOpacity)
+                .offset(y: size * style.shadowOffsetY)
+                .allowsHitTesting(false)
+        }
     }
 
     private var style: ArtworkStyle { .shared }

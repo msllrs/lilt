@@ -158,7 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func showTweakPanel() {
         if tweakWindow == nil {
             let window = NSPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 360, height: 460),
+                contentRect: NSRect(x: 0, y: 0, width: 360, height: 640),
                 styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
                 backing: .buffered,
                 defer: false

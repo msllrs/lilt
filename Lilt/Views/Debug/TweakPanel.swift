@@ -27,6 +27,14 @@ struct TweakPanel: View {
                     ForEach(ArtworkBlend.allCases) { Text($0.rawValue).tag($0) }
                 }
             }
+            Section("Ambient shadow") {
+                slider("Opacity", $style.shadowOpacity, 0...1)
+                slider("Blur", $style.shadowBlur, 0...0.5)
+                slider("Offset Y", $style.shadowOffsetY, -0.2...0.4)
+                slider("Spread", $style.shadowSpread, 0.5...1.2)
+                slider("Saturation", $style.shadowSaturation, 0...3)
+                slider("Min size", $style.shadowMinSize, 0...160)
+            }
             Section {
                 HStack {
                     Button("Reset") { style.reset() }
@@ -45,7 +53,7 @@ struct TweakPanel: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 360)
+        .frame(width: 360, height: 640)
     }
 
     private func slider(_ label: String, _ value: Binding<Double>, _ range: ClosedRange<Double>) -> some View {
