@@ -106,9 +106,9 @@ struct NowPlayingBar: View {
 
     /// Elapsed on the left, the line in the middle, total on the right.
     private var scrubber: some View {
-        HStack(spacing: Theme.Space.sm) {
+        HStack(spacing: Theme.Space.xs + 2) {
             Text(timeString(isScrubbing ? scrubValue : player.currentTime))
-                .frame(width: 34, alignment: .leading)
+                .fixedSize()
             Scrubber(
                 value: .constant(isScrubbing ? scrubValue : player.currentTime),
                 range: 0...max(player.duration, 1),
@@ -129,7 +129,7 @@ struct NowPlayingBar: View {
             .frame(height: 12)
             .overlay(alignment: .leading) { glassKnob }
             Text(timeString(player.duration))
-                .frame(width: 34, alignment: .trailing)
+                .fixedSize()
         }
         .font(.caption2.monospacedDigit())
         .foregroundStyle(.tertiary)
