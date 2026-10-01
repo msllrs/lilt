@@ -69,8 +69,12 @@ struct ArtworkView: View {
             isStandIn = false
             return
         }
-        if image == nil, let variant = ImageCache.shared.anyVariant(for: url) {
+        if let variant = ImageCache.shared.anyVariant(for: url) {
             image = variant
+            isStandIn = true
+        } else if image != nil {
+            // Nothing cached for the new URL: keep the previous picture, blurred, rather than
+            // dropping to the placeholder while the real one loads.
             isStandIn = true
         }
         guard let loaded = await ImageCache.shared.load(url), !Task.isCancelled else { return }

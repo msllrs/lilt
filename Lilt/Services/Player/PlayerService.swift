@@ -23,9 +23,18 @@ final class PlayerService {
     }
     var hasNext: Bool { currentIndex.map { $0 + 1 < queue.count } ?? false }
     var hasPrevious: Bool { currentIndex.map { $0 > 0 } ?? false }
-    var displayTitle: String { liveTitle.isEmpty ? (current?.title ?? "") : liveTitle }
-    var displayArtist: String { liveArtist.isEmpty ? (current?.artist ?? "") : liveArtist }
-    var displayArtworkURL: URL? { liveArtworkURL ?? current?.artworkURL }
+    // The queued track is the source of truth for what's shown: it's correct the instant you
+    // click and its artwork is already cached. The web player's metadata lags a beat behind a
+    // track change and serves a different image size, so it's only a fallback.
+    var displayTitle: String {
+        if let title = current?.title, !title.isEmpty { return title }
+        return liveTitle
+    }
+    var displayArtist: String {
+        if let artist = current?.artist, !artist.isEmpty { return artist }
+        return liveArtist
+    }
+    var displayArtworkURL: URL? { current?.artworkURL ?? liveArtworkURL }
 
     let bridge: PlayerBridge
     /// Looks up artist/album ids for a track that arrived without them. Wired by the app.
