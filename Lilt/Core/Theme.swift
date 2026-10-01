@@ -27,10 +27,11 @@ enum Theme {
         static let panel: CGFloat = window - Space.panelInset   // 16
         /// Row highlight, inset by `rowInset`.
         static let row: CGFloat = window - Space.rowInset       // 20
-        /// Artwork inside a row (row radius minus the row's horizontal padding).
-        static let rowArtwork: CGFloat = row - Space.sm         // 12
-        /// Artwork inside the bar.
-        static let barArtwork: CGFloat = panel - Space.barPadding // 6
+        /// Artwork is a sleeve, not a nested panel: it keeps one proportional roundness wherever
+        /// it appears instead of inheriting its container's corner.
+        static func artwork(_ size: CGFloat) -> CGFloat { (size * 0.2).rounded() }
+        static let rowArtwork: CGFloat = artwork(Size.rowArtwork)   // 8
+        static let barArtwork: CGFloat = artwork(Size.barArtwork)   // 10
         /// Free-standing shapes not nested in anything.
         static let standalone: CGFloat = 16
     }

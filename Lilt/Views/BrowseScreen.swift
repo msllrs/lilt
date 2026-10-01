@@ -72,7 +72,7 @@ struct BrowseScreen: View {
     /// The compact artwork doubles as a play button once the hero's own Play has scrolled away.
     private func compactArtwork(_ page: BrowsePage) -> some View {
         let isArtist = page.item.kind == .artist
-        let radius: CGFloat = isArtist ? 14 : 6
+        let radius: CGFloat = isArtist ? 14 : Theme.Radius.artwork(28)
         return Button {
             player.play(page.tracks, startingAt: 0)
         } label: {
