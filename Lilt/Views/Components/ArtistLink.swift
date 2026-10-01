@@ -10,6 +10,7 @@ struct ArtistLink: View {
     var color: Color = .secondary
 
     @Environment(NavigationModel.self) private var navigation
+    @Environment(YTMusicClient.self) private var music
     @State private var isHovering = false
 
     var body: some View {
@@ -24,7 +25,10 @@ struct ArtistLink: View {
                     .lineLimit(1)
             }
             .buttonStyle(.plain)
-            .onHover { isHovering = $0 }
+            .onHover { hovering in
+                isHovering = hovering
+                if hovering { Task { _ = try? await music.page(for: item) } }
+            }
             .help(name)
         } else {
             Text(name)

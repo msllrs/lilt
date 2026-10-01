@@ -25,34 +25,43 @@ struct RootView: View {
 /// few points, fading, and back out the same way.
 private struct NavigationColumn: View {
     @Environment(NavigationModel.self) private var navigation
+    @Environment(ScrollTracker.self) private var scrollTracker
 
     /// How far a screen travels while entering or leaving.
-    private static let travel: CGFloat = 28
+    private static let travel: CGFloat = 20
+    /// The outgoing screen gets out of the way faster than the incoming one arrives, so the two
+    /// never read as a double exposure on the glass.
+    private static let exit: Animation = .easeOut(duration: 0.12)
+    private static let enter: Animation = .easeOut(duration: 0.2)
 
     var body: some View {
         let path = navigation.path
         ZStack {
             SearchScreen()
-                .parked(path.isEmpty ? nil : .leading, travel: Self.travel)
+                .parked(path.isEmpty ? nil : .leading, travel: Self.travel, animation: Self.exit, value: path)
             ForEach(Array(path.enumerated()), id: \.element.id) { index, item in
                 let isTop = index == path.count - 1
                 BrowseScreen(item: item)
-                    .parked(isTop ? nil : .leading, travel: Self.travel)
-                    .transition(.offset(x: Self.travel).combined(with: .opacity))
+                    .parked(isTop ? nil : .leading, travel: Self.travel, animation: Self.exit, value: path)
+                    .transition(.offset(x: Self.travel).combined(with: .opacity).animation(Self.enter))
             }
         }
-        .animation(Theme.Motion.standard, value: path)
+        .animation(Self.enter, value: path)
+        .onChange(of: path.last?.id, initial: true) { _, top in
+            scrollTracker.activeKey = top ?? ScrollTracker.searchKey
+        }
     }
 }
 
 private extension View {
     /// Keeps a screen mounted but slid aside and inert while another one is on top.
     @ViewBuilder
-    func parked(_ edge: HorizontalEdge?, travel: CGFloat) -> some View {
+    func parked<V: Equatable>(_ edge: HorizontalEdge?, travel: CGFloat, animation: Animation, value: V) -> some View {
         let parked = edge != nil
         self
             .offset(x: edge == .leading ? -travel : edge == .trailing ? travel : 0)
             .opacity(parked ? 0 : 1)
+            .animation(animation, value: value)
             .allowsHitTesting(!parked)
             .accessibilityHidden(parked)
     }

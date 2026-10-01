@@ -5,6 +5,7 @@ struct BrowseScreen: View {
     @Environment(YTMusicClient.self) private var music
     @Environment(PlayerService.self) private var player
     @Environment(NavigationModel.self) private var navigation
+    @Environment(ScrollTracker.self) private var scrollTracker
 
     let item: BrowseItem
 
@@ -46,7 +47,7 @@ struct BrowseScreen: View {
             .buttonStyle(.plain)
             .keyboardShortcut("[", modifiers: .command)
 
-            if let page {
+            if let page = page ?? Optional(BrowsePage(item: item)) {
                 HStack(spacing: Theme.Space.sm) {
                     compactArtwork(page)
                     VStack(alignment: .leading, spacing: 0) {
@@ -103,24 +104,28 @@ struct BrowseScreen: View {
         .help("Play")
     }
 
-    @ViewBuilder
+    /// The header renders straight away from what the tapped row already knew; only the body
+    /// waits for the network.
     private var content: some View {
-        switch phase {
-        case .loading:
-            ProgressView()
-                .controlSize(.small)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .failed(let message):
-            EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load", detail: message)
-        case .loaded:
-            if let page { pageBody(page) }
-        }
+        pageBody(page ?? BrowsePage(item: item))
     }
 
     private func pageBody(_ page: BrowsePage) -> some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 header(page)
+                switch phase {
+                case .loading:
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, Theme.Space.xl)
+                case .failed(let message):
+                    EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load", detail: message)
+                        .padding(.top, Theme.Space.xl)
+                case .loaded:
+                    EmptyView()
+                }
                 if !page.tracks.isEmpty {
                     SectionHeader(page.item.kind == .artist ? "Top songs" : "Tracks")
                     TrackRows(tracks: page.tracks)
@@ -149,6 +154,7 @@ struct BrowseScreen: View {
             )
         } action: { _, metrics in
             scrollOffset = metrics.offset
+            scrollTracker.report(remainingBelow: metrics.remainingBelow, for: item.id)
 
             // How far the list could scroll on its own, before our padding.
             let naturalRange = metrics.contentHeight - extraBottom - metrics.visibleHeight
@@ -171,11 +177,6 @@ struct BrowseScreen: View {
         }
     }
 
-    private struct ScrollMetrics: Equatable {
-        var offset: CGFloat
-        var contentHeight: CGFloat
-        var visibleHeight: CGFloat
-    }
 
     /// Eases in and out instead of snapping at the ends.
     private static func smoothstep(_ t: CGFloat) -> CGFloat {

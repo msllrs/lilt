@@ -3,6 +3,15 @@ import SwiftUI
 struct NowPlayingBar: View {
     @Environment(PlayerService.self) private var player
     @Environment(NavigationModel.self) private var navigation
+    @Environment(ScrollTracker.self) private var scrollTracker
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous) }
+
+    /// 0 when nothing scrolls beneath the platter, 1 once rows are passing under it.
+    private var glassVisibility: CGFloat {
+        min(max(scrollTracker.activeRemainingBelow / 24, 0), 1)
+    }
 
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
@@ -35,7 +44,21 @@ struct NowPlayingBar: View {
             }
         }
         .padding(Theme.Space.barPadding)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
+        .background {
+            // Glass only earns its place when there's content to blur beneath it.
+            Color.clear
+                .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
+                .opacity(glassVisibility)
+        }
+        .overlay {
+            // A hairline edge keeps the platter's shape when the glass is off.
+            shape.strokeBorder(
+                (colorScheme == .dark ? Color.white : Color.black)
+                    .opacity((colorScheme == .dark ? 0.14 : 0.08) * (0.6 + 0.4 * glassVisibility)),
+                lineWidth: 1
+            )
+        }
+        .animation(Theme.Motion.quick, value: glassVisibility)
     }
 
     /// Artwork opens the album when we know which one it is.

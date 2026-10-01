@@ -3,6 +3,7 @@ import SwiftUI
 /// Your YouTube Music home feed, shown when the search field is empty.
 struct HomeScreen: View {
     @Environment(YTMusicClient.self) private var music
+    @Environment(ScrollTracker.self) private var scrollTracker
 
     private enum Phase: Equatable {
         case loading
@@ -53,10 +54,15 @@ struct HomeScreen: View {
         }
         .scrollIndicators(.never)
         .scrollEdgeEffectStyle(.soft, for: .all)
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.contentOffset.y + geometry.contentInsets.top
-        } action: { _, offset in
-            scrollOffset = offset
+        .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
+            ScrollMetrics(
+                offset: geometry.contentOffset.y + geometry.contentInsets.top,
+                contentHeight: geometry.contentSize.height,
+                visibleHeight: geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
+            )
+        } action: { _, metrics in
+            scrollOffset = metrics.offset
+            scrollTracker.report(remainingBelow: metrics.remainingBelow, for: ScrollTracker.searchKey)
         }
     }
 

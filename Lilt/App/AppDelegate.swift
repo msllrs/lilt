@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private(set) lazy var player = PlayerService(auth: auth)
     private(set) lazy var music = YTMusicClient(auth: auth)
     let navigation = NavigationModel()
+    let scrollTracker = ScrollTracker()
 
     private var panel: PanelWindow?
     private var loginWindow: NSWindow?
@@ -123,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .environment(player)
             .environment(music)
             .environment(navigation)
+            .environment(scrollTracker)
         let hosting = NSHostingView(rootView: root)
         hosting.sizingOptions = []
 

@@ -54,7 +54,7 @@ struct ArtworkView: View {
         picture.resizable().aspectRatio(contentMode: .fill)
             .frame(width: size, height: size)
             // A stand-in is a different size; blur hides the resampling until the real one lands.
-            .blur(radius: isStandIn ? size * 0.06 : 0)
+            .blur(radius: isStandIn ? size * 0.12 : 0)
             .overlay(spotlight)
             .overlay(insetBorder)
             .clipShape(shape)

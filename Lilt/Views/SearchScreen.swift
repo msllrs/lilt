@@ -4,6 +4,7 @@ struct SearchScreen: View {
     @Environment(AuthService.self) private var auth
     @Environment(YTMusicClient.self) private var music
     @Environment(NavigationModel.self) private var navigation
+    @Environment(ScrollTracker.self) private var scrollTracker
 
     private enum Phase: Equatable {
         case idle
@@ -47,6 +48,7 @@ struct SearchScreen: View {
                 EmptyHint(symbol: "exclamationmark.triangle", title: "Something went wrong", detail: message)
             case .loaded where results.isEmpty:
                 EmptyHint(symbol: "music.note", title: "Nothing found", detail: "Try a different search.")
+                    .onAppear { scrollTracker.report(remainingBelow: 0, for: ScrollTracker.searchKey) }
             case .loaded:
                 resultsList
             }
@@ -73,10 +75,15 @@ struct SearchScreen: View {
         }
         .scrollIndicators(.never)
         .scrollEdgeEffectStyle(.soft, for: .all)
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.contentOffset.y + geometry.contentInsets.top
-        } action: { _, offset in
-            scrollOffset = offset
+        .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
+            ScrollMetrics(
+                offset: geometry.contentOffset.y + geometry.contentInsets.top,
+                contentHeight: geometry.contentSize.height,
+                visibleHeight: geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
+            )
+        } action: { _, metrics in
+            scrollOffset = metrics.offset
+            scrollTracker.report(remainingBelow: metrics.contentHeight - metrics.visibleHeight - metrics.offset, for: ScrollTracker.searchKey)
         }
     }
 

@@ -5,6 +5,7 @@ struct BrowseRow: View {
     let item: BrowseItem
 
     @Environment(NavigationModel.self) private var navigation
+    @Environment(YTMusicClient.self) private var music
     @State private var isHovering = false
 
     var body: some View {
@@ -40,6 +41,8 @@ struct BrowseRow: View {
         .buttonStyle(.plain)
         .onHover { hovering in
             withAnimation(Theme.Motion.quick) { isHovering = hovering }
+            // Warm the cache so the page is ready by the time it's clicked.
+            if hovering { Task { _ = try? await music.page(for: item) } }
         }
     }
 
