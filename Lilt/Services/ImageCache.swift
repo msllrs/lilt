@@ -50,6 +50,23 @@ final class ImageCache {
             ?? 0.5
     }
 
+    private var thumbnails: [String: NSImage] = [:]
+
+    /// A small rounded rendition for menu items, which otherwise draw images at native size.
+    func thumbnail(for url: URL, side: CGFloat = 16, radius: CGFloat = 3) -> NSImage? {
+        let key = "\(url.absoluteString)#\(Int(side))"
+        if let hit = thumbnails[key] { return hit }
+        guard let source = cached(url) ?? anyVariant(for: url) else { return nil }
+        let size = NSSize(width: side, height: side)
+        let thumb = NSImage(size: size, flipped: false) { rect in
+            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).addClip()
+            source.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+            return true
+        }
+        thumbnails[key] = thumb
+        return thumb
+    }
+
     /// Warm the cache for artwork that's about to appear, so rows render on their first frame
     /// instead of popping in one by one.
     func prefetch(_ urls: [URL?]) {

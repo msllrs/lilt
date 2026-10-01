@@ -60,8 +60,8 @@ struct RecentsMenu: View {
     @ViewBuilder
     private func label(title: String, subtitle: String, artwork: URL?, fallback: String) -> some View {
         let text = subtitle.isEmpty ? title : "\(title) — \(subtitle)"
-        if let artwork, let image = ImageCache.shared.cached(artwork) ?? ImageCache.shared.anyVariant(for: artwork) {
-            Label { Text(text) } icon: { Image(nsImage: image) }
+        if let artwork, let thumb = ImageCache.shared.thumbnail(for: artwork) {
+            Label { Text(text) } icon: { Image(nsImage: thumb) }
         } else {
             Label(text, systemImage: fallback)
         }
