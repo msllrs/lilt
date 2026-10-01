@@ -41,7 +41,7 @@ struct NowPlayingBar: View {
     /// Artwork opens the album when we know which one it is.
     @ViewBuilder
     private var artwork: some View {
-        let view = ArtworkView(url: player.displayArtworkURL, size: Theme.Size.barArtwork, radius: Theme.Radius.barArtwork)
+        let view = ArtworkView(url: player.displayArtworkURL, size: Theme.Size.barArtwork, radius: Theme.Radius.barArtwork, context: .player)
         if let album = player.current?.albumItem {
             Button { navigation.open(album) } label: { view }
                 .buttonStyle(.plain)

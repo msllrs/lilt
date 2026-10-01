@@ -8,16 +8,19 @@ struct ArtworkView: View {
     let url: URL?
     let size: CGFloat
     let radius: CGFloat
+    /// Picks the shadow preset (rows, player, pages).
+    var context: ArtworkContext = .row
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var image: NSImage?
     /// True while `image` is a stand-in rendition at another size.
     @State private var isStandIn = false
 
-    init(url: URL?, size: CGFloat, radius: CGFloat) {
+    init(url: URL?, size: CGFloat, radius: CGFloat, context: ArtworkContext = .row) {
         self.url = url
         self.size = size
         self.radius = radius
+        self.context = context
         // Seed synchronously so a cache hit renders on the first frame.
         let seed = MainActor.assumeIsolated { () -> (NSImage?, Bool) in
             guard let url else { return (nil, false) }
@@ -104,14 +107,15 @@ struct ArtworkView: View {
     /// purpose; that's what a shadow does.
     @ViewBuilder
     private func ambientShadow(_ picture: Image) -> some View {
-        if size >= style.shadowMinSize, style.shadowOpacity > 0 {
+        let shadow = style.shadow(for: context)
+        if shadow.opacity > 0 {
             picture.resizable().aspectRatio(contentMode: .fill)
-                .frame(width: size * style.shadowSpread, height: size * style.shadowSpread)
+                .frame(width: size * shadow.spread, height: size * shadow.spread)
                 .clipShape(shape)
-                .saturation(style.shadowSaturation)
-                .blur(radius: size * style.shadowBlur)
-                .opacity(style.shadowOpacity)
-                .offset(y: size * style.shadowOffsetY)
+                .saturation(shadow.saturation)
+                .blur(radius: size * shadow.blur)
+                .opacity(shadow.opacity)
+                .offset(y: size * shadow.offsetY)
                 .allowsHitTesting(false)
         }
     }

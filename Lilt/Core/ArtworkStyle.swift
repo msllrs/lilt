@@ -17,8 +17,38 @@ enum ArtworkBlend: String, CaseIterable, Identifiable {
     }
 }
 
-/// The artwork finish: a spotlight falling from the top edge and a hairline inset border.
-/// Values are tunable live from the debug tweak panel; `reset()` holds the shipped defaults.
+/// Where a piece of artwork is shown; each context gets its own shadow preset.
+enum ArtworkContext: String, CaseIterable, Identifiable {
+    case row, player, hero
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .row: "Rows"
+        case .player: "Player"
+        case .hero: "Pages"
+        }
+    }
+}
+
+/// Ambient shadow: a blurred, saturated copy of the artwork behind it, so the shadow carries the
+/// cover's own colours. Fractions are relative to the artwork size.
+struct ShadowStyle: Equatable {
+    var opacity: Double
+    var blur: Double
+    var offsetY: Double
+    var spread: Double
+    var saturation: Double
+
+    static let none = ShadowStyle(opacity: 0, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 1)
+    /// Tuned by Matt in the tweak panel on 2026-10-01.
+    static let ambient = ShadowStyle(opacity: 0.88, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 3.0)
+}
+
+/// The artwork finish: a spotlight falling from the top edge, a hairline inset border and a
+/// per-context ambient shadow. Values are tunable live from the debug tweak panel; `reset()`
+/// holds the shipped defaults.
 @MainActor
 @Observable
 final class ArtworkStyle {
@@ -37,15 +67,25 @@ final class ArtworkStyle {
     var borderOpacity: Double = 0.20
     var borderBlend: ArtworkBlend = .normal
 
-    // Ambient shadow: a blurred, saturated copy of the artwork behind it, so the shadow carries
-    // the cover's own colours. Fractions are relative to the artwork size.
-    var shadowOpacity: Double = 0.45
-    var shadowBlur: Double = 0.16
-    var shadowOffsetY: Double = 0.08
-    var shadowSpread: Double = 0.92
-    var shadowSaturation: Double = 1.4
-    /// Artwork smaller than this gets no shadow (row thumbnails stay crisp).
-    var shadowMinSize: Double = 44
+    var rowShadow: ShadowStyle = .none
+    var playerShadow: ShadowStyle = .ambient
+    var heroShadow: ShadowStyle = .ambient
+
+    func shadow(for context: ArtworkContext) -> ShadowStyle {
+        switch context {
+        case .row: rowShadow
+        case .player: playerShadow
+        case .hero: heroShadow
+        }
+    }
+
+    func setShadow(_ shadow: ShadowStyle, for context: ArtworkContext) {
+        switch context {
+        case .row: rowShadow = shadow
+        case .player: playerShadow = shadow
+        case .hero: heroShadow = shadow
+        }
+    }
 
     /// Tuned by Matt in the tweak panel on 2026-10-01.
     func reset() {
@@ -57,12 +97,9 @@ final class ArtworkStyle {
         borderWidth = 1
         borderOpacity = 0.20
         borderBlend = .normal
-        shadowOpacity = 0.45
-        shadowBlur = 0.16
-        shadowOffsetY = 0.08
-        shadowSpread = 0.92
-        shadowSaturation = 1.4
-        shadowMinSize = 44
+        rowShadow = .none
+        playerShadow = .ambient
+        heroShadow = .ambient
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -76,13 +113,14 @@ final class ArtworkStyle {
         borderWidth = \(f(borderWidth))
         borderOpacity = \(f(borderOpacity))
         borderBlend = .\(borderBlend.rawValue)
-        shadowOpacity = \(f(shadowOpacity))
-        shadowBlur = \(f(shadowBlur))
-        shadowOffsetY = \(f(shadowOffsetY))
-        shadowSpread = \(f(shadowSpread))
-        shadowSaturation = \(f(shadowSaturation))
-        shadowMinSize = \(f(shadowMinSize))
+        rowShadow = \(snippet(rowShadow))
+        playerShadow = \(snippet(playerShadow))
+        heroShadow = \(snippet(heroShadow))
         """
+    }
+
+    private func snippet(_ s: ShadowStyle) -> String {
+        "ShadowStyle(opacity: \(f(s.opacity)), blur: \(f(s.blur)), offsetY: \(f(s.offsetY)), spread: \(f(s.spread)), saturation: \(f(s.saturation)))"
     }
 
     private func f(_ value: Double) -> String { String(format: "%.2f", value) }

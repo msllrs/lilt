@@ -6,6 +6,7 @@ import SwiftUI
 /// "Copy values" puts a Swift snippet on the clipboard to paste back into `ArtworkStyle.reset()`.
 struct TweakPanel: View {
     @State private var style = ArtworkStyle.shared
+    @State private var shadowContext: ArtworkContext = .player
     @State private var copied = false
 
     var body: some View {
@@ -28,12 +29,15 @@ struct TweakPanel: View {
                 }
             }
             Section("Ambient shadow") {
-                slider("Opacity", $style.shadowOpacity, 0...1)
-                slider("Blur", $style.shadowBlur, 0...0.5)
-                slider("Offset Y", $style.shadowOffsetY, -0.2...0.4)
-                slider("Spread", $style.shadowSpread, 0.5...1.2)
-                slider("Saturation", $style.shadowSaturation, 0...3)
-                slider("Min size", $style.shadowMinSize, 0...160)
+                Picker("For", selection: $shadowContext) {
+                    ForEach(ArtworkContext.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                slider("Opacity", shadow(\.opacity), 0...1)
+                slider("Blur", shadow(\.blur), 0...0.5)
+                slider("Offset Y", shadow(\.offsetY), -0.2...0.4)
+                slider("Spread", shadow(\.spread), 0.5...1.2)
+                slider("Saturation", shadow(\.saturation), 0...6)
             }
             Section {
                 HStack {
@@ -54,6 +58,18 @@ struct TweakPanel: View {
         }
         .formStyle(.grouped)
         .frame(width: 360, height: 640)
+    }
+
+    /// A binding into the shadow preset currently selected in the segmented control.
+    private func shadow(_ keyPath: WritableKeyPath<ShadowStyle, Double>) -> Binding<Double> {
+        Binding(
+            get: { style.shadow(for: shadowContext)[keyPath: keyPath] },
+            set: { value in
+                var shadow = style.shadow(for: shadowContext)
+                shadow[keyPath: keyPath] = value
+                style.setShadow(shadow, for: shadowContext)
+            }
+        )
     }
 
     private func slider(_ label: String, _ value: Binding<Double>, _ range: ClosedRange<Double>) -> some View {

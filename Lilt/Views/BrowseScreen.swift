@@ -188,7 +188,8 @@ struct BrowseScreen: View {
             ArtworkView(
                 url: page.item.artworkURL,
                 size: 140,
-                radius: page.item.kind == .artist ? 70 : Theme.Radius.standalone
+                radius: page.item.kind == .artist ? 70 : Theme.Radius.standalone,
+                context: .hero
             )
             VStack(spacing: 2) {
                 Text(page.item.title)
