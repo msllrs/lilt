@@ -105,14 +105,16 @@ final class ArtworkStyle {
     // Edge: a crisp keyline one physical pixel wide, fully inset, in a neutral picked from the
     // artwork's own perimeter luminance (no blend modes: they shift colour unpredictably), plus
     // a very faint separator just outside against the surrounding surface.
+    // Tuned by Matt on 2026-10-01: with the threshold at 0 the adaptive mode always picks the
+    // dark keyline, so this is effectively black 20% inside plus a 20% separator outside.
     var keylineMode: KeylineMode = .adaptive
     /// Physical pixels.
     var keylineWidth: Double = 1
-    var keylineDarkOpacity: Double = 0.08
-    var keylineLightOpacity: Double = 0.10
+    var keylineDarkOpacity: Double = 0.20
+    var keylineLightOpacity: Double = 0.40
     /// Perimeter luminance above which the keyline goes dark.
-    var keylineThreshold: Double = 0.72
-    var separatorOpacity: Double = 0.05
+    var keylineThreshold: Double = 0.0
+    var separatorOpacity: Double = 0.20
 
     var rowShadow: ShadowStyle = .row
     var playerShadow: ShadowStyle = .ambient
@@ -149,10 +151,10 @@ final class ArtworkStyle {
         spotlightBlend = .plusLighter
         keylineMode = .adaptive
         keylineWidth = 1
-        keylineDarkOpacity = 0.08
-        keylineLightOpacity = 0.10
-        keylineThreshold = 0.72
-        separatorOpacity = 0.05
+        keylineDarkOpacity = 0.20
+        keylineLightOpacity = 0.40
+        keylineThreshold = 0.0
+        separatorOpacity = 0.20
         rowShadow = .row
         playerShadow = .ambient
         heroShadow = .ambient
