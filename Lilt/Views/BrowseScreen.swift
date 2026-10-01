@@ -18,6 +18,7 @@ struct BrowseScreen: View {
     @State private var page: BrowsePage?
     /// How far the hero has scrolled away, 0 (at rest) to 1 (collapsed into the header).
     @State private var collapse: CGFloat = 0
+    @State private var scrollOffset: CGFloat = 0
     @State private var isHoveringCompactArtwork = false
 
     /// Scroll distance over which the hero hands off to the compact header.
@@ -68,7 +69,7 @@ struct BrowseScreen: View {
         .padding(.top, Theme.Space.panelInset)
         .padding(.horizontal, Theme.Space.panelInset)
         .padding(.bottom, Theme.Space.sm)
-        .headerBackdrop()
+        .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
     }
 
     /// The compact artwork doubles as a play button once the hero's own Play has scrolled away.
@@ -139,6 +140,7 @@ struct BrowseScreen: View {
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
             geometry.contentOffset.y + geometry.contentInsets.top
         } action: { _, offset in
+            scrollOffset = offset
             // Smoothstep so the hand-off eases in and out instead of snapping at the ends.
             let t = min(max(offset / Self.collapseDistance, 0), 1)
             collapse = t * t * (3 - 2 * t)

@@ -9,6 +9,9 @@ import SwiftUI
 struct HeaderBackdrop: ViewModifier {
     /// How far the blur reaches below the header before fading to nothing.
     var reach: CGFloat = 32
+    /// 0 while the list is at rest (nothing is under the header yet), 1 once content scrolls
+    /// beneath it. Keeps the blur off the hero artwork on an unscrolled page.
+    var visibility: CGFloat = 1
 
     func body(content: Content) -> some View {
         content.background(alignment: .top) {
@@ -27,6 +30,7 @@ struct HeaderBackdrop: ViewModifier {
                         )
                     }
                     .frame(height: geometry.size.height + reach)
+                    .opacity(visibility)
             }
             .ignoresSafeArea(edges: .top)
             .allowsHitTesting(false)
@@ -35,7 +39,14 @@ struct HeaderBackdrop: ViewModifier {
 }
 
 extension View {
-    func headerBackdrop(reach: CGFloat = 32) -> some View {
-        modifier(HeaderBackdrop(reach: reach))
+    /// - Parameter visibility: pass a value derived from scroll offset so the blur only appears
+    ///   once content is actually under the header.
+    func headerBackdrop(reach: CGFloat = 32, visibility: CGFloat = 1) -> some View {
+        modifier(HeaderBackdrop(reach: reach, visibility: visibility))
+    }
+
+    /// Maps a scroll offset to backdrop visibility: fully in after `distance` points of scroll.
+    static func backdropVisibility(forScrollOffset offset: CGFloat, distance: CGFloat = 24) -> CGFloat {
+        min(max(offset / distance, 0), 1)
     }
 }

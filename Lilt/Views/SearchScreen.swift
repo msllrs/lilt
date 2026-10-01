@@ -14,6 +14,7 @@ struct SearchScreen: View {
 
     @State private var phase: Phase = .idle
     @State private var results = SearchResults()
+    @State private var scrollOffset: CGFloat = 0
 
     var body: some View {
         @Bindable var navigation = navigation
@@ -25,7 +26,7 @@ struct SearchScreen: View {
                     .padding(.top, Theme.Space.panelInset)
                     .padding(.horizontal, Theme.Space.panelInset)
                     .padding(.bottom, Theme.Space.sm)
-                    .headerBackdrop()
+                    .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
             }
             .task(id: navigation.query) { await search() }
             .toolbar(.hidden)
@@ -73,6 +74,11 @@ struct SearchScreen: View {
         }
         .scrollIndicators(.never)
         .scrollEdgeEffectStyle(.soft, for: .all)
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top
+        } action: { _, offset in
+            scrollOffset = offset
+        }
     }
 
     @ViewBuilder
