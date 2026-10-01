@@ -202,6 +202,7 @@ struct BrowseScreen: View {
                 .buttonStyle(.plain)
                 // Interactive glass: lensing at rest, and the liquid hover/press response.
                 .glassEffect(.regular.interactive(), in: .capsule)
+                .glassEdge(Capsule())
             }
         }
         .frame(maxWidth: .infinity)

@@ -79,14 +79,8 @@ struct NowPlayingBar: View {
             }
             .opacity(glassVisibility)
         }
-        .overlay {
-            // Hairline on the outside of the shape so it never eats into the glass.
-            shape.inset(by: -0.5).stroke(
-                (colorScheme == .dark ? Color.white : Color.black)
-                    .opacity(platter.borderOpacity * (colorScheme == .dark ? 1.6 : 1) * glassVisibility),
-                lineWidth: 1
-            )
-        }
+        // Border slider scales the rim; 0.10 default reads as a subtle glass edge.
+        .glassEdge(shape, opacity: min(platter.borderOpacity * 6, 1) * glassVisibility)
         .animation(Theme.Motion.quick, value: glassVisibility)
         .animation(Theme.Motion.standard, value: player.displayArtworkURL)
     }
