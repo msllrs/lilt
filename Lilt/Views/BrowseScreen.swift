@@ -44,7 +44,7 @@ struct BrowseScreen: View {
                     .frame(width: 28, height: 28)
                     .contentShape(Circle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable(scale: 0.88))
             .keyboardShortcut("[", modifiers: .command)
 
             if let page = page ?? Optional(BrowsePage(item: item)) {
@@ -199,7 +199,7 @@ struct BrowseScreen: View {
                         .padding(.vertical, Theme.Space.sm + Theme.Space.xs)
                         .contentShape(Capsule())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
                 // Interactive glass: lensing at rest, and the liquid hover/press response.
                 .glassEffect(.regular.interactive(), in: .capsule)
                 .glassEdge(Capsule())

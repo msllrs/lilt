@@ -147,7 +147,7 @@ private struct TransportButton: View {
                 .frame(width: 36, height: 36)
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable(scale: 0.9))
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.35)
     }
