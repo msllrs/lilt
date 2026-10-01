@@ -171,6 +171,25 @@ enum SearchParser {
         return page
     }
 
+    // MARK: Track links
+
+    /// From a `next` response: the queue entry for `videoId`, whose byline runs link the artist
+    /// and album. Videos have no album and come back with just the artist.
+    static func links(from response: [String: Any], videoId: String) -> TrackLinks? {
+        let entries = JSON.findAll(key: "playlistPanelVideoRenderer", in: response)
+        guard let entry = entries.first(where: { JSON.string($0["videoId"]) == videoId })
+            ?? entries.first(where: { ($0["selected"] as? Bool) == true }) else { return nil }
+        let runs = (JSON.array(JSON.value(at: ["longBylineText", "runs"], in: entry)) ?? []).compactMap(JSON.dict)
+        let artistRun = runs.first { pageType(of: $0) == "MUSIC_PAGE_TYPE_ARTIST" }
+        let albumRun = runs.first { pageType(of: $0) == "MUSIC_PAGE_TYPE_ALBUM" }
+        return TrackLinks(
+            artist: artistRun.flatMap { JSON.string($0["text"]) },
+            artistId: artistRun.flatMap(browseId(of:)),
+            album: albumRun.flatMap { JSON.string($0["text"]) },
+            albumId: albumRun.flatMap(browseId(of:))
+        )
+    }
+
     // MARK: Home
 
     /// The signed-in home feed: each carousel becomes a section of songs and pages.

@@ -37,6 +37,16 @@ final class YTMusicClient {
         return sections
     }
 
+    /// Artist/album links for a track that arrived without them (home feed, radio continuation).
+    func links(forVideoId videoId: String) async throws -> TrackLinks? {
+        let response = try await client.post("next", body: [
+            "videoId": videoId,
+            "enablePersistentPlaylistPanel": true,
+            "isAudioOnly": true,
+        ])
+        return SearchParser.links(from: response.value, videoId: videoId)
+    }
+
     func page(for item: BrowseItem) async throws -> BrowsePage {
         if let cached = pageCache[item.id] { return cached }
         let response = try await client.post("browse", body: ["browseId": item.id])

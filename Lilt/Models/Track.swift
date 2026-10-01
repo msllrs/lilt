@@ -1,5 +1,13 @@
 import Foundation
 
+/// Artist and album links for a track, resolved from InnerTube when a row didn't carry them.
+struct TrackLinks: Sendable {
+    var artist: String?
+    var artistId: String?
+    var album: String?
+    var albumId: String?
+}
+
 struct Track: Identifiable, Hashable, Codable, Sendable {
     /// YouTube video id.
     let id: String

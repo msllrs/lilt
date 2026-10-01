@@ -28,6 +28,9 @@ final class PlayerService {
     var displayArtworkURL: URL? { liveArtworkURL ?? current?.artworkURL }
 
     let bridge: PlayerBridge
+    /// Looks up artist/album ids for a track that arrived without them. Wired by the app.
+    @ObservationIgnored var linkResolver: ((String) async throws -> TrackLinks?)?
+    @ObservationIgnored private var resolvingLinksFor: String?
 
     /// True between asking the web view to load a track and seeing state for that track.
     private var isLoading = false
@@ -204,6 +207,7 @@ final class PlayerService {
         liveArtist = s.artist
         liveArtworkURL = s.artworkURL ?? liveArtworkURL
         fillLinks(from: s)
+        resolveLinksIfNeeded()
 
         if wantsAutoplayNudge {
             if s.isPlaying {
@@ -233,6 +237,29 @@ final class PlayerService {
         guard changed else { return }
         queue[i] = track
         save()
+    }
+
+    /// The DOM doesn't always link the byline, so ask InnerTube once per track for what's missing.
+    private func resolveLinksIfNeeded() {
+        guard let track = current, track.artistId == nil || track.albumId == nil,
+              resolvingLinksFor != track.id, let linkResolver else { return }
+        resolvingLinksFor = track.id
+        Task { [weak self] in
+            guard let links = try? await linkResolver(track.id), let self else { return }
+            guard let i = self.currentIndex, self.queue.indices.contains(i), self.queue[i].id == track.id else { return }
+            var updated = self.queue[i]
+            if updated.artistId == nil, let artistId = links.artistId {
+                updated.artistId = artistId
+                if updated.artist.isEmpty, let artist = links.artist { updated.artist = artist }
+            }
+            if updated.albumId == nil, let albumId = links.albumId {
+                updated.albumId = albumId
+                if updated.album == nil { updated.album = links.album }
+            }
+            guard updated != self.queue[i] else { return }
+            self.queue[i] = updated
+            self.save()
+        }
     }
 
     /// YouTube Music moved on to a track we didn't queue (its radio continuation). Append it so

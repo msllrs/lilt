@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        player.linkResolver = { [music] videoId in try await music.links(forVideoId: videoId) }
         makePanel()
         showPanel()
         observeLoginPresentation()
