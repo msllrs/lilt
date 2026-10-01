@@ -18,12 +18,10 @@ struct BrowseScreen: View {
     @State private var page: BrowsePage?
 
     var body: some View {
-        VStack(spacing: 0) {
-            navigationHeader
-            content
-        }
-        .task(id: item.id) { await load() }
-        .toolbar(.hidden)
+        content
+            .safeAreaInset(edge: .top, spacing: 0) { navigationHeader }
+            .task(id: item.id) { await load() }
+            .toolbar(.hidden)
     }
 
     private var navigationHeader: some View {
@@ -85,7 +83,7 @@ struct BrowseScreen: View {
             .padding(.bottom, Theme.Space.sm)
         }
         .scrollIndicators(.never)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
+        .scrollEdgeEffectStyle(.soft, for: .all)
     }
 
     private func header(_ page: BrowsePage) -> some View {

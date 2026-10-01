@@ -2,22 +2,21 @@ import SwiftUI
 
 struct NowPlayingBar: View {
     @Environment(PlayerService.self) private var player
+    @Environment(NavigationModel.self) private var navigation
 
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
+    @State private var isHoveringArtist = false
 
     var body: some View {
         VStack(spacing: Theme.Space.sm) {
             HStack(spacing: Theme.Space.md) {
-                ArtworkView(url: player.displayArtworkURL, size: Theme.Size.barArtwork, radius: Theme.Radius.barArtwork)
+                artwork
                 VStack(alignment: .leading, spacing: 2) {
                     Text(player.displayTitle)
                         .font(.callout.weight(.medium))
                         .lineLimit(1)
-                    Text(player.displayArtist)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    artistLine
                 }
                 Spacer(minLength: 0)
             }
@@ -38,6 +37,40 @@ struct NowPlayingBar: View {
         }
         .padding(Theme.Space.barPadding)
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
+    }
+
+    /// Artwork opens the album when we know which one it is.
+    @ViewBuilder
+    private var artwork: some View {
+        let view = ArtworkView(url: player.displayArtworkURL, size: Theme.Size.barArtwork, radius: Theme.Radius.barArtwork)
+        if let album = player.current?.albumItem {
+            Button { navigation.open(album) } label: { view }
+                .buttonStyle(.plain)
+                .help(album.title)
+        } else {
+            view
+        }
+    }
+
+    /// Artist name opens the artist page when we know who they are.
+    @ViewBuilder
+    private var artistLine: some View {
+        if let artist = player.current?.artistItem {
+            Button { navigation.open(artist) } label: {
+                Text(player.displayArtist)
+                    .font(.caption)
+                    .foregroundStyle(isHoveringArtist ? .primary : .secondary)
+                    .underline(isHoveringArtist)
+                    .lineLimit(1)
+            }
+            .buttonStyle(.plain)
+            .onHover { isHoveringArtist = $0 }
+        } else {
+            Text(player.displayArtist)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
     }
 
     private var scrubber: some View {

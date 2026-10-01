@@ -30,6 +30,6 @@ struct TrackList: View {
             .padding(.bottom, Theme.Space.sm)
         }
         .scrollIndicators(.never)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
+        .scrollEdgeEffectStyle(.soft, for: .all)
     }
 }

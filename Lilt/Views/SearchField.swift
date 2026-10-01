@@ -26,5 +26,10 @@ struct SearchField: View {
         .padding(.vertical, Theme.Space.sm)
         .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous))
         .onAppear { isFocused = true }
+        // The panel often isn't key when this first appears; re-claim focus when it becomes key
+        // so showing the panel means you can type straight away.
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            isFocused = true
+        }
     }
 }

@@ -17,4 +17,9 @@ struct Track: Identifiable, Hashable, Codable, Sendable {
         guard let artistId else { return nil }
         return BrowseItem(id: artistId, kind: .artist, title: artist, subtitle: "Artist", artworkURL: nil)
     }
+
+    var albumItem: BrowseItem? {
+        guard let albumId else { return nil }
+        return BrowseItem(id: albumId, kind: .album, title: album ?? "", subtitle: artist, artworkURL: artworkURL)
+    }
 }

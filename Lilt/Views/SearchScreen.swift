@@ -17,15 +17,17 @@ struct SearchScreen: View {
 
     var body: some View {
         @Bindable var navigation = navigation
-        VStack(spacing: 0) {
-            SearchField(text: $navigation.query)
-                .padding(.top, Theme.Space.panelInset)
-                .padding(.horizontal, Theme.Space.panelInset)
-                .padding(.bottom, Theme.Space.sm)
-            content
-        }
-        .task(id: navigation.query) { await search() }
-        .toolbar(.hidden)
+        content
+            // In the safe area, so results scroll beneath the field and pick up the system's
+            // progressive scroll-edge blur under it.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                SearchField(text: $navigation.query)
+                    .padding(.top, Theme.Space.panelInset)
+                    .padding(.horizontal, Theme.Space.panelInset)
+                    .padding(.bottom, Theme.Space.sm)
+            }
+            .task(id: navigation.query) { await search() }
+            .toolbar(.hidden)
     }
 
     @ViewBuilder
@@ -69,7 +71,7 @@ struct SearchScreen: View {
             .padding(.bottom, Theme.Space.sm)
         }
         .scrollIndicators(.never)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
+        .scrollEdgeEffectStyle(.soft, for: .all)
     }
 
     @ViewBuilder
