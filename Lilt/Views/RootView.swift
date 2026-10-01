@@ -12,7 +12,7 @@ struct RootView: View {
                     BrowseScreen(item: item)
                 }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .safeAreaBar(edge: .bottom, spacing: 0) {
             if player.current != nil {
                 NowPlayingBar()
                     .padding(.horizontal, Theme.Space.panelInset)

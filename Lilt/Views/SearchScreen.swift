@@ -18,13 +18,14 @@ struct SearchScreen: View {
     var body: some View {
         @Bindable var navigation = navigation
         content
-            // In the safe area, so results scroll beneath the field and pick up the system's
-            // progressive scroll-edge blur under it.
-            .safeAreaInset(edge: .top, spacing: 0) {
+            // A safe-area *bar* (not inset): results scroll beneath it and the system draws its
+            // progressive scroll-edge blur under the field.
+            .safeAreaBar(edge: .top, spacing: 0) {
                 SearchField(text: $navigation.query)
                     .padding(.top, Theme.Space.panelInset)
                     .padding(.horizontal, Theme.Space.panelInset)
                     .padding(.bottom, Theme.Space.sm)
+                    .headerBackdrop()
             }
             .task(id: navigation.query) { await search() }
             .toolbar(.hidden)

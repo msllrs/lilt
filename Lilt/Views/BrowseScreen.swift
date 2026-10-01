@@ -18,13 +18,14 @@ struct BrowseScreen: View {
     @State private var page: BrowsePage?
     /// How far the hero has scrolled away, 0 (at rest) to 1 (collapsed into the header).
     @State private var collapse: CGFloat = 0
+    @State private var isHoveringCompactArtwork = false
 
     /// Scroll distance over which the hero hands off to the compact header.
     private static let collapseDistance: CGFloat = 150
 
     var body: some View {
         content
-            .safeAreaInset(edge: .top, spacing: 0) { navigationHeader }
+            .safeAreaBar(edge: .top, spacing: 0) { navigationHeader }
             .task(id: item.id) { await load() }
             .toolbar(.hidden)
     }
@@ -45,7 +46,7 @@ struct BrowseScreen: View {
 
             if let page {
                 HStack(spacing: Theme.Space.sm) {
-                    ArtworkView(url: page.item.artworkURL, size: 28, radius: page.item.kind == .artist ? 14 : 6)
+                    compactArtwork(page)
                     VStack(alignment: .leading, spacing: 0) {
                         Text(page.item.title)
                             .font(.callout.weight(.medium))
@@ -67,6 +68,34 @@ struct BrowseScreen: View {
         .padding(.top, Theme.Space.panelInset)
         .padding(.horizontal, Theme.Space.panelInset)
         .padding(.bottom, Theme.Space.sm)
+        .headerBackdrop()
+    }
+
+    /// The compact artwork doubles as a play button once the hero's own Play has scrolled away.
+    private func compactArtwork(_ page: BrowsePage) -> some View {
+        let isArtist = page.item.kind == .artist
+        let radius: CGFloat = isArtist ? 14 : 6
+        return Button {
+            player.play(page.tracks, startingAt: 0)
+        } label: {
+            ArtworkView(url: page.item.artworkURL, size: 28, radius: radius)
+                .overlay {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .fill(.black.opacity(0.45))
+                        .overlay {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        .opacity(isHoveringCompactArtwork ? 1 : 0)
+                }
+        }
+        .buttonStyle(.plain)
+        .disabled(page.tracks.isEmpty)
+        .onHover { hovering in
+            withAnimation(Theme.Motion.quick) { isHoveringCompactArtwork = hovering }
+        }
+        .help("Play")
     }
 
     @ViewBuilder
