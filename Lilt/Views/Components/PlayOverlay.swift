@@ -17,7 +17,7 @@ struct PlayOverlay: ViewModifier {
                         .foregroundStyle(.white)
                 }
                 .opacity(isVisible ? 1 : 0)
-                .animation(Theme.Motion.quick, value: isVisible)
+                .animation(nil, value: isVisible)
         }
     }
 }
