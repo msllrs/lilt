@@ -180,11 +180,14 @@ struct BrowseScreen: View {
                     player.play(page.tracks, startingAt: 0)
                 } label: {
                     Label("Play", systemImage: "play.fill")
-                        .font(.callout.weight(.medium))
-                        .padding(.horizontal, Theme.Space.sm)
+                        .font(.callout.weight(.semibold))
+                        .padding(.horizontal, Theme.Space.lg + Theme.Space.xs)
+                        .padding(.vertical, Theme.Space.sm + Theme.Space.xs)
+                        .contentShape(Capsule())
                 }
-                .buttonStyle(.glass)
-                .controlSize(.large)
+                .buttonStyle(.plain)
+                // Interactive glass: lensing at rest, and the liquid hover/press response.
+                .glassEffect(.regular.interactive(), in: .capsule)
             }
         }
         .frame(maxWidth: .infinity)
