@@ -6,7 +6,6 @@ struct NowPlayingBar: View {
 
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
-    @State private var isHoveringArtist = false
 
     var body: some View {
         VStack(spacing: Theme.Space.sm) {
@@ -16,7 +15,7 @@ struct NowPlayingBar: View {
                     Text(player.displayTitle)
                         .font(.callout.weight(.medium))
                         .lineLimit(1)
-                    artistLine
+                    ArtistLink(name: player.displayArtist, item: player.current?.artistItem)
                 }
                 Spacer(minLength: 0)
             }
@@ -49,27 +48,6 @@ struct NowPlayingBar: View {
                 .help(album.title)
         } else {
             view
-        }
-    }
-
-    /// Artist name opens the artist page when we know who they are.
-    @ViewBuilder
-    private var artistLine: some View {
-        if let artist = player.current?.artistItem {
-            Button { navigation.open(artist) } label: {
-                Text(player.displayArtist)
-                    .font(.caption)
-                    .foregroundStyle(isHoveringArtist ? .primary : .secondary)
-                    .underline(isHoveringArtist)
-                    .lineLimit(1)
-            }
-            .buttonStyle(.plain)
-            .onHover { isHoveringArtist = $0 }
-        } else {
-            Text(player.displayArtist)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
         }
     }
 

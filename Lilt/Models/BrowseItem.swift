@@ -12,6 +12,14 @@ struct BrowseItem: Identifiable, Hashable, Codable, Sendable {
     var title: String
     var subtitle: String
     var artworkURL: URL?
+    /// The artist named in `subtitle`, when YouTube linked one (albums, singles).
+    var artist: String?
+    var artistId: String?
+
+    var artistItem: BrowseItem? {
+        guard let artist, let artistId else { return nil }
+        return BrowseItem(id: artistId, kind: .artist, title: artist, subtitle: "Artist", artworkURL: nil)
+    }
 }
 
 struct SearchResults: Sendable {
@@ -23,6 +31,30 @@ struct SearchResults: Sendable {
     var playlists: [BrowseItem] = []
 
     var isEmpty: Bool { top == nil && songs.isEmpty && artists.isEmpty && albums.isEmpty && playlists.isEmpty }
+}
+
+/// One entry on the home feed: a song to play or a page to open.
+enum HomeItem: Identifiable, Hashable, Sendable {
+    case track(Track)
+    case browse(BrowseItem)
+
+    var id: String {
+        switch self {
+        case .track(let track): "t:\(track.id)"
+        case .browse(let item): "b:\(item.id)"
+        }
+    }
+}
+
+/// A shelf on the home feed ("Listen again", "Quick picks", "Mixed for you"…).
+struct HomeSection: Identifiable, Hashable, Sendable {
+    var id: String { title }
+    let title: String
+    var items: [HomeItem]
+
+    var tracks: [Track] {
+        items.compactMap { if case .track(let t) = $0 { t } else { nil } }
+    }
 }
 
 struct BrowseSection: Identifiable, Hashable, Sendable {

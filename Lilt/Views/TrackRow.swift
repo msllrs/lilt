@@ -7,7 +7,6 @@ struct TrackRow: View {
     let action: () -> Void
 
     @State private var isHovering = false
-    @State private var isHoveringArtist = false
 
     var body: some View {
         Button(action: action) {
@@ -17,7 +16,7 @@ struct TrackRow: View {
                     Text(track.title)
                         .font(.body)
                         .lineLimit(1)
-                    artistLine
+                    ArtistLink(name: track.artist, item: track.artistItem)
                 }
                 Spacer(minLength: Theme.Space.sm)
                 trailing
@@ -34,27 +33,6 @@ struct TrackRow: View {
         .buttonStyle(.plain)
         .onHover { hovering in
             withAnimation(Theme.Motion.quick) { isHovering = hovering }
-        }
-    }
-
-    /// The artist name opens the artist page when we know who they are.
-    @ViewBuilder
-    private var artistLine: some View {
-        if let artist = track.artistItem {
-            NavigationLink(value: artist) {
-                Text(track.artist)
-                    .font(.caption)
-                    .foregroundStyle(isHoveringArtist ? .primary : .secondary)
-                    .underline(isHoveringArtist)
-                    .lineLimit(1)
-            }
-            .buttonStyle(.plain)
-            .onHover { isHoveringArtist = $0 }
-        } else {
-            Text(track.artist)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
         }
     }
 

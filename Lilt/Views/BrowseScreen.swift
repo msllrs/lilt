@@ -55,10 +55,7 @@ struct BrowseScreen: View {
                             .font(.callout.weight(.medium))
                             .lineLimit(1)
                         if !page.item.subtitle.isEmpty {
-                            Text(page.item.subtitle)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                            ArtistLink(name: page.item.subtitle, item: pageArtist(page), font: .caption2)
                         }
                     }
                 }
@@ -72,6 +69,12 @@ struct BrowseScreen: View {
         .padding(.horizontal, Theme.Space.panelInset)
         .padding(.bottom, Theme.Space.sm)
         .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
+    }
+
+    /// On album pages the subtitle is the artist; link it.
+    private func pageArtist(_ page: BrowsePage) -> BrowseItem? {
+        guard page.item.kind == .album, let artistId = page.artistId else { return nil }
+        return BrowseItem(id: artistId, kind: .artist, title: page.item.subtitle, subtitle: "Artist", artworkURL: nil)
     }
 
     /// The compact artwork doubles as a play button once the hero's own Play has scrolled away.
@@ -193,11 +196,7 @@ struct BrowseScreen: View {
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                 if !page.item.subtitle.isEmpty {
-                    Text(page.item.subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
+                    ArtistLink(name: page.item.subtitle, item: pageArtist(page), font: .caption)
                 }
             }
             if !page.tracks.isEmpty {

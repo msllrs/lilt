@@ -11,6 +11,8 @@ final class YTMusicClient {
 
     @ObservationIgnored private let client: InnerTubeClient
     @ObservationIgnored private var pageCache: [String: BrowsePage] = [:]
+    @ObservationIgnored private var homeCache: (sections: [HomeSection], fetched: Date)?
+    private static let homeTTL: TimeInterval = 5 * 60
 
     init(auth: AuthService) {
         client = InnerTubeClient(auth: auth)
@@ -22,6 +24,17 @@ final class YTMusicClient {
         var results = SearchParser.browseItems(from: try await mixedResponse.value)
         results.songs = SearchParser.tracks(from: try await songsResponse.value)
         return results
+    }
+
+    /// The signed-in home feed, cached briefly so returning to the root is instant.
+    func home(forceRefresh: Bool = false) async throws -> [HomeSection] {
+        if !forceRefresh, let cached = homeCache, Date.now.timeIntervalSince(cached.fetched) < Self.homeTTL {
+            return cached.sections
+        }
+        let response = try await client.post("browse", body: ["browseId": "FEmusic_home"])
+        let sections = SearchParser.home(from: response.value)
+        homeCache = (sections, .now)
+        return sections
     }
 
     func page(for item: BrowseItem) async throws -> BrowsePage {

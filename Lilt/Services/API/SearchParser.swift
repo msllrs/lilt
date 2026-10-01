@@ -80,17 +80,29 @@ enum SearchParser {
         guard let id = browseId(of: item), let kind = kind(forPageType: pageType(of: item)) else { return nil }
         let titleRuns = flexRuns(item, 0)
         guard let title = JSON.string(titleRuns.first?["text"]) else { return nil }
-        let subtitle = flexRuns(item, 1).compactMap { JSON.string($0["text"]) }.joined()
-        return BrowseItem(id: id, kind: kind, title: title, subtitle: subtitle, artworkURL: thumbnail(in: item, size: 240))
+        return browseItem(id: id, kind: kind, title: title, subtitleRuns: flexRuns(item, 1), artwork: thumbnail(in: item, size: 240))
     }
 
     private static func browseItem(fromCard card: [String: Any]) -> BrowseItem? {
         let titleRun = JSON.dict(JSON.value(at: ["title", "runs", 0], in: card))
         guard let titleRun, let id = browseId(of: titleRun), let kind = kind(forPageType: pageType(of: titleRun)),
               let title = JSON.string(titleRun["text"]) else { return nil }
-        let subtitle = (JSON.array(JSON.value(at: ["subtitle", "runs"], in: card)) ?? [])
-            .compactMap { JSON.string(JSON.dict($0)?["text"]) }.joined()
-        return BrowseItem(id: id, kind: kind, title: title, subtitle: subtitle, artworkURL: thumbnail(in: card, size: 240))
+        let runs = (JSON.array(JSON.value(at: ["subtitle", "runs"], in: card)) ?? []).compactMap(JSON.dict)
+        return browseItem(id: id, kind: kind, title: title, subtitleRuns: runs, artwork: thumbnail(in: card, size: 240))
+    }
+
+    /// Builds an item, lifting the linked artist out of the subtitle runs so it can be tapped.
+    private static func browseItem(id: String, kind: BrowseKind, title: String, subtitleRuns: [[String: Any]], artwork: URL?) -> BrowseItem {
+        let artistRun = subtitleRuns.first { pageType(of: $0) == "MUSIC_PAGE_TYPE_ARTIST" }
+        return BrowseItem(
+            id: id,
+            kind: kind,
+            title: title,
+            subtitle: subtitleRuns.compactMap { JSON.string($0["text"]) }.joined(),
+            artworkURL: artwork,
+            artist: artistRun.flatMap { JSON.string($0["text"]) },
+            artistId: artistRun.flatMap(browseId(of:))
+        )
     }
 
     // MARK: Browse pages
@@ -128,6 +140,9 @@ enum SearchParser {
             if track.artist.isEmpty {
                 track.artist = item.kind == .artist ? page.item.title : page.item.subtitle
             }
+            if track.artistId == nil {
+                track.artistId = item.kind == .artist ? item.id : page.artistId
+            }
             if track.artworkURL == nil { track.artworkURL = page.item.artworkURL }
             if item.kind == .album {
                 track.album = page.item.title
@@ -156,12 +171,71 @@ enum SearchParser {
         return page
     }
 
+    // MARK: Home
+
+    /// The signed-in home feed: each carousel becomes a section of songs and pages.
+    static func home(from response: [String: Any]) -> [HomeSection] {
+        var sections: [HomeSection] = []
+        for shelf in JSON.findAll(key: "musicCarouselShelfRenderer", in: response) {
+            let title = runsText(JSON.value(at: ["header", "musicCarouselShelfBasicHeaderRenderer", "title", "runs"], in: shelf)) ?? ""
+            var seen = Set<String>()
+            let items = (JSON.array(shelf["contents"]) ?? []).compactMap { entry -> HomeItem? in
+                guard let entry = JSON.dict(entry) else { return nil }
+                let item: HomeItem?
+                if let two = JSON.dict(entry["musicTwoRowItemRenderer"]) {
+                    if let browse = browseItem(fromTwoRow: two) {
+                        item = .browse(browse)
+                    } else if let track = track(fromTwoRow: two) {
+                        item = .track(track)
+                    } else {
+                        item = nil
+                    }
+                } else if let row = JSON.dict(entry["musicResponsiveListItemRenderer"]) {
+                    if let track = track(from: row) {
+                        item = .track(track)
+                    } else if let browse = browseItem(from: row) {
+                        item = .browse(browse)
+                    } else {
+                        item = nil
+                    }
+                } else {
+                    item = nil
+                }
+                guard let item, seen.insert(item.id).inserted else { return nil }
+                return item
+            }
+            if !title.isEmpty, !items.isEmpty {
+                sections.append(HomeSection(title: title, items: items))
+            }
+        }
+        return sections
+    }
+
+    /// A song or video tile (two-row item whose endpoint is a watch endpoint).
+    private static func track(fromTwoRow two: [String: Any]) -> Track? {
+        guard let videoId = JSON.string(JSON.value(at: ["navigationEndpoint", "watchEndpoint", "videoId"], in: two)),
+              let title = runsText(JSON.value(at: ["title", "runs"], in: two)) else { return nil }
+        let runs = (JSON.array(JSON.value(at: ["subtitle", "runs"], in: two)) ?? []).compactMap(JSON.dict)
+        let artistRuns = runs.filter { pageType(of: $0) == "MUSIC_PAGE_TYPE_ARTIST" }
+        let texts = runs.compactMap { JSON.string($0["text"]) }
+        let artist = artistRuns.isEmpty
+            ? (texts.first { !$0.contains("•") && $0 != "Song" && $0 != "Video" } ?? "")
+            : artistRuns.compactMap { JSON.string($0["text"]) }.joined(separator: ", ")
+        return Track(
+            id: videoId,
+            title: title,
+            artist: artist,
+            artworkURL: firstThumbnail(in: JSON.dict(two["thumbnailRenderer"]) ?? [:], size: 240),
+            artistId: artistRuns.first.flatMap(browseId(of:))
+        )
+    }
+
     private static func browseItem(fromTwoRow two: [String: Any]) -> BrowseItem? {
         guard let id = browseId(of: two), let kind = kind(forPageType: pageType(of: two)),
               let title = runsText(JSON.value(at: ["title", "runs"], in: two)) else { return nil }
-        let subtitle = runsText(JSON.value(at: ["subtitle", "runs"], in: two)) ?? ""
+        let runs = (JSON.array(JSON.value(at: ["subtitle", "runs"], in: two)) ?? []).compactMap(JSON.dict)
         let art = firstThumbnail(in: JSON.dict(two["thumbnailRenderer"]) ?? [:], size: 240)
-        return BrowseItem(id: id, kind: kind, title: title, subtitle: subtitle, artworkURL: art)
+        return browseItem(id: id, kind: kind, title: title, subtitleRuns: runs, artwork: art)
     }
 
     // MARK: Helpers

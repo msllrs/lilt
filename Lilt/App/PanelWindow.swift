@@ -21,7 +21,9 @@ final class PanelWindow: NSPanel {
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
         isFloatingPanel = false
-        becomesKeyOnlyIfNeeded = true
+        // Any click makes the panel key (still without activating the app), so shortcuts and
+        // typing work right after tapping a row or play, not only after clicking the field.
+        becomesKeyOnlyIfNeeded = false
         backgroundColor = .clear
         isOpaque = false
         hasShadow = true

@@ -39,7 +39,7 @@ struct SearchScreen: View {
         } else {
             switch phase {
             case .idle:
-                EmptyHint(symbol: "magnifyingglass", title: "Search YouTube Music", detail: "Songs, artists, albums and playlists.")
+                HomeScreen(scrollOffset: $scrollOffset)
             case .loading:
                 ProgressView()
                     .controlSize(.small)

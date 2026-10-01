@@ -18,10 +18,7 @@ struct BrowseRow: View {
                     Text(item.title)
                         .font(.body)
                         .lineLimit(1)
-                    Text(item.subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    subtitle
                 }
                 Spacer(minLength: Theme.Space.sm)
                 Image(systemName: "chevron.right")
@@ -40,6 +37,26 @@ struct BrowseRow: View {
         .buttonStyle(.plain)
         .onHover { hovering in
             withAnimation(Theme.Motion.quick) { isHovering = hovering }
+        }
+    }
+
+    /// "Album • Artist • 2019" with the artist tappable, when we know who they are.
+    @ViewBuilder
+    private var subtitle: some View {
+        if let artist = item.artist, let artistItem = item.artistItem, let range = item.subtitle.range(of: artist) {
+            HStack(spacing: 0) {
+                Text(item.subtitle[..<range.lowerBound])
+                ArtistLink(name: artist, item: artistItem)
+                Text(item.subtitle[range.upperBound...])
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        } else {
+            Text(item.subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
     }
 }
