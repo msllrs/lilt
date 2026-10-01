@@ -142,10 +142,16 @@ private struct TransportButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: size, weight: .semibold))
-                .frame(width: 36, height: 36)
-                .contentShape(Circle())
+            ZStack {
+                // Keyed by symbol so a change (play ↔ pause) swaps glyphs through the transition.
+                Image(systemName: symbol)
+                    .font(.system(size: size, weight: .semibold))
+                    .id(symbol)
+                    .transition(.blurScale)
+            }
+            .animation(.snappy(duration: 0.22), value: symbol)
+            .frame(width: 36, height: 36)
+            .contentShape(Circle())
         }
         .buttonStyle(.pressable(scale: 0.9))
         .disabled(!enabled)
