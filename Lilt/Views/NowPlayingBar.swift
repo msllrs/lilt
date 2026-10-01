@@ -22,6 +22,8 @@ struct NowPlayingBar: View {
 
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
+    @State private var knobX: CGFloat = 0
+    @State private var isHoveringScrubber = false
 
     var body: some View {
         VStack(spacing: Theme.Space.sm) {
@@ -109,22 +111,46 @@ struct NowPlayingBar: View {
                 .frame(width: 34, alignment: .leading)
             Scrubber(
                 value: .constant(isScrubbing ? scrubValue : player.currentTime),
-                range: 0...max(player.duration, 1)
-            ) { value, ended in
-                scrubValue = value
-                if ended {
-                    player.seek(to: value)
-                    isScrubbing = false
-                } else {
-                    isScrubbing = true
+                range: 0...max(player.duration, 1),
+                onEditing: { value, ended in
+                    scrubValue = value
+                    if ended {
+                        player.seek(to: value)
+                        isScrubbing = false
+                    } else {
+                        isScrubbing = true
+                    }
+                },
+                onKnob: { x, hovering in
+                    knobX = x
+                    isHoveringScrubber = hovering
                 }
-            }
+            )
             .frame(height: 12)
+            .overlay(alignment: .leading) { glassKnob }
             Text(timeString(player.duration))
                 .frame(width: 34, alignment: .trailing)
         }
         .font(.caption2.monospacedDigit())
         .foregroundStyle(.tertiary)
+    }
+
+    /// A Liquid Glass playhead that sits exactly where the hidden native knob would be. Appears
+    /// on hover, grows a little in the hand while dragging.
+    private var glassKnob: some View {
+        let active = isHoveringScrubber || isScrubbing
+        let size: CGFloat = isScrubbing ? 16 : 14
+        return Circle()
+            .fill(.clear)
+            .frame(width: size, height: size)
+            .glassEffect(.regular.interactive(), in: .circle)
+            .glassEdge(Circle())
+            .scaleEffect(active ? 1 : 0.5)
+            .opacity(active ? 1 : 0)
+            .position(x: knobX, y: 6)
+            .animation(.snappy(duration: 0.2), value: active)
+            .animation(.snappy(duration: 0.15), value: isScrubbing)
+            .allowsHitTesting(false)
     }
 
     private func timeString(_ seconds: Double) -> String {
