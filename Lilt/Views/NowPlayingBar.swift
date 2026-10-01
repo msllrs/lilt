@@ -37,7 +37,7 @@ struct NowPlayingBar: View {
             }
         }
         .padding(Theme.Space.md)
-        .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+        .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.xl, style: .continuous))
     }
 
     private var scrubber: some View {

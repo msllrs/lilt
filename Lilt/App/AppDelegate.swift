@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             await auth.refresh()
             if !auth.isSignedIn { auth.isPresentingLogin = true }
         }
+        observeSignIn()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -39,6 +40,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard (notification.object as? NSWindow) === loginWindow else { return }
         loginWindow = nil
         auth.isPresentingLogin = false
+    }
+
+    private func observeSignIn() {
+        withObservationTracking {
+            _ = auth.isSignedIn
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.syncWarmUp()
+                self?.observeSignIn()
+            }
+        }
+        syncWarmUp()
+    }
+
+    private func syncWarmUp() {
+        if auth.isSignedIn { player.warmUp() }
     }
 
     // MARK: Login window

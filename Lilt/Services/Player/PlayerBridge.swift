@@ -24,8 +24,13 @@ final class PlayerBridge: NSObject {
     let webView: WKWebView
     var onEvent: ((PlayerEvent) -> Void)?
 
+    /// True once the observer script has announced itself in the current document.
+    private var isReady = false
+    /// A load requested while the document was still loading; sent on READY.
+    private var pendingVideoId: String?
+
     private static let handlerName = "lilt"
-    private static let world: WKContentWorld = .defaultClient
+    private static let world: WKContentWorld = .page
 
     init(dataStore: WKWebsiteDataStore) {
         let config = WKWebViewConfiguration()
@@ -46,18 +51,30 @@ final class PlayerBridge: NSObject {
         webView.isInspectable = true
         #endif
         super.init()
+        webView.navigationDelegate = self
         config.userContentController.add(MessageProxy(bridge: self), contentWorld: Self.world, name: Self.handlerName)
     }
 
+    /// Loads the YouTube Music shell ahead of time so the first track change is an in-app
+    /// navigation rather than a cold page load.
+    func warmUp() {
+        guard !isShellLoaded else { return }
+        webView.load(URLRequest(url: URL(string: "https://music.youtube.com/")!))
+    }
+
     func load(videoId: String) {
-        let url = "https://music.youtube.com/watch?v=\(videoId)"
-        if webView.url?.host == "music.youtube.com" {
-            // Replace instead of push so WebKit's history never grows.
-            call("location.replace(\(Self.quote(url)))")
+        if isShellLoaded && isReady {
+            call("window.__lilt && window.__lilt.navigate(\(Self.quote(videoId)))")
+        } else if isShellLoaded {
+            // The shell is mid-load (e.g. warm-up); hand the request to the script when it's up.
+            pendingVideoId = videoId
         } else {
-            webView.load(URLRequest(url: URL(string: url)!))
+            pendingVideoId = nil
+            webView.load(URLRequest(url: URL(string: "https://music.youtube.com/watch?v=\(videoId)")!))
         }
     }
+
+    private var isShellLoaded: Bool { webView.url?.host == "music.youtube.com" }
 
     func play() { call("window.__lilt && window.__lilt.play()") }
     func pause() { call("window.__lilt && window.__lilt.pause()") }
@@ -78,7 +95,16 @@ final class PlayerBridge: NSObject {
     fileprivate func receive(_ body: [String: Any]) {
         switch body["type"] as? String {
         case "READY":
+            isReady = true
+            if let videoId = pendingVideoId {
+                pendingVideoId = nil
+                load(videoId: videoId)
+            }
             onEvent?(.ready)
+        case "NAV":
+            #if DEBUG
+            NSLog("Lilt navigation via %@ for %@", body["method"] as? String ?? "?", body["id"] as? String ?? "?")
+            #endif
         case "TRACK_ENDED":
             onEvent?(.ended(videoId: body["videoId"] as? String))
         case "STATE_UPDATE":
@@ -98,6 +124,12 @@ final class PlayerBridge: NSObject {
     }
 }
 
+extension PlayerBridge: WKNavigationDelegate {
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        isReady = false
+    }
+}
+
 /// Breaks the retain cycle between the user content controller and the bridge.
 @MainActor
 private final class MessageProxy: NSObject, WKScriptMessageHandler {
@@ -110,3 +142,5 @@ private final class MessageProxy: NSObject, WKScriptMessageHandler {
         bridge?.receive(body)
     }
 }
+
+

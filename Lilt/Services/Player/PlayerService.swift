@@ -34,6 +34,8 @@ final class PlayerService {
     private var isLoading = false
     /// Nudge playback once if the page loads paused (YouTube occasionally waits for a gesture).
     private var wantsAutoplayNudge = false
+    /// After an optimistic play/pause, ignore the web view's stale `isPlaying` until this time.
+    private var trustWebPlayStateAfter: Date = .distantPast
 
     init(auth: AuthService) {
         bridge = PlayerBridge(dataStore: auth.dataStore)
@@ -42,6 +44,11 @@ final class PlayerService {
     }
 
     // MARK: Commands
+
+    /// Preload the YouTube Music shell so the first play is an in-app navigation.
+    func warmUp() {
+        bridge.warmUp()
+    }
 
     func play(_ tracks: [Track], startingAt index: Int) {
         guard tracks.indices.contains(index) else { return }
@@ -55,10 +62,13 @@ final class PlayerService {
 
     func resume() {
         guard current != nil else { return }
+        setPlayingOptimistically(true)
         bridge.play()
     }
 
     func pause() {
+        guard current != nil else { return }
+        setPlayingOptimistically(false)
         bridge.pause()
     }
 
@@ -100,6 +110,12 @@ final class PlayerService {
         publishNowPlaying()
     }
 
+    private func setPlayingOptimistically(_ playing: Bool) {
+        isPlaying = playing
+        trustWebPlayStateAfter = .now.addingTimeInterval(0.6)
+        publishNowPlaying()
+    }
+
     private func resetLiveState() {
         isPlaying = false
         currentTime = 0
@@ -134,7 +150,9 @@ final class PlayerService {
             adopt(videoId: videoId, from: s)
         }
         isLoading = false
-        isPlaying = s.isPlaying
+        if s.isPlaying == isPlaying || Date.now >= trustWebPlayStateAfter {
+            isPlaying = s.isPlaying
+        }
         currentTime = s.currentTime
         duration = s.duration
         liveTitle = s.title
