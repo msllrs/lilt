@@ -32,6 +32,17 @@ struct ArtworkView: View {
         _isStandIn = State(initialValue: seed.1)
     }
 
+    /// How much to blur a stand-in: nothing if it already has (nearly) enough pixels for this
+    /// size, ramping up only when it's genuinely undersized. Keeps a 240px cover standing in for
+    /// a 140pt hero from pulsing blur-then-sharp on every page open.
+    private var standInBlur: CGFloat {
+        guard isStandIn, let image else { return 0 }
+        let pixels = CGFloat(image.representations.first?.pixelsWide ?? Int(image.size.width))
+        let needed = size * (NSScreen.main?.backingScaleFactor ?? 2)
+        let ratio = min(pixels / max(needed, 1), 1)
+        return ratio >= 0.8 ? 0 : size * 0.12 * (1 - ratio)
+    }
+
     private var style: ArtworkStyle { .shared }
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius, style: .continuous) }
 
@@ -39,13 +50,16 @@ struct ArtworkView: View {
     private var borderTint: Color { colorScheme == .dark ? .white : .black }
 
     var body: some View {
-        Group {
+        ZStack {
             if let image {
                 sleeve(Image(nsImage: image))
+                    .transition(.opacity)
             } else {
                 placeholder
+                    .transition(.opacity)
             }
         }
+        .animation(Theme.Motion.quick, value: image == nil)
         .frame(width: size, height: size)
         .task(id: url) { await load() }
     }
@@ -53,8 +67,9 @@ struct ArtworkView: View {
     private func sleeve(_ picture: Image) -> some View {
         picture.resizable().aspectRatio(contentMode: .fill)
             .frame(width: size, height: size)
-            // A stand-in is a different size; blur hides the resampling until the real one lands.
-            .blur(radius: isStandIn ? size * 0.12 : 0)
+            // A genuinely undersized stand-in is blurred to hide the resampling until the real
+            // one lands; a near-enough one is shown as is.
+            .blur(radius: standInBlur)
             .overlay(spotlight)
             .overlay(insetBorder)
             .clipShape(shape)
