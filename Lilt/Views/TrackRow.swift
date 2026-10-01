@@ -6,12 +6,13 @@ struct TrackRow: View {
     let isPlaying: Bool
     let action: () -> Void
 
+    @Environment(PlayerService.self) private var player
     @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: Theme.Space.md) {
-                ArtworkView(url: track.artworkURL, size: Theme.Size.rowArtwork, radius: Theme.Radius.rowArtwork)
+                artwork
                 VStack(alignment: .leading, spacing: 2) {
                     Text(track.title)
                         .font(.body)
@@ -34,6 +35,22 @@ struct TrackRow: View {
         .onHover { hovering in
             withAnimation(Theme.Motion.quick) { isHovering = hovering }
         }
+    }
+
+    /// Artwork shows play on row hover; for the current track it toggles pause instead.
+    private var artwork: some View {
+        Button {
+            if isCurrent { player.togglePlayPause() } else { action() }
+        } label: {
+            ArtworkView(url: track.artworkURL, size: Theme.Size.rowArtwork, radius: Theme.Radius.rowArtwork)
+                .playOverlay(
+                    isVisible: isHovering,
+                    symbol: isCurrent && isPlaying ? "pause.fill" : "play.fill",
+                    radius: Theme.Radius.rowArtwork,
+                    size: Theme.Size.rowArtwork
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder

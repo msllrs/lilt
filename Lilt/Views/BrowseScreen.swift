@@ -85,22 +85,11 @@ struct BrowseScreen: View {
             player.play(page.tracks, startingAt: 0)
         } label: {
             ArtworkView(url: page.item.artworkURL, size: 28, radius: radius, context: .header)
-                .overlay {
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .fill(.black.opacity(0.45))
-                        .overlay {
-                            Image(systemName: "play.fill")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
-                        .opacity(isHoveringCompactArtwork ? 1 : 0)
-                }
+                .playOverlay(isVisible: isHoveringCompactArtwork, radius: radius, size: 28)
         }
         .buttonStyle(.plain)
         .disabled(page.tracks.isEmpty)
-        .onHover { hovering in
-            withAnimation(Theme.Motion.quick) { isHoveringCompactArtwork = hovering }
-        }
+        .onHover { isHoveringCompactArtwork = $0 }
         .help("Play")
     }
 
