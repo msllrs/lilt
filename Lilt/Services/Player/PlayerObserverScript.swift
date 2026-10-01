@@ -101,6 +101,20 @@ enum PlayerObserverScript {
         }, 100);
       };
 
+      // WebKit publishes the page's Media Session to macOS Now Playing and media keys. Keep that
+      // as the single system entry, but make next/previous drive Lilt's queue instead of the
+      // page's own, and stop the page from taking those two actions back.
+      const ms = navigator.mediaSession;
+      if (ms && typeof ms.setActionHandler === 'function') {
+        const original = ms.setActionHandler.bind(ms);
+        const ours = {
+          nexttrack: () => post('REMOTE', { action: 'next' }),
+          previoustrack: () => post('REMOTE', { action: 'previous' }),
+        };
+        ms.setActionHandler = (action, handler) => original(action, ours[action] || handler);
+        Object.keys(ours).forEach((k) => { try { original(k, ours[k]); } catch (e) {} });
+      }
+
       window.__lilt = {
         navigate,
         play: () => {

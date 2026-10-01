@@ -15,6 +15,12 @@ enum PlayerEvent {
     case ready
     case state(PlaybackSnapshot)
     case ended(videoId: String?)
+    /// A Now Playing / media key command the page's media session forwarded to us.
+    case remote(RemoteAction)
+}
+
+enum RemoteAction: String {
+    case next, previous
 }
 
 /// Owns the hidden `WKWebView` that actually plays audio and translates its script messages into
@@ -105,6 +111,10 @@ final class PlayerBridge: NSObject {
             #if DEBUG
             NSLog("Lilt navigation via %@ for %@", body["method"] as? String ?? "?", body["id"] as? String ?? "?")
             #endif
+        case "REMOTE":
+            if let action = (body["action"] as? String).flatMap(RemoteAction.init(rawValue:)) {
+                onEvent?(.remote(action))
+            }
         case "TRACK_ENDED":
             onEvent?(.ended(videoId: body["videoId"] as? String))
         case "STATE_UPDATE":

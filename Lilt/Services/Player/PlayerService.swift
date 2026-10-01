@@ -28,7 +28,6 @@ final class PlayerService {
     var displayArtworkURL: URL? { liveArtworkURL ?? current?.artworkURL }
 
     let bridge: PlayerBridge
-    private let nowPlaying = NowPlayingManager()
 
     /// True between asking the web view to load a track and seeing state for that track.
     private var isLoading = false
@@ -39,7 +38,6 @@ final class PlayerService {
 
     init(auth: AuthService) {
         bridge = PlayerBridge(dataStore: auth.dataStore)
-        nowPlaying.player = self
         bridge.onEvent = { [weak self] event in self?.handle(event) }
     }
 
@@ -96,7 +94,6 @@ final class PlayerService {
         currentIndex = nil
         resetLiveState()
         bridge.unload()
-        publishNowPlaying()
     }
 
     // MARK: Internals
@@ -107,13 +104,11 @@ final class PlayerService {
         isLoading = true
         wantsAutoplayNudge = true
         bridge.load(videoId: queue[index].id)
-        publishNowPlaying()
     }
 
     private func setPlayingOptimistically(_ playing: Bool) {
         isPlaying = playing
         trustWebPlayStateAfter = .now.addingTimeInterval(0.6)
-        publishNowPlaying()
     }
 
     private func resetLiveState() {
@@ -129,6 +124,10 @@ final class PlayerService {
         switch event {
         case .ready:
             break
+        case .remote(.next):
+            next()
+        case .remote(.previous):
+            previous()
         case .ended(let videoId):
             guard videoId == current?.id else { return }
             if hasNext {
@@ -167,7 +166,6 @@ final class PlayerService {
                 bridge.play()
             }
         }
-        publishNowPlaying()
     }
 
     /// YouTube Music moved on to a track we didn't queue (its radio continuation). Append it so
@@ -181,17 +179,5 @@ final class PlayerService {
             queue.append(track)
             currentIndex = queue.count - 1
         }
-    }
-
-    private func publishNowPlaying() {
-        nowPlaying.update(
-            track: current,
-            title: displayTitle,
-            artist: displayArtist,
-            artworkURL: displayArtworkURL,
-            isPlaying: isPlaying,
-            currentTime: currentTime,
-            duration: duration
-        )
     }
 }
