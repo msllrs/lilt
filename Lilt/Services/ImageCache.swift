@@ -31,10 +31,21 @@ final class ImageCache {
         images.object(forKey: url.absoluteString as NSString)
     }
 
-    /// How bright the artwork is overall, when we've seen it (falls back to mid-grey).
+    /// How bright the artwork is overall. Any measured size of the same cover will do, so the
+    /// value is stable from the first frame instead of jumping when this exact URL lands.
     func luminance(for url: URL) -> CGFloat {
-        guard let c = averages[url.absoluteString] else { return 0.5 }
+        let key = url.absoluteString
+        let sample = averages[key] ?? (variants[Self.baseKey(url)] ?? []).lazy.compactMap { self.averages[$0.absoluteString] }.first
+        guard let c = sample else { return 0.5 }
         return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+    }
+
+    /// Warm the cache for artwork that's about to appear, so rows render on their first frame
+    /// instead of popping in one by one.
+    func prefetch(_ urls: [URL?]) {
+        for case let url? in urls where cached(url) == nil && inflight[url] == nil {
+            Task { _ = await load(url) }
+        }
     }
 
     /// The artwork's average colour with its saturation pushed, for tinting surfaces. Brightness

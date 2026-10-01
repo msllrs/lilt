@@ -23,6 +23,10 @@ final class YTMusicClient {
         async let mixedResponse = client.post("search", body: ["query": query])
         var results = SearchParser.browseItems(from: try await mixedResponse.value)
         results.songs = SearchParser.tracks(from: try await songsResponse.value)
+        ImageCache.shared.prefetch(
+            [results.top?.artworkURL] + results.songs.prefix(12).map(\.artworkURL)
+                + (results.artists + results.albums + results.playlists).prefix(12).map(\.artworkURL)
+        )
         return results
     }
 
@@ -34,6 +38,14 @@ final class YTMusicClient {
         let response = try await client.post("browse", body: ["browseId": "FEmusic_home"])
         let sections = SearchParser.home(from: response.value)
         homeCache = (sections, .now)
+        ImageCache.shared.prefetch(sections.prefix(3).flatMap { section in
+            section.items.prefix(10).map { item -> URL? in
+                switch item {
+                case .track(let t): t.artworkURL
+                case .browse(let b): b.artworkURL
+                }
+            }
+        })
         return sections
     }
 
@@ -52,6 +64,10 @@ final class YTMusicClient {
         let response = try await client.post("browse", body: ["browseId": item.id])
         let page = SearchParser.browsePage(from: response.value, for: item)
         pageCache[item.id] = page
+        ImageCache.shared.prefetch(
+            [page.item.artworkURL] + page.tracks.prefix(20).map(\.artworkURL)
+                + page.sections.flatMap { $0.items.prefix(8).map(\.artworkURL) }
+        )
         return page
     }
 }
