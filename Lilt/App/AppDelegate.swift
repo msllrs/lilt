@@ -170,7 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             window.isReleasedWhenClosed = false
             window.isFloatingPanel = true
             window.hidesOnDeactivate = false
-            window.contentView = NSHostingView(rootView: TweakPanel())
+            window.contentView = NSHostingView(rootView: TweakPanel().environment(scrollTracker))
             if let panelFrame = panel?.frame {
                 window.setFrameTopLeftPoint(NSPoint(x: panelFrame.minX - 360 - Theme.Size.screenInset, y: panelFrame.maxY))
             } else {

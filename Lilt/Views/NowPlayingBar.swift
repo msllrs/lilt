@@ -52,24 +52,25 @@ struct NowPlayingBar: View {
         }
         .padding(Theme.Space.barPadding)
         .background {
+            // Glass, tint, edge and shadow only earn their place when rows pass beneath; at the
+            // end of a list the platter is bare.
             ZStack {
-                // Glass, edge and shadow only earn their place when rows pass beneath.
                 Color.clear
                     .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
                     .shadow(
-                        color: .black.opacity(platter.shadowOpacity * glassVisibility),
+                        color: .black.opacity(platter.shadowOpacity),
                         radius: platter.shadowRadius,
                         y: platter.shadowOffsetY
                     )
-                    .opacity(glassVisibility)
-                // The artwork's colour, always on (dial to zero in the tweak panel to drop it).
                 if let tint {
                     shape.fill(tint.opacity(platter.tintOpacity))
                 }
             }
+            .opacity(glassVisibility)
         }
         .overlay {
-            shape.strokeBorder(
+            // Hairline on the outside of the shape so it never eats into the glass.
+            shape.inset(by: -0.5).stroke(
                 (colorScheme == .dark ? Color.white : Color.black)
                     .opacity(platter.borderOpacity * (colorScheme == .dark ? 1.6 : 1) * glassVisibility),
                 lineWidth: 1

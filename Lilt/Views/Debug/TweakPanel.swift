@@ -8,10 +8,15 @@ struct TweakPanel: View {
     @State private var style = ArtworkStyle.shared
     @State private var shadowContext: ArtworkContext = .player
     @State private var copied = false
+    @Environment(ScrollTracker.self) private var scrollTracker
 
     var body: some View {
         @Bindable var style = style
         Form {
+            Section("Live") {
+                LabeledContent("Content under platter", value: String(format: "%.0f pt", scrollTracker.activeRemainingBelow))
+                LabeledContent("Active screen", value: scrollTracker.activeKey)
+            }
             Section("Spotlight") {
                 slider("Centre X", $style.spotlightCenterX, 0...1)
                 slider("Centre Y", $style.spotlightCenterY, -0.5...1)
