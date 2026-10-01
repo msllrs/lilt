@@ -36,8 +36,6 @@ struct NowPlayingBar: View {
                 Spacer(minLength: 0)
             }
 
-            scrubber
-
             HStack(spacing: Theme.Space.xl) {
                 TransportButton(symbol: "backward.fill", size: Theme.Size.controlIcon, enabled: player.current != nil) {
                     player.previous()
@@ -49,6 +47,8 @@ struct NowPlayingBar: View {
                     player.next()
                 }
             }
+
+            scrubber
         }
         .padding(Theme.Space.barPadding)
         .background {
