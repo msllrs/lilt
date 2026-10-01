@@ -96,7 +96,7 @@ final class HiddenKnobSliderCell: NSSliderCell {
     override func drawKnob(_ knobRect: NSRect) {}
 
     override func drawBar(inside rect: NSRect, flipped: Bool) {
-        let height: CGFloat = 3
+        let height: CGFloat = 5
         let rail = NSRect(x: rect.minX, y: rect.midY - height / 2, width: rect.width, height: height)
         NSColor.labelColor.withAlphaComponent(0.15).setFill()
         NSBezierPath(roundedRect: rail, xRadius: height / 2, yRadius: height / 2).fill()

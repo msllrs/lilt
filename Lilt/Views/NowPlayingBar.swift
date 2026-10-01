@@ -135,21 +135,19 @@ struct NowPlayingBar: View {
         .foregroundStyle(.tertiary)
     }
 
-    /// A Liquid Glass playhead that sits exactly where the hidden native knob would be. Appears
-    /// on hover, grows a little in the hand while dragging.
+    /// A Liquid Glass playhead modelled on Control Center's display slider: a wide pill that
+    /// sits across the track and lenses it, appearing only on hover or while dragging.
     private var glassKnob: some View {
         let active = isHoveringScrubber || isScrubbing
-        let size: CGFloat = isScrubbing ? 16 : 14
-        return Circle()
+        return Capsule()
             .fill(.clear)
-            .frame(width: size, height: size)
-            .glassEffect(.regular.interactive(), in: .circle)
-            .glassEdge(Circle())
-            .scaleEffect(active ? 1 : 0.5)
+            .frame(width: 26, height: 14)
+            .glassEffect(.regular.interactive(), in: .capsule)
+            .glassEdge(Capsule())
+            .scaleEffect(active ? 1 : 0.7)
             .opacity(active ? 1 : 0)
             .position(x: knobX, y: 6)
-            .animation(.snappy(duration: 0.2), value: active)
-            .animation(.snappy(duration: 0.15), value: isScrubbing)
+            .animation(.snappy(duration: 0.18), value: active)
             .allowsHitTesting(false)
     }
 
