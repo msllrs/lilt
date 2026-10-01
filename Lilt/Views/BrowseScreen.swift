@@ -16,13 +16,13 @@ struct BrowseScreen: View {
 
     @State private var phase: Phase = .loading
     @State private var page: BrowsePage?
-    /// How far the hero has scrolled away, 0 (at rest) to 1 (collapsed into the header).
+    /// How far the hero has scrolled out, 0 (at rest) to 1 (fully gone). Drives its fade.
+    @State private var heroFade: CGFloat = 0
+    /// Compact header visibility, 0 to 1. Comes in over the second half of the hero's travel.
     @State private var collapse: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0
+    @State private var heroHeight: CGFloat = 280
     @State private var isHoveringCompactArtwork = false
-
-    /// Scroll distance over which the hero hands off to the compact header.
-    private static let collapseDistance: CGFloat = 150
 
     var body: some View {
         content
@@ -141,10 +141,17 @@ struct BrowseScreen: View {
             geometry.contentOffset.y + geometry.contentInsets.top
         } action: { _, offset in
             scrollOffset = offset
-            // Smoothstep so the hand-off eases in and out instead of snapping at the ends.
-            let t = min(max(offset / Self.collapseDistance, 0), 1)
-            collapse = t * t * (3 - 2 * t)
+            // The hero fades across its own height, so it is gone exactly when it has scrolled
+            // under the header and never leaves a blank gap above the tracks.
+            let travel = min(max(offset / max(heroHeight, 1), 0), 1)
+            heroFade = Self.smoothstep(travel)
+            collapse = Self.smoothstep(min(max((travel - 0.45) / 0.55, 0), 1))
         }
+    }
+
+    /// Eases in and out instead of snapping at the ends.
+    private static func smoothstep(_ t: CGFloat) -> CGFloat {
+        t * t * (3 - 2 * t)
     }
 
     private func header(_ page: BrowsePage) -> some View {
@@ -184,8 +191,9 @@ struct BrowseScreen: View {
         .padding(.top, Theme.Space.sm)
         .padding(.bottom, Theme.Space.sm)
         // The hero scrolls away naturally; fading and shrinking it sells the hand-off.
-        .opacity(1 - collapse)
-        .scaleEffect(1 - 0.1 * collapse, anchor: .top)
+        .opacity(1 - heroFade)
+        .scaleEffect(1 - 0.1 * heroFade, anchor: .top)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { heroHeight = $0 }
     }
 
     private func load() async {
