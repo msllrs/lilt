@@ -151,6 +151,10 @@ final class PlayerService {
         currentIndex = index
         needsLoad = false
         resetLiveState()
+        // Switching tracks is still "playing" as far as the listener is concerned; don't let the
+        // button flip to play while the next track spins up.
+        isPlaying = true
+        trustWebPlayStateAfter = .now.addingTimeInterval(1.5)
         isLoading = true
         wantsAutoplayNudge = true
         bridge.load(videoId: queue[index].id)
