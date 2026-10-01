@@ -197,15 +197,29 @@ enum SearchParser {
         return JSON.string(JSON.dict(thumbs?.last)?["url"]).flatMap { artworkURL($0, size: size) }
     }
 
-    /// First `thumbnails` array anywhere under `node` (headers nest them in varying places).
+    /// The page's main artwork. Headers nest it in a few known places; check those in order so
+    /// we never pick up the artist avatar (`straplineThumbnail`) an album header also carries.
     private static func firstThumbnail(in node: [String: Any], size: Int) -> URL? {
-        for holder in JSON.findAll(key: "thumbnail", in: node) {
-            if let list = JSON.array(holder["thumbnails"]), let url = JSON.string(JSON.dict(list.last)?["url"]) {
+        let candidates: [[Any]] = [
+            ["thumbnail", "musicThumbnailRenderer", "thumbnail", "thumbnails"],
+            ["thumbnail", "croppedSquareThumbnailRenderer", "thumbnail", "thumbnails"],
+            ["foregroundThumbnail", "musicThumbnailRenderer", "thumbnail", "thumbnails"],
+            ["thumbnail", "thumbnails"],
+            ["thumbnails"],
+        ]
+        for path in candidates {
+            if let list = JSON.array(JSON.value(at: path, in: node)),
+               let url = JSON.string(JSON.dict(list.last)?["url"]) {
                 return artworkURL(url, size: size)
             }
         }
-        if let list = JSON.array(node["thumbnails"]), let url = JSON.string(JSON.dict(list.last)?["url"]) {
-            return artworkURL(url, size: size)
+        // Last resort: any thumbnail list that isn't the artist strapline.
+        var fallback = node
+        fallback["straplineThumbnail"] = nil
+        for holder in JSON.findAll(key: "thumbnail", in: fallback) {
+            if let list = JSON.array(holder["thumbnails"]), let url = JSON.string(JSON.dict(list.last)?["url"]) {
+                return artworkURL(url, size: size)
+            }
         }
         return nil
     }
