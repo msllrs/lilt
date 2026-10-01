@@ -19,7 +19,7 @@ enum ArtworkBlend: String, CaseIterable, Identifiable {
 
 /// Where a piece of artwork is shown; each context gets its own shadow preset.
 enum ArtworkContext: String, CaseIterable, Identifiable {
-    case row, player, hero
+    case row, player, hero, header
 
     var id: String { rawValue }
 
@@ -28,6 +28,7 @@ enum ArtworkContext: String, CaseIterable, Identifiable {
         case .row: "Rows"
         case .player: "Player"
         case .hero: "Pages"
+        case .header: "Header"
         }
     }
 }
@@ -70,12 +71,15 @@ final class ArtworkStyle {
     var rowShadow: ShadowStyle = .none
     var playerShadow: ShadowStyle = .ambient
     var heroShadow: ShadowStyle = .ambient
+    /// The small artwork in a page's collapsed header.
+    var headerShadow: ShadowStyle = .none
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
         case .row: rowShadow
         case .player: playerShadow
         case .hero: heroShadow
+        case .header: headerShadow
         }
     }
 
@@ -84,6 +88,7 @@ final class ArtworkStyle {
         case .row: rowShadow = shadow
         case .player: playerShadow = shadow
         case .hero: heroShadow = shadow
+        case .header: headerShadow = shadow
         }
     }
 
@@ -100,6 +105,7 @@ final class ArtworkStyle {
         rowShadow = .none
         playerShadow = .ambient
         heroShadow = .ambient
+        headerShadow = .none
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.

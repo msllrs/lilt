@@ -84,7 +84,7 @@ struct BrowseScreen: View {
         return Button {
             player.play(page.tracks, startingAt: 0)
         } label: {
-            ArtworkView(url: page.item.artworkURL, size: 28, radius: radius)
+            ArtworkView(url: page.item.artworkURL, size: 28, radius: radius, context: .header)
                 .overlay {
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
                         .fill(.black.opacity(0.45))
