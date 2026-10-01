@@ -63,8 +63,11 @@ struct PlatterStyle: Equatable {
     /// Points.
     var shadowOffsetY: Double = 8
     var borderOpacity: Double = 0.10
-    var tintOpacity: Double = 0.22
-    var tintSaturation: Double = 1.6
+    /// The ambient fill: the artwork itself, blurred across the platter.
+    var tintOpacity: Double = 0.55
+    var tintSaturation: Double = 1.8
+    /// Blur radius in points.
+    var tintBlur: Double = 28
 
     static let standard = PlatterStyle()
 }
@@ -148,7 +151,7 @@ final class ArtworkStyle {
         playerShadow = \(snippet(playerShadow))
         heroShadow = \(snippet(heroShadow))
         headerShadow = \(snippet(headerShadow))
-        platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)))
+        platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)))
         """
     }
 

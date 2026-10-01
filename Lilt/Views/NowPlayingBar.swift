@@ -14,10 +14,10 @@ struct NowPlayingBar: View {
         min(max(scrollTracker.activeRemainingBelow / 24, 0), 1)
     }
 
-    /// A wash of the current artwork's colour.
-    private var tint: Color? {
+    /// The current artwork, for the ambient fill (any cached size will do once blurred).
+    private var ambientImage: NSImage? {
         guard platter.tintOpacity > 0, let url = player.displayArtworkURL else { return nil }
-        return ImageCache.shared.tint(for: url, saturationBoost: platter.tintSaturation)
+        return ImageCache.shared.cached(url) ?? ImageCache.shared.anyVariant(for: url)
     }
 
     @State private var isScrubbing = false
@@ -62,8 +62,19 @@ struct NowPlayingBar: View {
                         radius: platter.shadowRadius,
                         y: platter.shadowOffsetY
                     )
-                if let tint {
-                    shape.fill(tint.opacity(platter.tintOpacity))
+                // The artwork itself, blurred across the platter: vibrant for any cover, where a
+                // flat average colour turns rainbow art into mud.
+                if let ambientImage {
+                    shape.fill(.clear)
+                        .overlay {
+                            Image(nsImage: ambientImage)
+                                .resizable()
+                                .scaledToFill()
+                                .saturation(platter.tintSaturation)
+                                .blur(radius: platter.tintBlur)
+                                .opacity(platter.tintOpacity)
+                        }
+                        .clipShape(shape)
                 }
             }
             .opacity(glassVisibility)
