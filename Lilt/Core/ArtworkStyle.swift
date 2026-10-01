@@ -47,9 +47,11 @@ struct ShadowStyle: Equatable {
     /// A plain dark shadow under the ambient one, grounding every cover regardless of colour.
     var baseOpacity: Double = 0.12
 
+    // Tuned by Matt in the tweak panel on 2026-10-01.
     static let none = ShadowStyle(opacity: 0, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 1, lightCompensation: 0.4, baseOpacity: 0)
-    /// Tuned by Matt in the tweak panel on 2026-10-01.
-    static let ambient = ShadowStyle(opacity: 0.88, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 3.0)
+    static let ambient = ShadowStyle(opacity: 0.88, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 3.0, lightCompensation: 0.4, baseOpacity: 0.12)
+    static let row = ShadowStyle(opacity: 0.40, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 4.0, lightCompensation: 0.4, baseOpacity: 0.08)
+    static let header = ShadowStyle(opacity: 0.64, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 4.0, lightCompensation: 0.4, baseOpacity: 0.08)
 
     var isVisible: Bool { opacity > 0 || baseOpacity > 0 }
 }
@@ -94,11 +96,11 @@ final class ArtworkStyle {
     var borderOpacity: Double = 0.20
     var borderBlend: ArtworkBlend = .normal
 
-    var rowShadow: ShadowStyle = .none
+    var rowShadow: ShadowStyle = .row
     var playerShadow: ShadowStyle = .ambient
     var heroShadow: ShadowStyle = .ambient
     /// The small artwork in a page's collapsed header.
-    var headerShadow: ShadowStyle = .none
+    var headerShadow: ShadowStyle = .header
 
     var platter: PlatterStyle = .standard
 
@@ -130,10 +132,10 @@ final class ArtworkStyle {
         borderWidth = 1
         borderOpacity = 0.20
         borderBlend = .normal
-        rowShadow = .none
+        rowShadow = .row
         playerShadow = .ambient
         heroShadow = .ambient
-        headerShadow = .none
+        headerShadow = .header
         platter = .standard
     }
 
