@@ -90,7 +90,20 @@ final class HoverSlider: NSSlider {
     }
 }
 
-/// Draws the track but never the knob; a glass knob floats above it instead.
+/// Draws a neutral track (no accent colour) and never the knob; a glass knob floats above it.
+/// Elapsed is the label colour, so black in light mode and white in dark, over a faint rail.
 final class HiddenKnobSliderCell: NSSliderCell {
     override func drawKnob(_ knobRect: NSRect) {}
+
+    override func drawBar(inside rect: NSRect, flipped: Bool) {
+        let height: CGFloat = 3
+        let rail = NSRect(x: rect.minX, y: rect.midY - height / 2, width: rect.width, height: height)
+        NSColor.labelColor.withAlphaComponent(0.15).setFill()
+        NSBezierPath(roundedRect: rail, xRadius: height / 2, yRadius: height / 2).fill()
+
+        let knobX = knobRect(flipped: flipped).midX
+        let elapsed = NSRect(x: rail.minX, y: rail.minY, width: max(knobX - rail.minX, height), height: height)
+        NSColor.labelColor.setFill()
+        NSBezierPath(roundedRect: elapsed, xRadius: height / 2, yRadius: height / 2).fill()
+    }
 }
