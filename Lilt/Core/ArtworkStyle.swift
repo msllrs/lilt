@@ -28,24 +28,25 @@ final class ArtworkStyle {
     // multiple of the artwork size, fading from `peakOpacity` to clear.
     var spotlightCenterX: Double = 0.5
     var spotlightCenterY: Double = 0.0
-    var spotlightRadius: Double = 0.85
-    var spotlightOpacity: Double = 0.28
+    var spotlightRadius: Double = 1.0
+    var spotlightOpacity: Double = 0.48
     var spotlightBlend: ArtworkBlend = .plusLighter
 
     // Inset border: a uniform hairline on all edges, dark in light mode and light in dark mode.
     var borderWidth: Double = 1
-    var borderOpacity: Double = 0.25
-    var borderBlend: ArtworkBlend = .overlay
+    var borderOpacity: Double = 0.20
+    var borderBlend: ArtworkBlend = .normal
 
+    /// Tuned by Matt in the tweak panel on 2026-10-01.
     func reset() {
         spotlightCenterX = 0.5
         spotlightCenterY = 0.0
-        spotlightRadius = 0.85
-        spotlightOpacity = 0.28
+        spotlightRadius = 1.0
+        spotlightOpacity = 0.48
         spotlightBlend = .plusLighter
         borderWidth = 1
-        borderOpacity = 0.25
-        borderBlend = .overlay
+        borderOpacity = 0.20
+        borderBlend = .normal
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
