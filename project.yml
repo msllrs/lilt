@@ -1,0 +1,72 @@
+name: Lilt
+options:
+  bundleIdPrefix: com.msllrs
+  xcodeVersion: "26.3"
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    SWIFT_EMIT_LOC_STRINGS: "NO"
+
+targets:
+  Lilt:
+    type: application
+    platform: macOS
+    sources:
+      - path: Lilt
+    info:
+      path: Config/Info.plist
+      properties:
+        CFBundleName: Lilt
+        CFBundleDisplayName: Lilt
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSApplicationCategoryType: public.app-category.music
+        NSPrincipalClass: NSApplication
+        NSHumanReadableCopyright: ""
+        LSMinimumSystemVersion: "26.0"
+    entitlements:
+      path: Config/Lilt.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.msllrs.Lilt
+        PRODUCT_NAME: Lilt
+        ENABLE_HARDENED_RUNTIME: "YES"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_PREVIEWS: "YES"
+
+  LiltTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: LiltTests
+    dependencies:
+      - target: Lilt
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.msllrs.LiltTests
+        GENERATE_INFOPLIST_FILE: "YES"
+
+schemes:
+  Lilt:
+    build:
+      targets:
+        Lilt: all
+        LiltTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: [LiltTests]
