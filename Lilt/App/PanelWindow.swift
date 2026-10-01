@@ -35,16 +35,33 @@ final class PanelWindow: NSPanel {
     override var canBecomeMain: Bool { false }
 
     /// A non-activating panel receives key events without Lilt being the active app, and in that
-    /// state AppKit never consults the main menu for ⌘ shortcuts. Do it here so ⌘W, ⌘⇧L and the
-    /// debug ⌥⌘T work straight from the panel.
+    /// state the menu bar (and its shortcuts) still belong to the previous app. Handle Lilt's own
+    /// shortcuts here so they work straight from the panel.
     override func sendEvent(_ event: NSEvent) {
-        if event.type == .keyDown,
-           event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.command),
-           !NSApp.isActive,
-           NSApp.mainMenu?.performKeyEquivalent(with: event) == true {
-            return
-        }
+        if event.type == .keyDown, handleShortcut(event) { return }
         super.sendEvent(event)
+    }
+
+    private func handleShortcut(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags
+            .intersection(.deviceIndependentFlagsMask)
+            .subtracting([.capsLock, .numericPad, .function])
+        guard modifiers.contains(.command),
+              let key = event.charactersIgnoringModifiers?.lowercased(),
+              let delegate = NSApp.delegate as? AppDelegate else { return false }
+        switch (key, modifiers) {
+        case ("w", [.command]):
+            delegate.hidePanel()
+            return true
+        #if DEBUG
+        case ("t", [.command, .option]):
+            delegate.showTweakPanel()
+            return true
+        #endif
+        default:
+            // Everything else (⌘A, ⌘C, ⌘V…) goes to the menu as usual.
+            return !NSApp.isActive && NSApp.mainMenu?.performKeyEquivalent(with: event) == true
+        }
     }
 
     /// Full-height column hugging the right edge of `screen`, inset from the edges.
