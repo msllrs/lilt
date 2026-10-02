@@ -7,6 +7,8 @@ struct QueueList: View {
 
     static let rowHeight: CGFloat = 36
     static let maxRows = 5
+    /// The horizontal inset a plain List keeps around its rows on macOS.
+    static let tableInset: CGFloat = 8
 
     /// The list's height for a given number of upcoming tracks (one row's worth when empty, for
     /// the placeholder), so the mini window can be sized before the list has laid out.
@@ -42,10 +44,12 @@ struct QueueList: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                // No margins of its own: rows line up with the platter's artwork and controls.
                 .contentMargins(0, for: .scrollContent)
                 .environment(\.defaultMinListRowHeight, Self.rowHeight)
                 .scrollIndicators(.never)
+                // AppKit's table still insets rows by 8pt a side after the margins are zeroed;
+                // pull it back so rows line up with the platter's artwork and controls.
+                .padding(.horizontal, -Self.tableInset)
             }
         }
         .frame(height: Self.height(forCount: upcoming.count))
