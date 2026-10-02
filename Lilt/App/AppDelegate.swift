@@ -95,7 +95,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let screen = panel.screen ?? NSScreen.main ?? NSScreen.screens[0]
         if mini {
             if current.height >= Theme.Size.panelMinHeight + margin * 2 { expandedHeight = current.height }
-            let height = navigation.platterHeight + margin * 2
+            // The platter keeps its inset below it, so it doesn't move when the column goes.
+            let height = navigation.platterHeight + Theme.Space.panelInset + margin * 2
             panel.minSize = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: height)
             let target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
             panel.setFrame(Self.onScreen(target, near: screen), display: true)

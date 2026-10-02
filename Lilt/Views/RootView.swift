@@ -6,6 +6,9 @@ struct RootView: View {
     /// The panel's full height, so the container animates between two real numbers (a jump to
     /// "fill" can't interpolate, and the clip would snap open ahead of the glass).
     @State private var fullHeight: CGFloat = 0
+    /// The column's height while expanded. In mini the window is only as tall as the platter, so
+    /// the (invisible) column keeps this size instead of reflowing, and reports none of it.
+    @State private var columnHeight: CGFloat = 0
 
     var body: some View {
         let mini = navigation.isMiniPlayer
@@ -15,7 +18,9 @@ struct RootView: View {
         // unanimated around this (see AppDelegate), while the region being added or removed is
         // transparent. The column stays mounted throughout so nothing reloads on the way back.
         let radius = mini ? Theme.Radius.panel : Theme.Radius.window
-        let containerHeight: CGFloat? = mini ? navigation.platterHeight : (fullHeight > 0 ? fullHeight : nil)
+        let inset = Theme.Space.panelInset
+        // The container ends hugging the platter with the same inset it has while expanded.
+        let containerHeight: CGFloat? = mini ? navigation.platterHeight + inset * 2 : (fullHeight > 0 ? fullHeight : nil)
         ZStack(alignment: .bottom) {
             // The window glass lives here, always mounted, so hiding it is explicit and reliable
             // (see GlassBackground). It shrinks and fades with the collapse, then is switched off.
@@ -45,10 +50,15 @@ struct RootView: View {
                 }
                 .opacity(mini ? 0 : 1)
                 .allowsHitTesting(!mini)
+                // In mini the window is shorter than the column's minimum; laid out at its
+                // expanded size but reporting zero height, it can't push the platter down.
+                .frame(height: mini && columnHeight > 0 ? columnHeight : nil)
+                .frame(height: mini ? 0 : nil, alignment: .bottom)
             if player.current != nil {
+                // The platter keeps its inset in both modes so it never shifts on the way.
                 NowPlayingBar()
-                    .padding(.horizontal, mini ? 0 : Theme.Space.panelInset)
-                    .padding(.bottom, mini ? 0 : Theme.Space.panelInset)
+                    .padding(.horizontal, inset)
+                    .padding(.bottom, inset)
                     // Expanded: the platter's drop shadow would spill past the panel; keep it in.
                     .mask {
                         if mini {
@@ -68,10 +78,13 @@ struct RootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            fullHeight = height
+            if !navigation.isMiniPlayer { columnHeight = height }
+        }
         // Our own window shadow, drawn in the transparent margin around the visible shape.
         .background(alignment: .bottom) {
-            PanelShadow(radius: radius, height: containerHeight)
+            PanelShadow(radius: radius, height: mini ? navigation.platterHeight : containerHeight, inset: mini ? inset : 0)
         }
         .padding(Theme.Size.shadowMargin)
         .animation(Theme.Motion.standard, value: player.current?.id)
@@ -85,6 +98,8 @@ private struct PanelShadow: View {
     let radius: CGFloat
     /// Height of the shape; nil fills the available height.
     let height: CGFloat?
+    /// Inset from the sides and bottom (the platter's, in mini).
+    var inset: CGFloat = 0
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -96,6 +111,8 @@ private struct PanelShadow: View {
             .fill(.black)
             .frame(height: height)
             .frame(maxHeight: .infinity, alignment: .bottom)
+            .padding(.horizontal, inset)
+            .padding(.bottom, inset)
             // Sized to stay inside the 36pt margin (blur extent + offset), so it never clips.
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.5 : 0.22), radius: 12, y: 5)
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.14), radius: 1.5, y: 0.5)
@@ -106,6 +123,8 @@ private struct PanelShadow: View {
                     shape
                         .frame(height: height)
                         .frame(maxHeight: .infinity, alignment: .bottom)
+                        .padding(.horizontal, inset)
+                        .padding(.bottom, inset)
                         .blendMode(.destinationOut)
                 }
                 .compositingGroup()
