@@ -80,12 +80,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard url != dockArtworkURL || NSApp.applicationIconImage == nil else { return }
         dockArtworkURL = url
         guard let url else {
-            NSApp.applicationIconImage = DiscIcon.generic()
+            NSApp.applicationIconImage = DiscIcon.genericTile()
             return
         }
         Task { [weak self] in
             guard let image = await ImageCache.shared.load(url), self?.dockArtworkURL == url else { return }
-            NSApp.applicationIconImage = DiscIcon.disc(artwork: image)
+            NSApp.applicationIconImage = DiscIcon.tile(artwork: image)
         }
     }
 

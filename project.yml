@@ -22,6 +22,11 @@ targets:
     platform: macOS
     sources:
       - path: Lilt
+        excludes:
+          - "Resources/AppIcon.icon/**"
+      - path: Lilt/Resources/AppIcon.icon
+        type: file
+        buildPhase: resources
     info:
       path: Config/Info.plist
       properties:

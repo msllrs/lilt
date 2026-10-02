@@ -5,6 +5,8 @@ import SwiftUI
 struct GlassEdge<S: InsettableShape>: ViewModifier {
     let shape: S
     var opacity: Double = 1
+    /// A colour cast onto the lit top edge, e.g. from artwork sitting above the glass.
+    var cast: Color? = nil
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -13,7 +15,7 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
             shape.inset(by: -0.5).stroke(
                 LinearGradient(
                     stops: [
-                        .init(color: .white.opacity(colorScheme == .dark ? 0.45 : 0.9), location: 0),
+                        .init(color: topColor, location: 0),
                         .init(color: .white.opacity(colorScheme == .dark ? 0.12 : 0.35), location: 0.45),
                         .init(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.10), location: 1),
                     ],
@@ -26,10 +28,17 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
             .allowsHitTesting(false)
         }
     }
+
+    private var topColor: Color {
+        let white = Color.white.opacity(colorScheme == .dark ? 0.45 : 0.9)
+        guard let cast else { return white }
+        // The cast reads strongest right where the highlight is.
+        return cast.mix(with: white, by: colorScheme == .dark ? 0.35 : 0.5)
+    }
 }
 
 extension View {
-    func glassEdge<S: InsettableShape>(_ shape: S, opacity: Double = 1) -> some View {
-        modifier(GlassEdge(shape: shape, opacity: opacity))
+    func glassEdge<S: InsettableShape>(_ shape: S, opacity: Double = 1, cast: Color? = nil) -> some View {
+        modifier(GlassEdge(shape: shape, opacity: opacity, cast: cast))
     }
 }
