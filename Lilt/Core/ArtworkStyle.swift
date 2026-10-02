@@ -107,14 +107,15 @@ struct PlayCastStyle: Equatable {
 /// The music notes drifting out of the playing track's disc. Mirrors `CAEmitterCell`'s knobs;
 /// fractions of a second, points per second, radians.
 struct NotesStyle: Equatable {
+    // Tuned by Matt in the tweak panel on 2026-10-02.
     /// Notes per second while playing.
-    var birthRate: Double = 0.9
-    var lifetime: Double = 1.9
+    var birthRate: Double = 0.95
+    var lifetime: Double = 2.42
     var lifetimeRange: Double = 0.4
     var velocity: Double = 16
-    var velocityRange: Double = 6
+    var velocityRange: Double = 18.86
     /// Spread either side of straight up, in radians.
-    var spread: Double = .pi / 5
+    var spread: Double = 0.63
     /// Upward acceleration (positive rises faster).
     var gravity: Double = 6
     /// Sideways acceleration, for a lean.
@@ -122,19 +123,19 @@ struct NotesStyle: Equatable {
     /// Random variation in drift, either side of `drift`.
     var driftRange: Double = 0
     /// Glyph point size before scale.
-    var glyphSize: Double = 11
+    var glyphSize: Double = 18.06
     var scale: Double = 0.55
     var scaleRange: Double = 0.15
     /// Negative shrinks over life.
     var scaleSpeed: Double = -0.08
     /// Negative fades over life.
-    var alphaSpeed: Double = -0.5
-    var opacity: Double = 0.85
-    var spin: Double = 0.4
-    var spinRange: Double = 0.8
+    var alphaSpeed: Double = -0.27
+    var opacity: Double = 0.55
+    var spin: Double = 0
+    var spinRange: Double = 1.24
     /// Emission point relative to the disc centre, in points (y up).
     var sourceX: Double = 0
-    var sourceY: Double = 20
+    var sourceY: Double = 12.92
 
     static let standard = NotesStyle()
 }
