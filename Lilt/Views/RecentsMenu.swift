@@ -54,6 +54,11 @@ struct RecentsMenu: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .help("Recents")
+        // Recents survive relaunches but thumbnails only come from the in-memory cache; warm it
+        // (from the disk cache, mostly) so the menu has artwork the first time it opens.
+        .task(id: recents.played.count + recents.viewed.count) {
+            ImageCache.shared.prefetch(recents.played.map(\.artworkURL) + recents.viewed.map(\.artworkURL))
+        }
     }
 
     /// Menus render the label's image as the item icon, so use cached artwork when we have it.
