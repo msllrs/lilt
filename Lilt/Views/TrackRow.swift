@@ -85,7 +85,7 @@ struct TrackRow: View {
             )
             .overlay {
                 if isCurrent {
-                    NoteEmitterView(isPlaying: isPlaying, center: CGPoint(x: 60, y: 60))
+                    NoteEmitterView(isPlaying: isPlaying, center: CGPoint(x: 60, y: 60), artworkURL: track.artworkURL)
                         .frame(width: 120, height: 120)
                         .allowsHitTesting(false)
                 }

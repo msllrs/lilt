@@ -68,6 +68,13 @@ struct TweakPanel: View {
                 slider("Glow height", $style.playCast.glowHeight, 0.05...1)
             }
             Section("Music notes") {
+                Picker("Colour", selection: $style.notes.colorMode) {
+                    ForEach(NoteColorMode.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                slider("Hue period", $style.notes.huePeriod, 1...30)
+                slider("Sway", $style.notes.sway, 0...1.2)
+                slider("Sway period", $style.notes.swayPeriod, 0.5...10)
                 slider("Rate (per sec)", $style.notes.birthRate, 0...6)
                 slider("Lifetime", $style.notes.lifetime, 0.3...5)
                 slider("Lifetime random", $style.notes.lifetimeRange, 0...3)

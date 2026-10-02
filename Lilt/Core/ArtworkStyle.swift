@@ -104,9 +104,36 @@ struct PlayCastStyle: Equatable {
     static let standard = PlayCastStyle()
 }
 
+/// How music notes are coloured.
+enum NoteColorMode: String, CaseIterable, Identifiable {
+    /// The label colour (black in light mode, white in dark).
+    case label
+    /// The current track's artwork colour.
+    case artwork
+    /// A slow walk around the hue wheel.
+    case hueDrift
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .label: "Label"
+        case .artwork: "Artwork"
+        case .hueDrift: "Hue drift"
+        }
+    }
+}
+
 /// The music notes drifting out of the playing track's disc. Mirrors `CAEmitterCell`'s knobs;
 /// fractions of a second, points per second, radians.
 struct NotesStyle: Equatable {
+    var colorMode: NoteColorMode = .label
+    /// Seconds for one trip around the hue wheel in `hueDrift` mode.
+    var huePeriod: Double = 8
+    /// The emission angle swings this far either side of straight up, in radians (0 = off).
+    var sway: Double = 0
+    /// Seconds for one full left-right-left swing.
+    var swayPeriod: Double = 3
     // Tuned by Matt in the tweak panel on 2026-10-02.
     /// Notes per second while playing.
     var birthRate: Double = 0.95
@@ -239,7 +266,7 @@ final class ArtworkStyle {
         heroShadow = \(snippet(heroShadow))
         headerShadow = \(snippet(headerShadow))
         platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)))
-        notes = NotesStyle(birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
+        notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)))
         """
     }
