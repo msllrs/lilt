@@ -73,12 +73,10 @@ struct SearchScreen: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 if let top = results.top {
-                    SectionHeader("Top result")
-                    BrowseRow(item: top)
+                    CollapsibleSection(title: "Top result", scope: "search") { BrowseRow(item: top) }
                 }
                 if !results.songs.isEmpty {
-                    SectionHeader("Songs")
-                    TrackRows(tracks: results.songs)
+                    CollapsibleSection(title: "Songs", scope: "search") { TrackRows(tracks: results.songs) }
                 }
                 browseSection("Artists", results.artists)
                 browseSection("Albums", results.albums)
@@ -104,8 +102,9 @@ struct SearchScreen: View {
     @ViewBuilder
     private func browseSection(_ title: String, _ items: [BrowseItem]) -> some View {
         if !items.isEmpty {
-            SectionHeader(title)
-            ForEach(items) { BrowseRow(item: $0) }
+            CollapsibleSection(title: title, scope: "search") {
+                ForEach(items) { BrowseRow(item: $0) }
+            }
         }
     }
 

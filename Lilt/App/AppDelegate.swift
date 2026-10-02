@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let navigation = NavigationModel()
     let scrollTracker = ScrollTracker()
     let recents = RecentsStore()
+    let collapsedSections = CollapsedSections()
 
     private var panel: PanelWindow?
     private var loginWindow: NSWindow?
@@ -263,6 +264,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .environment(navigation)
             .environment(scrollTracker)
             .environment(recents)
+            .environment(collapsedSections)
         let hosting = NSHostingView(rootView: root)
         hosting.sizingOptions = []
 

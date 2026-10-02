@@ -117,17 +117,18 @@ struct LibraryScreen: View {
     /// and the account simply has nothing saved there.
     @ViewBuilder
     private func section(_ title: String, _ items: [BrowseItem]) -> some View {
-        SectionHeader(title)
-        if items.isEmpty {
-            Text(title == "Albums" ? "Albums you save to your library will show here."
-                : title == "Artists" ? "Artists will show here when you save their music."
-                : "Playlists you create or save will show here.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .padding(.horizontal, Theme.Space.sm)
-                .padding(.vertical, Theme.Space.xs)
-        } else {
-            ForEach(items) { BrowseRow(item: $0) }
+        CollapsibleSection(title: title, scope: "library") {
+            if items.isEmpty {
+                Text(title == "Albums" ? "Albums you save to your library will show here."
+                    : title == "Artists" ? "Artists will show here when you save their music."
+                    : "Playlists you create or save will show here.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, Theme.Space.sm)
+                    .padding(.vertical, Theme.Space.xs)
+            } else {
+                ForEach(items) { BrowseRow(item: $0) }
+            }
         }
     }
 

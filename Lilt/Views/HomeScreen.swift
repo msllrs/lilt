@@ -46,14 +46,15 @@ struct HomeScreen: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(sections) { section in
-                    SectionHeader(section.title)
-                    let tracks = section.tracks
-                    ForEach(section.items) { item in
-                        switch item {
-                        case .track(let track):
-                            TrackRows(tracks: tracks, only: track)
-                        case .browse(let browse):
-                            BrowseRow(item: browse)
+                    CollapsibleSection(title: section.title, scope: "home") {
+                        let tracks = section.tracks
+                        ForEach(section.items) { item in
+                            switch item {
+                            case .track(let track):
+                                TrackRows(tracks: tracks, only: track)
+                            case .browse(let browse):
+                                BrowseRow(item: browse)
+                            }
                         }
                     }
                 }

@@ -181,8 +181,9 @@ struct BrowseScreen: View {
                     }
                 }
                 ForEach(page.sections) { section in
-                    SectionHeader(section.title)
-                    ForEach(section.items) { BrowseRow(item: $0) }
+                    CollapsibleSection(title: section.title, scope: "page") {
+                        ForEach(section.items) { BrowseRow(item: $0) }
+                    }
                 }
             }
             .padding(.horizontal, Theme.Space.rowInset)
