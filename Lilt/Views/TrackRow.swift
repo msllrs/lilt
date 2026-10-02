@@ -110,46 +110,45 @@ struct TrackRow: View {
         .buttonStyle(.plain)
     }
 
-    @ViewBuilder
+    /// The duration, which on hover gives way to the add-to-queue button in the same spot (a
+    /// tick for a moment after a click). The playing track can be queued again too.
     private var trailing: some View {
-        HStack(spacing: Theme.Space.sm) {
-            // Add to the queue; a tick once it's in there. Only while hovering, never for the
-            // track that's playing.
-            if !isCurrent {
-                Button {
-                    player.enqueue(track)
-                    AppDelegate.shared?.queueDidChange()
-                    // A tick to confirm, then back to the queue glyph so it can be added again.
-                    justQueued?.cancel()
-                    justQueued = Task {
-                        try? await Task.sleep(for: .seconds(1.2))
-                        guard !Task.isCancelled else { return }
-                        showsTick = false
-                    }
-                    showsTick = true
-                } label: {
-                    let symbol = showsTick ? "checkmark" : "text.line.last.and.arrowtriangle.forward"
-                    ZStack {
-                        // Glyph swap: scale, blur and fade in place, like the platter's buttons.
-                        Image(systemName: symbol)
-                            .font(.system(size: 11, weight: .semibold))
-                            .id(symbol)
-                            .transition(.blurScale)
-                    }
-                    .animation(.snappy(duration: 0.22), value: symbol)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22, height: 22)
-                    .contentShape(Circle())
-                }
-                .buttonStyle(.pressable(scale: 0.85))
-                .opacity(isHovering ? 1 : 0)
-                .help("Add to queue")
-            }
+        ZStack {
             if let duration = track.durationText {
                 Text(duration)
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.tertiary)
+                    .opacity(isHovering ? 0 : 1)
             }
+            Button {
+                player.enqueue(track)
+                AppDelegate.shared?.queueDidChange()
+                // A tick to confirm, then back to the queue glyph so it can be added again.
+                justQueued?.cancel()
+                justQueued = Task {
+                    try? await Task.sleep(for: .seconds(1.2))
+                    guard !Task.isCancelled else { return }
+                    showsTick = false
+                }
+                showsTick = true
+            } label: {
+                let symbol = showsTick ? "checkmark" : "text.line.last.and.arrowtriangle.forward"
+                ZStack {
+                    // Glyph swap: scale, blur and fade in place, like the platter's buttons.
+                    Image(systemName: symbol)
+                        .font(.system(size: 11, weight: .semibold))
+                        .id(symbol)
+                        .transition(.blurScale)
+                }
+                .animation(.snappy(duration: 0.22), value: symbol)
+                .foregroundStyle(.secondary)
+                .frame(width: 22, height: 22)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.pressable(scale: 0.85))
+            .opacity(isHovering ? 1 : 0)
+            .allowsHitTesting(isHovering)
+            .help("Add to queue")
         }
     }
 }
