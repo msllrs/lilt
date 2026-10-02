@@ -55,6 +55,8 @@ final class NavigationModel {
     }
 
     func open(_ item: BrowseItem) {
+        // Opening a page from the mini player (artist name, album art) means wanting to see it.
+        if isMiniPlayer { AppDelegate.shared?.setMiniPlayer(false) }
         // The same page can arrive with slightly different metadata (a search row versus the
         // player's byline), so identity is the browse id. Re-opening the current page is a
         // no-op; opening one further down the stack pops back to it rather than duplicating it,
