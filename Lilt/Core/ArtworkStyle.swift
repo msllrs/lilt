@@ -137,6 +137,19 @@ struct PageAmbientStyle: Equatable {
     static let standard = PageAmbientStyle()
 }
 
+/// The Dock tile while a track plays: the cover's colour on the plate and under the disc.
+struct DockTileStyle: Equatable {
+    /// Wash of the cover's colour over the plate, strongest at the top (0 = plain plate).
+    var plateTint: Double = 0.22
+    var plateSaturation: Double = 1.6
+    /// Coloured ambient shadow under the disc, as a fraction of the disc size.
+    var shadowOpacity: Double = 0.55
+    var shadowBlur: Double = 0.14
+    var shadowOffsetY: Double = 0.06
+
+    static let standard = DockTileStyle()
+}
+
 /// The blur behind floating headers.
 struct HeaderBlurStyle: Equatable {
     /// Use a Core Animation backdrop with a variable blur ramp (private API, guarded), rather
@@ -266,6 +279,7 @@ final class ArtworkStyle {
     var playCast: PlayCastStyle = .standard
     var headerBlur: HeaderBlurStyle = .standard
     var pageAmbient: PageAmbientStyle = .standard
+    var dockTile: DockTileStyle = .standard
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
@@ -309,6 +323,7 @@ final class ArtworkStyle {
         playCast = .standard
         headerBlur = .standard
         pageAmbient = .standard
+        dockTile = .standard
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -336,6 +351,7 @@ final class ArtworkStyle {
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))
         headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), radius: \(f(headerBlur.radius)), saturation: \(f(headerBlur.saturation)), brightness: \(f(headerBlur.brightness)), reach: \(f(headerBlur.reach)), rimOpacity: \(f(headerBlur.rimOpacity)))
         pageAmbient = PageAmbientStyle(opacity: \(f(pageAmbient.opacity)), saturation: \(f(pageAmbient.saturation)), blur: \(f(pageAmbient.blur)), reach: \(f(pageAmbient.reach)))
+        dockTile = DockTileStyle(plateTint: \(f(dockTile.plateTint)), plateSaturation: \(f(dockTile.plateSaturation)), shadowOpacity: \(f(dockTile.shadowOpacity)), shadowBlur: \(f(dockTile.shadowBlur)), shadowOffsetY: \(f(dockTile.shadowOffsetY)))
         """
     }
 

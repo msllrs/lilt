@@ -14,8 +14,9 @@ enum DiscIcon {
     @MainActor private static let base = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
 
     /// - Parameter side: 512 keeps the cover crisp at the largest Dock tile and in ⌘-Tab.
+    /// - Parameter accent: the cover's colour, for the plate wash and the disc's ambient shadow.
     @MainActor
-    static func tile(artwork: NSImage, edgeLuminance: CGFloat, side: CGFloat = 512) -> NSImage {
+    static func tile(artwork: NSImage, edgeLuminance: CGFloat, accent: NSColor?, side: CGFloat = 512) -> NSImage {
         // A single, already rasterised bitmap. A drawing-handler image gets re-rendered at every
         // size AppKit wants when it hands the icon to the Dock.
         let pixels = Int(side)
@@ -32,6 +33,10 @@ enum DiscIcon {
         base.draw(in: bounds)
         let plate = bounds.insetBy(dx: side * plateInset, dy: side * plateInset)
         let disc = plate.insetBy(dx: plate.width * discInset, dy: plate.height * discInset)
+        if let accent {
+            drawPlateTint(accent, in: plate)
+            drawDiscShadow(accent, under: disc)
+        }
         drawArtworkDisc(artwork, in: disc, edgeLuminance: edgeLuminance, side: side)
         NSGraphicsContext.restoreGraphicsState()
         let image = NSImage(size: rep.size)
@@ -89,6 +94,46 @@ enum DiscIcon {
             outer.stroke()
         }
         drawHub(in: rect, side: side)
+    }
+
+    /// The cover's colour washed over the plate, strongest at the top, inside the system's
+    /// squircle so the rendered rim and shadow stay untouched.
+    @MainActor
+    private static func drawPlateTint(_ accent: NSColor, in plate: NSRect) {
+        let style = ArtworkStyle.shared.dockTile
+        guard style.plateTint > 0 else { return }
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        accent.usingColorSpace(.sRGB)?.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        let colour = NSColor(hue: h, saturation: min(1, s * style.plateSaturation), brightness: max(b, 0.6), alpha: 1)
+        NSGraphicsContext.saveGraphicsState()
+        // Icon plate corners: the system shape, close enough to a continuous curve at 22.37%.
+        NSBezierPath(roundedRect: plate, xRadius: plate.width * 0.2237, yRadius: plate.height * 0.2237).addClip()
+        NSGradient(colorsAndLocations:
+            (colour.withAlphaComponent(style.plateTint), 0),
+            (colour.withAlphaComponent(style.plateTint * 0.35), 1)
+        )?.draw(in: plate, angle: -90)
+        NSGraphicsContext.restoreGraphicsState()
+    }
+
+    /// A coloured ambient shadow under the disc, like the artwork shadows in the app: the cover's
+    /// colour, blurred, sitting a little low.
+    @MainActor
+    private static func drawDiscShadow(_ accent: NSColor, under disc: NSRect) {
+        let style = ArtworkStyle.shared.dockTile
+        guard style.shadowOpacity > 0 else { return }
+        NSGraphicsContext.saveGraphicsState()
+        // Only the shadow is wanted: clip the fill itself away.
+        let outside = NSBezierPath(rect: disc.insetBy(dx: -disc.width, dy: -disc.height))
+        outside.append(NSBezierPath(ovalIn: disc).reversed)
+        outside.addClip()
+        let shadow = NSShadow()
+        shadow.shadowColor = accent.withAlphaComponent(style.shadowOpacity)
+        shadow.shadowBlurRadius = disc.width * style.shadowBlur
+        shadow.shadowOffset = NSSize(width: 0, height: -disc.height * style.shadowOffsetY)
+        shadow.set()
+        accent.setFill()
+        NSBezierPath(ovalIn: disc).fill()
+        NSGraphicsContext.restoreGraphicsState()
     }
 
     private static func blendMode(_ blend: ArtworkBlend) -> CGBlendMode {

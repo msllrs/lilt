@@ -75,6 +75,13 @@ struct TweakPanel: View {
                 slider("Blur", $style.pageAmbient.blur, 0...300)
                 slider("Reach", $style.pageAmbient.reach, 80...800)
             }
+            Section("Dock tile") {
+                slider("Plate tint", $style.dockTile.plateTint, 0...0.8)
+                slider("Plate saturation", $style.dockTile.plateSaturation, 0...4)
+                slider("Disc shadow", $style.dockTile.shadowOpacity, 0...1)
+                slider("Disc shadow blur", $style.dockTile.shadowBlur, 0...0.4)
+                slider("Disc shadow offset", $style.dockTile.shadowOffsetY, -0.1...0.2)
+            }
             Section("Header blur") {
                 Toggle("Backdrop ramp (private API)", isOn: $style.headerBlur.useBackdrop)
                     .disabled(!ProgressiveBlurBackdrop.isAvailable)

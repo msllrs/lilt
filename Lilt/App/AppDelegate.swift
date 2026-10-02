@@ -240,10 +240,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// The Dock tile is a disc: generic when idle, the current cover when a track is loaded.
     private var dockArtworkURL: URL?
+    private var dockTileStyle: DockTileStyle?
 
     private func observeDockIcon() {
         withObservationTracking {
             _ = player.current?.artworkURL
+            _ = ArtworkStyle.shared.dockTile
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.updateDockIcon()
@@ -255,8 +257,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func updateDockIcon() {
         let url = player.current?.artworkURL
-        guard url != dockArtworkURL else { return }
+        let style = ArtworkStyle.shared.dockTile
+        guard url != dockArtworkURL || style != dockTileStyle else { return }
         dockArtworkURL = url
+        dockTileStyle = style
         guard let url else {
             // Nothing playing: the app icon from the bundle, not a redrawn stand-in.
             NSApp.applicationIconImage = nil
@@ -269,7 +273,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             var image = await ImageCache.shared.load(large)
             if image == nil { image = await ImageCache.shared.load(url) }
             guard let image, self?.dockArtworkURL == url else { return }
-            NSApp.applicationIconImage = DiscIcon.tile(artwork: image, edgeLuminance: ImageCache.shared.edgeLuminance(for: large))
+            let accent = ImageCache.shared.accent(for: large, saturationBoost: 1) ?? ImageCache.shared.tint(for: large, saturationBoost: 1)
+            NSApp.applicationIconImage = DiscIcon.tile(
+                artwork: image,
+                edgeLuminance: ImageCache.shared.edgeLuminance(for: large),
+                accent: accent.map { NSColor($0) }
+            )
         }
     }
 
