@@ -69,12 +69,7 @@ private struct NavigationColumn: View {
                     }
                 }
                 .parked(isTop ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path)
-                    .transition(
-                        .offset(x: Self.travel)
-                            .combined(with: .opacity)
-                            .combined(with: AnyTransition(BlurScaleTransition(scale: 1, blur: Self.blur)))
-                            .animation(Self.enter)
-                    )
+                .transition(.offset(x: Self.travel).combined(with: .opacity).animation(Self.enter))
             }
         }
         .animation(Self.enter, value: path)
