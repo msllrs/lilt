@@ -4,6 +4,13 @@ import SwiftUI
 /// a remove button on hover; clicking one jumps to it.
 struct QueueList: View {
     @Environment(PlayerService.self) private var player
+    @State private var scrollEdges = ScrollEdges()
+
+    /// Whether the list has content hidden past each end.
+    private struct ScrollEdges: Equatable {
+        var moreAbove = false
+        var moreBelow = false
+    }
 
     static let rowHeight: CGFloat = 36
     static let maxRows = 5
@@ -64,23 +71,30 @@ struct QueueList: View {
                 // AppKit's table still insets rows by 8pt a side after the margins are zeroed;
                 // pull it back so rows line up with the platter's artwork and controls.
                 .padding(.horizontal, -Self.tableInset)
-                // When there's more than fits, rows don't hit a hard edge: they fade out at both
-                // ends (a blur ramp here read as muddy; a plain fade sits better in the platter).
+                // Rows fade out at an edge only when there's more beyond it: no top fade while
+                // sitting at the top, no bottom fade once scrolled to the end.
+                .onScrollGeometryChange(for: ScrollEdges.self) { geometry in
+                    ScrollEdges(
+                        moreAbove: geometry.contentOffset.y > 0.5,
+                        moreBelow: geometry.contentOffset.y + geometry.containerSize.height < geometry.contentSize.height - 0.5
+                    )
+                } action: { _, edges in
+                    withAnimation(Theme.Motion.quick) { scrollEdges = edges }
+                }
                 .mask {
-                    if upcoming.count > Self.maxRows {
-                        LinearGradient(
-                            stops: [
-                                .init(color: .clear, location: 0),
-                                .init(color: .black, location: Self.edgeFade / Self.height(forCount: upcoming.count)),
-                                .init(color: .black, location: 1 - Self.edgeFade / Self.height(forCount: upcoming.count)),
-                                .init(color: .clear, location: 1),
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    } else {
-                        Rectangle()
-                    }
+                    let height = Self.height(forCount: upcoming.count) - Self.dividerHeight
+                    let top = scrollEdges.moreAbove ? Self.edgeFade / height : 0
+                    let bottom = scrollEdges.moreBelow ? Self.edgeFade / height : 0
+                    LinearGradient(
+                        stops: [
+                            .init(color: top > 0 ? .clear : .black, location: 0),
+                            .init(color: .black, location: top),
+                            .init(color: .black, location: 1 - bottom),
+                            .init(color: bottom > 0 ? .clear : .black, location: 1),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
                 }
             }
         }
