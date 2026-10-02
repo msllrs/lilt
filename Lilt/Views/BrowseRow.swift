@@ -22,10 +22,11 @@ struct BrowseRow: View {
                     MarqueeText(text: item.title, isActive: isHovering, font: .body)
                     subtitle
                 }
-                Spacer(minLength: Theme.Space.sm)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                    .padding(.leading, Theme.Space.sm)
             }
             .padding(.horizontal, Theme.Space.sm)
             .padding(.vertical, Theme.Space.xs + 2)

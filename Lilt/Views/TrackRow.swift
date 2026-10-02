@@ -42,8 +42,11 @@ struct TrackRow: View {
                     MarqueeText(text: track.title, isActive: isHovering, font: .body)
                     ArtistLink(name: track.artist, item: track.artistItem)
                 }
-                Spacer(minLength: Theme.Space.sm)
+                // Takes every point the trailing item doesn't need, so titles run wide when
+                // there's no duration to show.
+                .frame(maxWidth: .infinity, alignment: .leading)
                 trailing
+                    .padding(.leading, Theme.Space.sm)
             }
             .padding(.horizontal, Theme.Space.sm)
             .padding(.vertical, Theme.Space.xs + 2)
