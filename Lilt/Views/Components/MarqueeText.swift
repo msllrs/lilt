@@ -22,20 +22,21 @@ struct MarqueeText: View {
     private var shouldScroll: Bool { isActive && overflows }
 
     var body: some View {
-        // The truncating label drives layout; it's flexible, so it never widens its row.
+        // The label drives layout; it's flexible, so it never widens its row. When the text
+        // overflows it is hidden and the untruncated copy shows instead, clipped by the fade:
+        // no ellipsis fighting the gradient.
         Text(text)
             .font(font)
             .lineLimit(1)
-            .truncationMode(.tail)
-            .opacity(scrolling ? 0 : 1)
+            .opacity(overflows ? 0 : 1)
             .frame(maxWidth: .infinity, alignment: .leading)
             // The scrolling copy and the measuring copy live in overlay/background, which don't
             // take part in layout, so a long string can't push the row past its container.
             .overlay(alignment: .leading) {
-                if scrolling {
+                if overflows {
                     HStack(spacing: gap) {
                         Text(text).font(font).fixedSize()
-                        Text(text).font(font).fixedSize()
+                        if scrolling { Text(text).font(font).fixedSize() }
                     }
                     .offset(x: offset)
                 }
