@@ -1,86 +1,28 @@
 import AppKit
 
-/// Draws the Dock tile: the standard macOS icon shape with a compact disc on it, either generic
-/// (no track) or carrying the current cover art as its label. The shipped app icon is an Icon
-/// Composer `.icon` with the same disc as a glass layer; this mirrors it for the live Dock image.
+/// The live Dock tile while a track plays: the app icon exactly as macOS renders it (plate
+/// gradient, rim highlight, the glass disc's shadow, the drop shadow), with the cover art laid
+/// onto the disc. Drawing our own plate would lose all of that treatment, which is what made the
+/// old tile look flat next to other apps' icons.
 enum DiscIcon {
-    static func genericTile(side: CGFloat = 512) -> NSImage {
-        tile(side: side) { rect in drawGenericDisc(in: rect, side: side) }
-    }
+    /// Where the renderer puts the plate inside an icon image, and the disc layer inside the plate
+    /// (the Icon Composer canvas maps onto the plate; disc.png is inset 10% of that canvas).
+    private static let plateInset: CGFloat = 100 / 1024
+    private static let discInset: CGFloat = 0.10
 
-    static func tile(artwork: NSImage, side: CGFloat = 512) -> NSImage {
-        tile(side: side) { rect in drawArtworkDisc(artwork, in: rect, side: side) }
-    }
+    /// The system's rendering of this bundle's icon: the same image Finder and the Dock show.
+    @MainActor private static let base = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
 
-    /// The disc alone on a transparent background, for the `.icon` layer.
-    static func discLayer(side: CGFloat) -> NSImage {
-        NSImage(size: NSSize(width: side, height: side), flipped: false) { bounds in
-            drawGenericDisc(in: bounds.insetBy(dx: side * 0.02, dy: side * 0.02), side: side)
+    @MainActor
+    static func tile(artwork: NSImage, side: CGFloat = 1024) -> NSImage {
+        let base = base
+        return NSImage(size: NSSize(width: side, height: side), flipped: false) { bounds in
+            base.draw(in: bounds)
+            let plate = bounds.insetBy(dx: side * plateInset, dy: side * plateInset)
+            let disc = plate.insetBy(dx: plate.width * discInset, dy: plate.height * discInset)
+            drawArtworkDisc(artwork, in: disc, side: side)
             return true
         }
-    }
-
-    // MARK: Tile
-
-    private static func tile(side: CGFloat, disc: @escaping (NSRect) -> Void) -> NSImage {
-        NSImage(size: NSSize(width: side, height: side), flipped: false) { bounds in
-            // macOS icon grid: the artwork sits inside a 0.8 × 0.8 squircle centred on the canvas.
-            let plate = bounds.insetBy(dx: side * 0.1, dy: side * 0.1)
-            let path = squircle(in: plate)
-            NSGraphicsContext.saveGraphicsState()
-            path.addClip()
-            // The same light plate as the shipped Icon Composer icon, so the live tile reads as
-            // the app icon with a label on it rather than a different icon.
-            NSGradient(colorsAndLocations:
-                (NSColor(srgbRed: 0.98, green: 0.98, blue: 0.99, alpha: 1), 0),
-                (NSColor(srgbRed: 0.93, green: 0.93, blue: 0.95, alpha: 1), 1)
-            )?.draw(in: plate, angle: -90)
-            NSGraphicsContext.restoreGraphicsState()
-            // Hairline edge like the system's icon plate.
-            path.lineWidth = side * 0.004
-            NSColor(white: 0, alpha: 0.08).setStroke()
-            path.stroke()
-
-            // Soft drop shadow under the disc so it sits on the plate.
-            let discRect = plate.insetBy(dx: plate.width * 0.10, dy: plate.height * 0.10)
-            NSGraphicsContext.saveGraphicsState()
-            let shadow = NSShadow()
-            shadow.shadowColor = NSColor(white: 0, alpha: 0.30)
-            shadow.shadowBlurRadius = side * 0.03
-            shadow.shadowOffset = NSSize(width: 0, height: -side * 0.012)
-            shadow.set()
-            NSColor.black.setFill()
-            NSBezierPath(ovalIn: discRect).fill()
-            NSGraphicsContext.restoreGraphicsState()
-
-            disc(discRect)
-            return true
-        }
-    }
-
-    /// Continuous-corner rounded rectangle approximating the system icon shape.
-    private static func squircle(in rect: NSRect) -> NSBezierPath {
-        NSBezierPath(roundedRect: rect, xRadius: rect.width * 0.2237, yRadius: rect.height * 0.2237)
-    }
-
-    // MARK: Discs
-
-    private static func drawGenericDisc(in rect: NSRect, side: CGFloat) {
-        let face = NSBezierPath(ovalIn: rect)
-        NSGraphicsContext.saveGraphicsState()
-        // Brushed silver face with a faint rainbow sheen, the way a blank CD catches light.
-        NSGradient(colorsAndLocations:
-            (NSColor(white: 0.95, alpha: 1), 0),
-            (NSColor(white: 0.80, alpha: 1), 0.55),
-            (NSColor(white: 0.64, alpha: 1), 1)
-        )?.draw(in: face, relativeCenterPosition: NSPoint(x: -0.25, y: 0.35))
-        NSGradient(colorsAndLocations:
-            (NSColor(calibratedHue: 0.58, saturation: 0.35, brightness: 1, alpha: 0.30), 0),
-            (NSColor(calibratedHue: 0.85, saturation: 0.25, brightness: 1, alpha: 0.18), 0.5),
-            (NSColor(calibratedHue: 0.12, saturation: 0.35, brightness: 1, alpha: 0.24), 1)
-        )?.draw(in: face, angle: -35)
-        NSGraphicsContext.restoreGraphicsState()
-        drawChrome(in: rect, side: side)
     }
 
     private static func drawArtworkDisc(_ artwork: NSImage, in rect: NSRect, side: CGFloat) {
@@ -97,30 +39,34 @@ enum DiscIcon {
         drawChrome(in: rect, side: side)
     }
 
-    /// Edge, hub and spindle hole shared by both discs.
+    /// Edge, hub and spindle hole, matching the generic disc in the shipped icon.
     private static func drawChrome(in rect: NSRect, side: CGFloat) {
-        let edge = NSBezierPath(ovalIn: rect.insetBy(dx: side * 0.003, dy: side * 0.003))
-        edge.lineWidth = side * 0.006
-        NSColor(white: 0, alpha: 0.2).setStroke()
+        let edge = NSBezierPath(ovalIn: rect.insetBy(dx: side * 0.002, dy: side * 0.002))
+        edge.lineWidth = side * 0.005
+        NSColor(white: 0, alpha: 0.28).setStroke()
         edge.stroke()
+        let inner = NSBezierPath(ovalIn: rect.insetBy(dx: side * 0.008, dy: side * 0.008))
+        inner.lineWidth = side * 0.003
+        NSColor(white: 1, alpha: 0.5).setStroke()
+        inner.stroke()
 
-        let hubSize = rect.width * 0.26
+        let hubSize = rect.width * 0.30
         let hubRect = NSRect(x: rect.midX - hubSize / 2, y: rect.midY - hubSize / 2, width: hubSize, height: hubSize)
         let hub = NSBezierPath(ovalIn: hubRect)
-        NSColor(white: 0.92, alpha: 0.92).setFill()
+        NSColor(white: 0.96, alpha: 0.9).setFill()
         hub.fill()
         hub.lineWidth = side * 0.004
-        NSColor(white: 0, alpha: 0.15).setStroke()
+        NSColor(white: 0, alpha: 0.18).setStroke()
         hub.stroke()
 
-        let holeSize = rect.width * 0.1
+        let holeSize = rect.width * 0.12
         let holeRect = NSRect(x: rect.midX - holeSize / 2, y: rect.midY - holeSize / 2, width: holeSize, height: holeSize)
         NSGraphicsContext.current?.compositingOperation = .destinationOut
         NSBezierPath(ovalIn: holeRect).fill()
         NSGraphicsContext.current?.compositingOperation = .sourceOver
-        let holeEdge = NSBezierPath(ovalIn: holeRect)
-        holeEdge.lineWidth = side * 0.004
-        NSColor(white: 0, alpha: 0.25).setStroke()
-        holeEdge.stroke()
+        let lip = NSBezierPath(ovalIn: holeRect)
+        lip.lineWidth = side * 0.004
+        NSColor(white: 0, alpha: 0.3).setStroke()
+        lip.stroke()
     }
 }
