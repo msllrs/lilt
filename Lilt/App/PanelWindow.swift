@@ -55,6 +55,13 @@ final class PanelWindow: NSPanel {
         case ("w", [.command]):
             delegate.hidePanel()
             return true
+        case ("m", [.command, .shift]):
+            // Plain ⌘M is the system's Minimize.
+            delegate.toggleMiniPlayer()
+            return true
+        case ("l", [.command]):
+            delegate.openLibrary()
+            return true
         #if DEBUG
         case ("t", [.command, .option]):
             delegate.showTweakPanel()

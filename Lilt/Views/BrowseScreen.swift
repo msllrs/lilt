@@ -153,6 +153,10 @@ struct BrowseScreen: View {
                 case .failed(let message):
                     EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load", detail: message)
                         .padding(.top, Theme.Space.xl)
+                case .loaded where page.tracks.isEmpty && page.sections.isEmpty:
+                    // e.g. Liked Music before anything has been liked in YouTube Music.
+                    EmptyHint(symbol: "music.note.list", title: "Nothing here yet", detail: "Songs you add on YouTube Music will show up here.")
+                        .padding(.top, Theme.Space.xl)
                 case .loaded:
                     EmptyView()
                 }

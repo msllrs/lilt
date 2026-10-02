@@ -59,19 +59,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let panel, navigation.isMiniPlayer != isMiniApplied else { return }
         isMiniApplied = navigation.isMiniPlayer
         let current = panel.frame
+        let target: NSRect
         if navigation.isMiniPlayer {
             expandedFrame = current
             let height = navigation.platterHeight + Theme.Space.panelInset * 2
             panel.minSize = NSSize(width: Theme.Size.panelMinWidth, height: height)
-            let target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
-            panel.setFrame(target, display: true, animate: true)
+            target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
         } else {
             panel.minSize = NSSize(width: Theme.Size.panelMinWidth, height: Theme.Size.panelMinHeight)
             let height = expandedFrame?.height ?? Theme.Size.panelMinHeight
-            let target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
-            panel.setFrame(target, display: true, animate: true)
+            target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
         }
+        #if DEBUG
+        NSLog("Lilt mini=%d platterHeight=%.0f from=%@ to=%@", navigation.isMiniPlayer ? 1 : 0, navigation.platterHeight, NSStringFromRect(current), NSStringFromRect(target))
+        #endif
+        panel.setFrame(target, display: true, animate: true)
+        #if DEBUG
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            NSLog("Lilt mini settled frame=%@ minSize=%@", NSStringFromRect(panel.frame), NSStringFromSize(panel.minSize))
+        }
+        #endif
     }
+
+    func toggleMiniPlayer() { navigation.isMiniPlayer.toggle() }
+    func openLibrary() { navigation.open(NavigationModel.library) }
 
     // MARK: Dock
 
@@ -234,8 +245,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         // The audio engine lives in a 1x1 web view underneath the SwiftUI content. It must stay
         // in a window to keep playing, which is why the panel hides rather than closes.
+        // Tucked well inside the rounded glass; at the corner it peeks out as a dot because the
+        // borderless window is transparent there.
         let webView = player.bridge.webView
-        webView.frame = NSRect(x: 0, y: 0, width: 1, height: 1)
+        webView.frame = NSRect(x: Theme.Radius.window, y: Theme.Radius.window, width: 1, height: 1)
         container.addSubview(webView)
 
         hosting.frame = container.bounds

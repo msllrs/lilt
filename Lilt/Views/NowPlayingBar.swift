@@ -9,9 +9,10 @@ struct NowPlayingBar: View {
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous) }
     private var platter: PlatterStyle { ArtworkStyle.shared.platter }
 
-    /// 0 when nothing scrolls beneath the platter, 1 once rows are passing under it.
+    /// 0 when nothing scrolls beneath the platter, 1 once rows are passing under it. As a mini
+    /// player the platter is the whole window, so it always wears its glass.
     private var glassVisibility: CGFloat {
-        min(max(scrollTracker.activeRemainingBelow / 24, 0), 1)
+        navigation.isMiniPlayer ? 1 : min(max(scrollTracker.activeRemainingBelow / 24, 0), 1)
     }
 
     /// The current artwork, for the ambient fill (any cached size will do once blurred).

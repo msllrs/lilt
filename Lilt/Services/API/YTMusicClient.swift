@@ -58,6 +58,8 @@ final class YTMusicClient {
         async let playlists = client.post("browse", body: ["browseId": "FEmusic_liked_playlists"])
         async let albums = client.post("browse", body: ["browseId": "FEmusic_liked_albums"])
         async let artists = client.post("browse", body: ["browseId": "FEmusic_library_corpus_track_artists"])
+        // Artists you've subscribed to live under a separate id from artists of saved tracks.
+        async let subscriptions = client.post("browse", body: ["browseId": "FEmusic_library_corpus_artists"])
         var content = LibraryContent()
         // The playlists feed includes a "New playlist" tile and the liked-music auto playlist;
         // drop anything without a real playlist id and make sure Liked Music leads.
@@ -69,7 +71,9 @@ final class YTMusicClient {
         }
         content.playlists = lists
         content.albums = SearchParser.libraryItems(from: try await albums.value).filter { $0.kind == .album }
-        content.artists = SearchParser.libraryItems(from: try await artists.value).filter { $0.kind == .artist }
+        var seenArtists = Set<String>()
+        content.artists = (SearchParser.libraryItems(from: try await artists.value) + SearchParser.libraryItems(from: try await subscriptions.value))
+            .filter { $0.kind == .artist && seenArtists.insert($0.id).inserted }
         libraryCache = (content, .now)
         ImageCache.shared.prefetch((content.playlists + content.albums + content.artists).prefix(24).map(\.artworkURL))
         return content
