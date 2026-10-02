@@ -200,10 +200,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func updateDockIcon() {
         let url = player.current?.artworkURL
-        guard url != dockArtworkURL || NSApp.applicationIconImage == nil else { return }
+        guard url != dockArtworkURL else { return }
         dockArtworkURL = url
         guard let url else {
-            NSApp.applicationIconImage = DiscIcon.genericTile()
+            // Nothing playing: the app icon from the bundle, not a redrawn stand-in.
+            NSApp.applicationIconImage = nil
             return
         }
         Task { [weak self] in

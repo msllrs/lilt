@@ -29,23 +29,23 @@ enum DiscIcon {
             let path = squircle(in: plate)
             NSGraphicsContext.saveGraphicsState()
             path.addClip()
+            // The same light plate as the shipped Icon Composer icon, so the live tile reads as
+            // the app icon with a label on it rather than a different icon.
             NSGradient(colorsAndLocations:
-                (NSColor(calibratedHue: 0.62, saturation: 0.08, brightness: 0.22, alpha: 1), 0),
-                (NSColor(calibratedHue: 0.62, saturation: 0.10, brightness: 0.12, alpha: 1), 1)
-            )?.draw(in: plate, angle: -90)
-            // Glass-like light across the top of the plate.
-            NSGradient(colorsAndLocations:
-                (NSColor(white: 1, alpha: 0.18), 0),
-                (NSColor(white: 1, alpha: 0.03), 0.45),
-                (NSColor(white: 1, alpha: 0), 1)
+                (NSColor(srgbRed: 0.98, green: 0.98, blue: 0.99, alpha: 1), 0),
+                (NSColor(srgbRed: 0.93, green: 0.93, blue: 0.95, alpha: 1), 1)
             )?.draw(in: plate, angle: -90)
             NSGraphicsContext.restoreGraphicsState()
+            // Hairline edge like the system's icon plate.
+            path.lineWidth = side * 0.004
+            NSColor(white: 0, alpha: 0.08).setStroke()
+            path.stroke()
 
             // Soft drop shadow under the disc so it sits on the plate.
-            let discRect = plate.insetBy(dx: plate.width * 0.14, dy: plate.height * 0.14)
+            let discRect = plate.insetBy(dx: plate.width * 0.10, dy: plate.height * 0.10)
             NSGraphicsContext.saveGraphicsState()
             let shadow = NSShadow()
-            shadow.shadowColor = NSColor(white: 0, alpha: 0.45)
+            shadow.shadowColor = NSColor(white: 0, alpha: 0.30)
             shadow.shadowBlurRadius = side * 0.03
             shadow.shadowOffset = NSSize(width: 0, height: -side * 0.012)
             shadow.set()
