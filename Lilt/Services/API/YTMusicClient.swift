@@ -35,6 +35,7 @@ final class YTMusicClient {
     /// instead of flashing a spinner.
     var cachedHome: [HomeSection]? { homeCache?.sections }
     var cachedLibrary: LibraryContent? { libraryCache?.content }
+    private(set) var cachedAccount: AccountInfo?
     func cachedPage(for item: BrowseItem) -> BrowsePage? { pageCache[item.id] }
 
     /// The home feed, cached briefly so returning to the root is instant. Shelves from the other
@@ -75,6 +76,7 @@ final class YTMusicClient {
         async let list = client.post("account/accounts_list", body: [:])
         guard var info = SearchParser.account(from: try await menu.value) else { return nil }
         info.alternatives = SearchParser.accountAlternatives(from: try await list.value)
+        cachedAccount = info
         return info
     }
 
@@ -84,6 +86,7 @@ final class YTMusicClient {
         pageCache = [:]
         homeCache = nil
         libraryCache = nil
+        cachedAccount = nil
         accountGeneration += 1
     }
 

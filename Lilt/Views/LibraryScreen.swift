@@ -18,10 +18,12 @@ struct LibraryScreen: View {
 
     init() {
         // Render the cached library immediately; the task refreshes if the cache is stale.
-        if let cached = MainActor.assumeIsolated({ AppDelegate.shared?.music.cachedLibrary }) {
+        let music = MainActor.assumeIsolated { AppDelegate.shared?.music }
+        if let cached = MainActor.assumeIsolated({ music?.cachedLibrary }) {
             _content = State(initialValue: cached)
             _phase = State(initialValue: .loaded)
         }
+        _account = State(initialValue: MainActor.assumeIsolated { music?.cachedAccount })
     }
 
     var body: some View {
@@ -132,7 +134,7 @@ struct LibraryScreen: View {
         do {
             async let who = music.account()
             content = try await music.library()
-            account = try? await who
+            if let fresh = try? await who { account = fresh }
             phase = .loaded
         } catch is CancellationError {
         } catch {

@@ -4,7 +4,8 @@ import SwiftUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// For views that need a cache peek before their environment is available (initialisers).
-    static var shared: AppDelegate? { NSApp.delegate as? AppDelegate }
+    /// Set explicitly: under the SwiftUI app lifecycle `NSApp.delegate` is SwiftUI's wrapper, not us.
+    private(set) static weak var shared: AppDelegate?
 
     let auth = AuthService()
     private(set) lazy var player = PlayerService(auth: auth)
@@ -17,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var loginWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Self.shared = self
         NSApp.setActivationPolicy(.regular)
         player.linkResolver = { [music] videoId in try await music.links(forVideoId: videoId) }
         player.recents = recents
