@@ -39,9 +39,7 @@ struct TrackRow: View {
             HStack(spacing: Theme.Space.md) {
                 artwork
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(track.title)
-                        .font(.body)
-                        .lineLimit(1)
+                    MarqueeText(text: track.title, isActive: isHovering, font: .body)
                     ArtistLink(name: track.artist, item: track.artistItem)
                 }
                 Spacer(minLength: Theme.Space.sm)

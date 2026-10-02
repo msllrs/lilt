@@ -26,6 +26,7 @@ struct BrowseScreen: View {
     /// Extra bottom padding that guarantees enough scroll range for the hero to hand off fully.
     @State private var extraBottom: CGFloat = 0
     @State private var isHoveringCompactArtwork = false
+    @State private var isHoveringHeader = false
 
     var body: some View {
         content
@@ -43,9 +44,7 @@ struct BrowseScreen: View {
                 HStack(spacing: Theme.Space.sm) {
                     compactArtwork(page)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(page.item.title)
-                            .font(.callout.weight(.medium))
-                            .lineLimit(1)
+                        MarqueeText(text: page.item.title, isActive: isHoveringHeader, font: .callout.weight(.medium))
                         if !page.item.subtitle.isEmpty {
                             ArtistLink(name: page.item.subtitle, item: pageArtist(page), font: .caption2)
                         }
@@ -61,6 +60,7 @@ struct BrowseScreen: View {
         .padding(.horizontal, Theme.Space.panelInset)
         .padding(.bottom, Theme.Space.sm)
         .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
+        .onHover { isHoveringHeader = $0 }
     }
 
     private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }

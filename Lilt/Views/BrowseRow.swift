@@ -19,9 +19,7 @@ struct BrowseRow: View {
             HStack(spacing: Theme.Space.md) {
                 artwork
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title)
-                        .font(.body)
-                        .lineLimit(1)
+                    MarqueeText(text: item.title, isActive: isHovering, font: .body)
                     subtitle
                 }
                 Spacer(minLength: Theme.Space.sm)
@@ -76,10 +74,7 @@ struct BrowseRow: View {
             .foregroundStyle(.secondary)
             .lineLimit(1)
         } else {
-            Text(item.subtitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            MarqueeText(text: item.subtitle, isActive: isHovering, font: .caption, color: AnyShapeStyle(.secondary))
         }
     }
 }

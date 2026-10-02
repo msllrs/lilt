@@ -29,9 +29,7 @@ struct NowPlayingBar: View {
             HStack(spacing: Theme.Space.md) {
                 artwork
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(player.displayTitle)
-                        .font(.callout.weight(.medium))
-                        .lineLimit(1)
+                    MarqueeText(text: player.displayTitle, isActive: isHoveringPlatter, font: .callout.weight(.medium))
                     ArtistLink(name: player.displayArtist, item: player.current?.artistItem)
                 }
                 Spacer(minLength: 0)
