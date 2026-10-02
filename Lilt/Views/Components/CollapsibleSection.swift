@@ -28,13 +28,27 @@ struct CollapsibleSection<Content: View>: View {
 
     @Environment(CollapsedSections.self) private var collapsedSections
     @State private var isHovering = false
+    /// 0 open, 1 folded; animated so the fade tracks the clip.
+    @State private var fold: CGFloat
 
     private var id: String { "\(scope)/\(title)" }
     private var isCollapsed: Bool { collapsedSections.isCollapsed(id) }
 
+    init(title: String, scope: String, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.scope = scope
+        self.content = content
+        _fold = State(initialValue: MainActor.assumeIsolated {
+            AppDelegate.shared?.collapsedSections.isCollapsed("\(scope)/\(title)") == true ? 1 : 0
+        })
+    }
+
     var body: some View {
         Button {
-            withAnimation(Theme.Motion.standard) { collapsedSections.toggle(id) }
+            withAnimation(Theme.Motion.standard) {
+                collapsedSections.toggle(id)
+                fold = isCollapsed ? 1 : 0
+            }
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: Theme.Space.xs) {
                 Text(title)
@@ -60,10 +74,21 @@ struct CollapsibleSection<Content: View>: View {
         .onHover { isHovering = $0 }
 
         // Rows reveal from under the title and fold back behind it: a height clip, so nothing
-        // ever draws over the header.
+        // ever draws over the header. While folding, the bottom edge fades rather than cuts.
         VStack(spacing: 0) { content() }
             .frame(maxHeight: isCollapsed ? 0 : nil, alignment: .top)
             .clipped()
+            .mask {
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black, location: 1 - 0.35 * fold),
+                        .init(color: .black.opacity(1 - fold), location: 1),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
             .allowsHitTesting(!isCollapsed)
     }
 }
