@@ -35,9 +35,20 @@ struct NowPlayingBar: View {
         VStack(spacing: Theme.Space.sm) {
             HStack(spacing: Theme.Space.md) {
                 artwork
-                VStack(alignment: .leading, spacing: 2) {
-                    MarqueeText(text: player.displayTitle, isActive: isHoveringPlatter, font: .callout.weight(.medium))
-                    ArtistLink(name: player.displayArtist, item: player.current?.artistItem)
+                // Title and artist take a little of the cover's colour too, the artist half as much.
+                InterpolatedColor(accent) { accent in
+                    let mono = colorScheme == .dark ? Color.white : Color.black
+                    let title = accent.map { mono.mix(with: $0, by: platter.textTint) }
+                    let artist = accent.map { Color.secondary.mix(with: $0, by: platter.textTint * 0.5) }
+                    VStack(alignment: .leading, spacing: 2) {
+                        MarqueeText(
+                            text: player.displayTitle,
+                            isActive: isHoveringPlatter,
+                            font: .callout.weight(.medium),
+                            color: title.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary)
+                        )
+                        ArtistLink(name: player.displayArtist, item: player.current?.artistItem, color: artist ?? .secondary)
+                    }
                 }
                 // Room for the mode button in the corner, only while it's showing (hover, or mini).
                 // Eases in with the button; snaps back when the pointer leaves.
