@@ -82,19 +82,19 @@ struct PlatterStyle: Equatable {
     /// Blur radius in points.
     var tintBlur: Double = 160
     /// How much brighter the ambient fill gets while the pointer is over the platter (0 = none).
-    var hoverBrightness: Double = 0.35
+    var hoverBrightness: Double = 0.80
     /// A wash of the artwork's dominant colour in the top-leading corner, behind the cover.
-    var cornerAccentOpacity: Double = 0.25
+    var cornerAccentOpacity: Double = 0.32
     /// Reach of that wash, as a fraction of the platter's size.
-    var cornerAccentRadius: Double = 0.7
+    var cornerAccentRadius: Double = 1.0
     /// How far the scrubber's elapsed line moves from the label colour toward the artwork's
     /// dominant colour (0 = plain black/white, 1 = fully coloured).
     var scrubberTint: Double = 1.0
     var scrubberSaturation: Double = 1.3
     /// The same colour, more faintly, on the transport and mode glyphs (0 = label colour).
-    var controlsTint: Double = 0.35
+    var controlsTint: Double = 0.64
 
-    /// Tuned by Matt in the tweak panel on 2026-10-01.
+    /// Tuned by Matt in the tweak panel on 2026-10-01; colour dials on 2026-10-02.
     static let standard = PlatterStyle()
 }
 
