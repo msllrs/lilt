@@ -5,37 +5,33 @@ struct RootView: View {
     @Environment(NavigationModel.self) private var navigation
 
     var body: some View {
-        // Mini player: the column is removed (a fade keeps its last layout on screen while the
-        // window shrinks). It must not stay mounted: its header would still demand height in a
-        // platter-sized window and push the platter down.
-        Group {
-            if navigation.isMiniPlayer {
-                Color.clear
-            } else {
+        let mini = navigation.isMiniPlayer
+        // The window never resizes. In mini only the platter is drawn, bottom-aligned where it
+        // always sits; the rest of the window is fully transparent, and macOS hit-tests
+        // non-opaque windows by their pixels, so clicks there fall through to whatever is behind.
+        // The whole transition is one SwiftUI animation: column fades, glass shrinks to the platter.
+        ZStack(alignment: .bottom) {
+            if !mini {
                 NavigationColumn()
+                    .safeAreaBar(edge: .bottom, spacing: 0) {
+                        if player.current != nil {
+                            Color.clear.frame(height: navigation.platterHeight + Theme.Space.panelInset)
+                        }
+                    }
+                    .background { GlassBackground(cornerRadius: Theme.Radius.window).ignoresSafeArea() }
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
                     .transition(.opacity)
             }
+            if player.current != nil {
+                NowPlayingBar()
+                    .padding(.horizontal, mini ? 0 : Theme.Space.panelInset)
+                    .padding(.bottom, mini ? 0 : Theme.Space.panelInset)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
-            .safeAreaBar(edge: .bottom, spacing: 0) {
-                if player.current != nil {
-                    // Mini: the platter's content sits directly in the window with the window's
-                    // own inset, no card inside a card.
-                    // Mini: no inset at all; the platter's own glass and corners are the window.
-                    NowPlayingBar()
-                        .padding(.horizontal, navigation.isMiniPlayer ? 0 : Theme.Space.panelInset)
-                        .padding(.bottom, navigation.isMiniPlayer ? 0 : Theme.Space.panelInset)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .animation(Theme.Motion.standard, value: player.current?.id)
-            .animation(Theme.Motion.standard, value: navigation.isMiniPlayer)
-            // The window glass stays on throughout: in mini it simply becomes the platter's own
-            // backdrop, so nothing ever fades out from under the content mid-resize.
-            .background {
-                GlassBackground(cornerRadius: navigation.isMiniPlayer ? Theme.Radius.panel : Theme.Radius.window)
-                    .ignoresSafeArea()
-            }
-            .clipShape(RoundedRectangle(cornerRadius: navigation.isMiniPlayer ? Theme.Radius.panel : Theme.Radius.window, style: .continuous))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .animation(Theme.Motion.standard, value: player.current?.id)
+        .animation(Theme.Motion.standard, value: mini)
     }
 }
 
