@@ -64,8 +64,8 @@ struct QueueList: View {
                 // AppKit's table still insets rows by 8pt a side after the margins are zeroed;
                 // pull it back so rows line up with the platter's artwork and controls.
                 .padding(.horizontal, -Self.tableInset)
-                // When there's more than fits, rows don't hit a hard edge: they fade out, and the
-                // same blur ramp as the headers sits over both ends.
+                // When there's more than fits, rows don't hit a hard edge: they fade out at both
+                // ends (a blur ramp here read as muddy; a plain fade sits better in the platter).
                 .mask {
                     if upcoming.count > Self.maxRows {
                         LinearGradient(
@@ -80,20 +80,6 @@ struct QueueList: View {
                         )
                     } else {
                         Rectangle()
-                    }
-                }
-                .overlay(alignment: .top) {
-                    if upcoming.count > Self.maxRows, ProgressiveBlurBackdrop.isAvailable {
-                        ProgressiveBlurBackdrop(radius: 10, saturation: 1, brightness: 0, fadeStart: 0.3)
-                            .frame(height: Self.edgeFade * 2)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .overlay(alignment: .bottom) {
-                    if upcoming.count > Self.maxRows, ProgressiveBlurBackdrop.isAvailable {
-                        ProgressiveBlurBackdrop(radius: 10, saturation: 1, brightness: 0, fadeStart: 0.3, flipped: true)
-                            .frame(height: Self.edgeFade * 2)
-                            .allowsHitTesting(false)
                     }
                 }
             }
