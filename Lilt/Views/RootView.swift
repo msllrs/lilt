@@ -50,6 +50,11 @@ struct RootView: View {
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+            if !mini {
+                // The window's real edges are out in the shadow margin, so resizing happens here.
+                ResizeEdges()
+                    .transition(.opacity)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         // Our own window shadow, drawn in the transparent margin around the visible shape.

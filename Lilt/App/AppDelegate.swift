@@ -107,6 +107,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
+    // MARK: Manual resize (edge strips drawn inside the visible panel)
+
+    var panelFrame: NSRect { panel?.frame ?? .zero }
+
+    /// Applies a frame from the edge strips, honouring the window's min/max sizes and keeping the
+    /// anchored edge fixed when a size is clamped.
+    func setPanelFrame(_ proposed: NSRect, clampToSizes: Bool) {
+        guard let panel else { return }
+        var f = proposed
+        if clampToSizes {
+            let minW = panel.minSize.width, maxW = panel.maxSize.width
+            let minH = panel.minSize.height, maxH = panel.maxSize.height
+            if f.width < minW { if f.minX != panel.frame.minX { f.origin.x = panel.frame.maxX - minW }; f.size.width = minW }
+            if f.width > maxW { if f.minX != panel.frame.minX { f.origin.x = panel.frame.maxX - maxW }; f.size.width = maxW }
+            if f.height < minH { if f.minY != panel.frame.minY { f.origin.y = panel.frame.maxY - minH }; f.size.height = minH }
+            if f.height > maxH { if f.minY != panel.frame.minY { f.origin.y = panel.frame.maxY - maxH }; f.size.height = maxH }
+        }
+        panel.setFrame(f, display: true)
+    }
+
+    func panelDidResizeManually() {
+        guard let panel, !navigation.isMiniPlayer else { return }
+        expandedHeight = panel.frame.height
+    }
+
     /// A manual resize while expanded is the new expanded height.
     func windowDidEndLiveResize(_ notification: Notification) {
         guard let panel, (notification.object as? NSWindow) === panel, !navigation.isMiniPlayer else { return }
