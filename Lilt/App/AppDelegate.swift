@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let auth = AuthService()
     private(set) lazy var player = PlayerService(auth: auth)
     private(set) lazy var music = YTMusicClient(auth: auth)
+    private var remoteCommands: RemoteCommandBridge?
     let navigation = NavigationModel()
     let scrollTracker = ScrollTracker()
     let recents = RecentsStore()
@@ -29,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         observeLoginPresentation()
         observeDockIcon()
         observeQueue()
+        remoteCommands = RemoteCommandBridge(player: player)
         observeMiniPlayer()
         Task {
             await auth.refresh()

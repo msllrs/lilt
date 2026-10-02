@@ -57,10 +57,31 @@ final class PanelWindow: NSPanel {
         let modifiers = event.modifierFlags
             .intersection(.deviceIndependentFlagsMask)
             .subtracting([.capsLock, .numericPad, .function])
-        guard modifiers.contains(.command),
-              let key = event.charactersIgnoringModifiers?.lowercased(),
-              let delegate = AppDelegate.shared else { return false }
+        guard let delegate = AppDelegate.shared else { return false }
+        // Transport keys. Space only when nothing is taking text (the search field is first
+        // responder while you type into it); the arrows need ⌘ so lists keep theirs.
+        let isTyping = firstResponder is NSTextView
+        switch (event.keyCode, modifiers) {
+        case (49, []) where !isTyping: // Space
+            delegate.player.togglePlayPause()
+            return true
+        case (124, [.command]): // →
+            delegate.player.next()
+            return true
+        case (123, [.command]): // ←
+            delegate.player.previous()
+            return true
+        default:
+            break
+        }
+        guard modifiers.contains(.command), let key = event.charactersIgnoringModifiers?.lowercased() else { return false }
         switch (key, modifiers) {
+        case ("s", [.command, .shift]):
+            delegate.player.toggleShuffle()
+            return true
+        case ("r", [.command, .shift]):
+            delegate.player.cycleRepeat()
+            return true
         case ("w", [.command]):
             delegate.hidePanel()
             return true

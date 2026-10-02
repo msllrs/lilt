@@ -24,6 +24,24 @@ struct LiltApp: App {
                     .keyboardShortcut("m", modifiers: [.command, .shift])
                 Button("Library") { delegate.openLibrary() }
                     .keyboardShortcut("l", modifiers: .command)
+            }
+            // Transport, as in Music: Space (when not typing), ⌘→ and ⌘←. The panel handles
+            // the keys itself too, so they work while another app is frontmost.
+            CommandMenu("Controls") {
+                Button(delegate.player.isPlaying ? "Pause" : "Play") { delegate.player.togglePlayPause() }
+                    .keyboardShortcut(.space, modifiers: [])
+                    .disabled(delegate.player.current == nil)
+                Button("Next") { delegate.player.next() }
+                    .keyboardShortcut(.rightArrow, modifiers: .command)
+                    .disabled(!delegate.player.hasNext)
+                Button("Previous") { delegate.player.previous() }
+                    .keyboardShortcut(.leftArrow, modifiers: .command)
+                    .disabled(delegate.player.current == nil)
+                Divider()
+                Button("Shuffle") { delegate.player.toggleShuffle() }
+                    .keyboardShortcut("s", modifiers: [.command, .shift])
+                Button("Repeat") { delegate.player.cycleRepeat() }
+                    .keyboardShortcut("r", modifiers: [.command, .shift])
                 #if DEBUG
                 Divider()
                 Button("Tweak Artwork…") { delegate.showTweakPanel() }

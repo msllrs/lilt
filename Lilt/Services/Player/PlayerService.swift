@@ -70,6 +70,10 @@ final class PlayerService {
     private var trustWebPlayStateAfter: Date = .distantPast
     /// The restored queue hasn't been loaded into the web view yet; the first play does that.
     private var needsLoad = false
+    /// The web view has a live playback session for the current track, so WebKit holds the
+    /// system Now Playing entry and receives the media keys. False after a relaunch until the
+    /// restored track is actually loaded; `RemoteCommandBridge` covers that window.
+    private(set) var hasWebSession = false
     /// Position to seek to once the restored track is playing.
     private var pendingSeek: Double?
     private var lastSavedTime: Double = 0
@@ -211,6 +215,7 @@ final class PlayerService {
         currentIndex = nil
         resetLiveState()
         bridge.unload()
+        hasWebSession = false
         save()
     }
 
@@ -389,6 +394,10 @@ final class PlayerService {
             adopt(videoId: videoId, from: s)
         }
         isLoading = false
+        // WebKit only registers with Now Playing once the page actually plays. A snapshot of
+        // YouTube's own restored (paused) player after a relaunch doesn't count, so the bridge
+        // keeps Lilt's entry until our restored track is loaded and running.
+        if !needsLoad, s.isPlaying { hasWebSession = true }
         if s.isPlaying == isPlaying || Date.now >= trustWebPlayStateAfter {
             isPlaying = s.isPlaying
         }

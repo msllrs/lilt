@@ -22,6 +22,7 @@ Lilt is deliberately light. It plays through a hidden YouTube Music web view (so
 - **Progressive blur** — Headers sit on a real blur ramp (a Core Animation backdrop, with a system-material fallback)
 - **Dock icon** — The app icon carries the current cover on its disc, with the cover's colour on the plate
 - **Recents** — Recently played tracks and recently viewed pages, one click away from the search field
+- **Keyboard and media keys** — Space, ⌘→ and ⌘← drive playback from the panel (and the Controls menu); the Mac's play/pause and track keys reach Lilt through Now Playing like any other player
 - **Picks up where you left off** — Queue, playhead, view and window size survive relaunches
 
 ## Tweak panel
@@ -37,6 +38,9 @@ Debug builds include a panel (`⌥⌘T`) with live sliders for every finish valu
 | `⌘⇧M` | Mini player |
 | `⌘L` | Library |
 | `⌘[` | Back |
+| `Space` | Play / pause (when not typing) |
+| `⌘→` / `⌘←` | Next / previous |
+| `⌘⇧S` / `⌘⇧R` | Shuffle / repeat |
 | `⌥⌘T` | Tweak panel (debug builds) |
 
 ## Build from source
