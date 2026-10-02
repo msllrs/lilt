@@ -65,8 +65,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         miniEverApplied = true
     }
 
-    /// Entry point for the platter button, menu and shortcut.
+    /// Entry point for the platter button, menu and shortcut. Deferred one run loop so the mode
+    /// change is never in the same SwiftUI transaction as the button's press-release spring,
+    /// which would otherwise animate the icon's position change with a bounce.
     func setMiniPlayer(_ mini: Bool) {
+        DispatchQueue.main.async { [weak self] in self?.applyMiniPlayerChange(mini) }
+    }
+
+    private func applyMiniPlayerChange(_ mini: Bool) {
         guard mini != navigation.isMiniPlayer else { return }
         if mini {
             navigation.isMiniPlayer = true
