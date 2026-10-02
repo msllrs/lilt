@@ -40,7 +40,9 @@ struct ProgressiveBlurBackdrop: NSViewRepresentable {
 final class BackdropHostView: NSView {
     private var backdrop: CALayer?
     private var fade = CAGradientLayer()
-    private var lastKey: String?
+    private var blur: NSObject?
+    private var radius = 0.0, saturation = 1.0, brightness = 0.0
+    private var maskSize = CGSize.zero
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -65,19 +67,41 @@ final class BackdropHostView: NSView {
         super.layout()
         backdrop?.frame = bounds
         fade.frame = bounds
+        applyFilters()
+    }
+
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        applyFilters()
     }
 
     func configure(radius: Double, saturation: Double, brightness: Double, fadeStart: Double) {
-        guard let backdrop else { return }
-        let key = "\(radius)|\(saturation)|\(brightness)|\(fadeStart)"
-        guard key != lastKey else { return }
-        lastKey = key
+        guard backdrop != nil else { return }
+        let changed = radius != self.radius || saturation != self.saturation || brightness != self.brightness
+        self.radius = radius; self.saturation = saturation; self.brightness = brightness
         CATransaction.begin()
         CATransaction.setDisableActions(true)
+        // The whole effect fades out below `fadeStart`, so rows melt into it instead of meeting
+        // a hard line where the blur stops.
+        fade.colors = [NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
+        fade.locations = [0, NSNumber(value: fadeStart), 1]
+        CATransaction.commit()
+        if changed { maskSize = .zero; applyFilters() }
+    }
+
+    /// The filter maps its mask image 1:1 in pixels (it does not stretch it), so the mask is
+    /// rebuilt at the layer's pixel size whenever that changes, and the filters are reassigned
+    /// because the layer only picks up a new filter array, not edits to a filter in place.
+    private func applyFilters() {
+        guard let backdrop, bounds.width > 0, bounds.height > 0 else { return }
+        let scale = window?.backingScaleFactor ?? 2
+        let size = CGSize(width: (bounds.width * scale).rounded(), height: (bounds.height * scale).rounded())
+        guard size != maskSize else { return }
+        maskSize = size
         var filters: [Any] = []
-        if let blur = ProgressiveBlurBackdrop.makeFilter("variableBlur") {
+        if let blur = ProgressiveBlurBackdrop.makeFilter("variableBlur"), let mask = Self.rampMask(size: size) {
             blur.setValue(radius, forKey: "inputRadius")
-            blur.setValue(Self.rampMask, forKey: "inputMaskImage")
+            blur.setValue(mask, forKey: "inputMaskImage")
             blur.setValue(true, forKey: "inputNormalizeEdges")
             filters.append(blur)
         }
@@ -89,22 +113,21 @@ final class BackdropHostView: NSView {
             bright.setValue(brightness, forKey: "inputAmount")
             filters.append(bright)
         }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         backdrop.filters = filters
-        // The whole effect fades out below `fadeStart`, so rows melt into it instead of meeting
-        // a hard line where the blur stops.
-        fade.colors = [NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
-        fade.locations = [0, NSNumber(value: fadeStart), 1]
         CATransaction.commit()
     }
 
-    /// The variable blur's mask: white (full radius) at the top, black (none) at the bottom. One
-    /// pixel wide; the filter stretches it over the layer.
-    private static let rampMask: CGImage = {
-        let height = 64
-        let space = CGColorSpaceCreateDeviceGray()
-        let context = CGContext(data: nil, width: 1, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: space, bitmapInfo: CGImageAlphaInfo.none.rawValue)!
-        let gradient = CGGradient(colorsSpace: space, colors: [CGColor(gray: 1, alpha: 1), CGColor(gray: 0, alpha: 1)] as CFArray, locations: [0, 1])!
-        context.drawLinearGradient(gradient, start: CGPoint(x: 0, y: CGFloat(height)), end: .zero, options: [])
-        return context.makeImage()!
-    }()
+    /// The variable blur's mask at the layer's pixel size. The filter reads the mask's alpha:
+    /// opaque means the full radius, clear means none, so this is a transparency ramp from the
+    /// top down.
+    private static func rampMask(size: CGSize) -> CGImage? {
+        let space = CGColorSpaceCreateDeviceRGB()
+        guard let context = CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0, space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        let colors = [CGColor(red: 0, green: 0, blue: 0, alpha: 1), CGColor(red: 0, green: 0, blue: 0, alpha: 0)] as CFArray
+        guard let gradient = CGGradient(colorsSpace: space, colors: colors, locations: [0, 1]) else { return nil }
+        context.drawLinearGradient(gradient, start: CGPoint(x: 0, y: size.height), end: .zero, options: [])
+        return context.makeImage()
+    }
 }
