@@ -27,7 +27,7 @@ struct ProgressiveBlurBackdrop: NSViewRepresentable {
     func makeNSView(context: Context) -> BackdropHostView { BackdropHostView() }
 
     func updateNSView(_ view: BackdropHostView, context: Context) {
-        view.flipped = flipped
+        view.rampFlipped = flipped
         view.configure(radius: radius, saturation: saturation, brightness: brightness, fadeStart: fadeStart)
     }
 
@@ -72,18 +72,19 @@ final class BackdropHostView: NSView {
     /// not the layer.
     private static let bleed: CGFloat = 12
     private var fadeStart: CGFloat = 1
-    var flipped = false {
-        didSet { if flipped != oldValue { maskSize = .zero; needsLayout = true } }
+    /// Full blur at the bottom edge instead of the top (NSView already has `isFlipped`).
+    var rampFlipped = false {
+        didSet { if rampFlipped != oldValue { maskSize = .zero; needsLayout = true } }
     }
 
     override func layout() {
         super.layout()
         // Bleed past the edge the effect is strongest at (top normally, bottom when flipped).
-        let frame = NSRect(x: -Self.bleed, y: flipped ? -Self.bleed : 0, width: bounds.width + Self.bleed * 2, height: bounds.height + Self.bleed)
+        let frame = NSRect(x: -Self.bleed, y: rampFlipped ? -Self.bleed : 0, width: bounds.width + Self.bleed * 2, height: bounds.height + Self.bleed)
         backdrop?.frame = frame
         fade.frame = backdrop?.bounds ?? frame
-        fade.startPoint = CGPoint(x: 0.5, y: flipped ? 0 : 1)
-        fade.endPoint = CGPoint(x: 0.5, y: flipped ? 1 : 0)
+        fade.startPoint = CGPoint(x: 0.5, y: rampFlipped ? 0 : 1)
+        fade.endPoint = CGPoint(x: 0.5, y: rampFlipped ? 1 : 0)
         applyFade()
         applyFilters()
     }
@@ -127,7 +128,7 @@ final class BackdropHostView: NSView {
         guard size != maskSize else { return }
         maskSize = size
         var filters: [Any] = []
-        if let blur = ProgressiveBlurBackdrop.makeFilter("variableBlur"), let mask = Self.rampMask(size: size, flipped: flipped) {
+        if let blur = ProgressiveBlurBackdrop.makeFilter("variableBlur"), let mask = Self.rampMask(size: size, flipped: rampFlipped) {
             blur.setValue(radius, forKey: "inputRadius")
             blur.setValue(mask, forKey: "inputMaskImage")
             blur.setValue(true, forKey: "inputNormalizeEdges")

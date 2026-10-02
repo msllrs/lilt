@@ -112,7 +112,9 @@ private struct QueueRow: View {
 
     var body: some View {
         HStack(spacing: Theme.Space.sm) {
+            // Same hover state as list rows: a play glyph over the cover.
             ArtworkView(url: track.artworkURL, size: 28, radius: Theme.Radius.artwork(28), context: .row)
+                .playOverlay(isVisible: isHovering, symbol: "play.fill", radius: Theme.Radius.artwork(28), size: 28)
             VStack(alignment: .leading, spacing: 1) {
                 Text(track.title)
                     .font(.caption)
