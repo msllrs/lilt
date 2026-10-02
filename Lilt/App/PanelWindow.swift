@@ -50,7 +50,18 @@ final class PanelWindow: NSPanel {
     /// shortcuts here so they work straight from the panel.
     override func sendEvent(_ event: NSEvent) {
         if event.type == .keyDown, handleShortcut(event) { return }
+        if event.type == .leftMouseDown { endEditingIfClickedAway(event) }
         super.sendEvent(event)
+    }
+
+    /// AppKit leaves a text field focused when you click somewhere inert. Here a click anywhere
+    /// outside the field ends editing, so the caret goes away and Space goes back to playback.
+    private func endEditingIfClickedAway(_ event: NSEvent) {
+        guard let editor = firstResponder as? NSTextView,
+              let hit = contentView?.hitTest(event.locationInWindow) else { return }
+        let field = editor.delegate as? NSView
+        let inside = hit === editor || hit.isDescendant(of: editor) || (field.map { hit === $0 || hit.isDescendant(of: $0) } ?? false)
+        if !inside { makeFirstResponder(nil) }
     }
 
     private func handleShortcut(_ event: NSEvent) -> Bool {

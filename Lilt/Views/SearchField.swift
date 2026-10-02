@@ -2,7 +2,12 @@ import SwiftUI
 
 struct SearchField: View {
     @Binding var text: String
+    @Environment(NavigationModel.self) private var navigation
     @FocusState private var isFocused: Bool
+
+    /// The search screen stays mounted (parked) under pages; the field only owns focus while
+    /// it's actually the screen on top, or typing on a page would silently edit the query.
+    private var isOnTop: Bool { navigation.path.isEmpty }
 
     var body: some View {
         HStack(spacing: Theme.Space.sm) {
@@ -25,13 +30,16 @@ struct SearchField: View {
         .padding(.horizontal, Theme.Space.md)
         .frame(height: Theme.Size.headerRow)
         .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous))
-        .onAppear { isFocused = true }
+        .onAppear { isFocused = isOnTop }
+        // Give focus up when a page opens over the search root, take it back when you return.
+        .onChange(of: isOnTop) { _, onTop in isFocused = onTop }
         // The panel often isn't key when this first appears; re-claim focus when it becomes key
-        // so showing the panel means you can type straight away. Only our panel, and only when
-        // the field doesn't already have focus: re-focusing a field that has it selects all its
-        // text, which swallowed the second character of anything typed quickly.
+        // so showing the panel means you can type straight away. Only our panel, only on the
+        // search root, and only when the field doesn't already have focus: re-focusing a field
+        // that has it selects all its text, which swallowed the second character of anything
+        // typed quickly.
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
-            guard (note.object as? NSWindow) is PanelWindow, !isFocused else { return }
+            guard (note.object as? NSWindow) is PanelWindow, isOnTop, !isFocused else { return }
             isFocused = true
         }
     }
