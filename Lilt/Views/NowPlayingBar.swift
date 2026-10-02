@@ -178,18 +178,13 @@ private struct ModeButton: View {
 
     var body: some View {
         Button(action: action) {
-            ZStack {
-                // Keyed by symbol so a glyph change swaps through the transition instead of
-                // cross-fading two differently placed arrows (which reads as them sliding).
-                Image(systemName: symbol)
-                    .font(.system(size: 12, weight: .semibold))
-                    .id(symbol)
-                    .transition(.blurScale)
-            }
-            .animation(.snappy(duration: 0.22), value: symbol)
-            .foregroundStyle(isOn ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-            .frame(width: 28, height: 28)
-            .contentShape(Circle())
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                // No glyph transition: the icon just moves with the platter's layout.
+                .transaction { $0.animation = nil }
+                .foregroundStyle(isOn ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                .frame(width: 28, height: 28)
+                .contentShape(Circle())
         }
         .buttonStyle(.pressable(scale: 0.88))
         .opacity(isOn ? 1 : revealed ? 0.7 : 0)
