@@ -62,9 +62,10 @@ struct NowPlayingBar: View {
             InterpolatedColor(accent) { accent in
                 let mono = colorScheme == .dark ? Color.white : Color.black
                 let tint = accent.map { mono.mix(with: $0, by: platter.controlsTint) } ?? mono
+                let dim = accent.map { Color.secondary.mix(with: $0, by: platter.controlsTint) }
                 HStack(spacing: 0) {
                     // Shuffle and repeat flank the transport; they appear on hover, or stay when on.
-                    ModeButton(symbol: "shuffle", isOn: player.isShuffled, revealed: isHoveringPlatter, tint: tint) {
+                    ModeButton(symbol: "shuffle", isOn: player.isShuffled, revealed: isHoveringPlatter, tint: tint, dimTint: dim) {
                         player.toggleShuffle()
                     }
                     Spacer(minLength: 0)
@@ -85,7 +86,8 @@ struct NowPlayingBar: View {
                         symbol: player.repeatMode == .one ? "repeat.1" : "repeat",
                         isOn: player.repeatMode != .off,
                         revealed: isHoveringPlatter,
-                        tint: tint
+                        tint: tint,
+                        dimTint: dim
                     ) {
                         player.cycleRepeat()
                     }
@@ -97,12 +99,15 @@ struct NowPlayingBar: View {
         .padding(Theme.Space.barPadding)
         // Collapse to a mini player, or expand back: tucked in the top-right corner, only on hover.
         .overlay(alignment: .topTrailing) {
-            ModeButton(
-                symbol: navigation.isMiniPlayer ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left",
-                isOn: false,
-                revealed: isHoveringPlatter
-            ) {
-                AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer)
+            InterpolatedColor(accent) { accent in
+                ModeButton(
+                    symbol: navigation.isMiniPlayer ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left",
+                    isOn: false,
+                    revealed: isHoveringPlatter,
+                    dimTint: accent.map { Color.secondary.mix(with: $0, by: platter.controlsTint) }
+                ) {
+                    AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer)
+                }
             }
             .padding(Theme.Space.xs)
         }
@@ -193,7 +198,7 @@ struct NowPlayingBar: View {
         // than switching.
         InterpolatedColor(accent) { accent in
             let mono = colorScheme == .dark ? Color.white : Color.black
-            let line = accent.map { mono.mix(with: $0, by: platter.scrubberTint) }
+            let line = accent.map { mono.mix(with: $0, by: platter.scrubberLikeControls ? platter.controlsTint : platter.scrubberTint) }
             let times = accent.map { Color(nsColor: .tertiaryLabelColor).mix(with: $0, by: platter.textTint * 0.5) }
             HStack(spacing: Theme.Space.xs + 2) {
                 Text(timeString(isScrubbing ? scrubValue : player.currentTime))
@@ -235,6 +240,8 @@ private struct ModeButton: View {
     let revealed: Bool
     /// Colour when on; nil for the label colour.
     var tint: Color? = nil
+    /// Colour when off (while revealed); nil for the secondary label colour.
+    var dimTint: Color? = nil
     let action: () -> Void
 
     var body: some View {
@@ -247,7 +254,7 @@ private struct ModeButton: View {
                     .transition(.blurScale)
             }
             .animation(.snappy(duration: 0.22), value: symbol)
-            .foregroundStyle(isOn ? (tint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary)) : AnyShapeStyle(.secondary))
+            .foregroundStyle(isOn ? (tint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary)) : (dimTint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.secondary)))
             .frame(width: 28, height: 28)
             .contentShape(Circle())
         }

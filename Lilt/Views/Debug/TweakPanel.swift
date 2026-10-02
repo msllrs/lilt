@@ -65,6 +65,7 @@ struct TweakPanel: View {
                 slider("Corner reach", $style.platter.cornerAccentRadius, 0.2...1.5)
                 slider("Scrubber tint", $style.platter.scrubberTint, 0...1)
                 slider("Scrubber saturation", $style.platter.scrubberSaturation, 0...3)
+                Toggle("Scrubber coloured like controls", isOn: $style.platter.scrubberLikeControls)
                 slider("Controls tint", $style.platter.controlsTint, 0...1)
                 slider("Text tint", $style.platter.textTint, 0...1)
             }
