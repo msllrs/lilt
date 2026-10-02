@@ -88,7 +88,7 @@ struct PlatterStyle: Equatable {
     /// Reach of that wash, as a fraction of the platter's size.
     var cornerAccentRadius: Double = 1.0
     /// Where the wash pools: the corner behind the cover, or the top edge's middle.
-    var accentPlacement: AccentPlacement = .corner
+    var accentPlacement: AccentPlacement = .top
     /// How far the scrubber's elapsed line moves from the label colour toward the artwork's
     /// dominant colour (0 = plain black/white, 1 = fully coloured).
     var scrubberTint: Double = 1.0
@@ -104,7 +104,7 @@ struct PlatterStyle: Equatable {
     /// top edge (using the capsule's rim mix, blur and blend)…
     var castEdge: Bool = true
     /// …and the capsule's soft wash of that colour inside, falling off from the top edge.
-    var castGlow: Bool = true
+    var castGlow: Bool = false
 
     /// Tuned by Matt in the tweak panel on 2026-10-01; colour dials on 2026-10-02.
     static let standard = PlatterStyle()
