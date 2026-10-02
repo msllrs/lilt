@@ -18,10 +18,13 @@ struct RootView: View {
                             Color.clear.frame(height: navigation.platterHeight + Theme.Space.panelInset)
                         }
                     }
+                    // No ignoresSafeArea here: the bottom safe area is the platter's spacer, and
+                    // ignoring it pushed the glass below the window edge, squaring off the corners.
                     .background {
-                        GlassBackground(cornerRadius: Theme.Radius.window).ignoresSafeArea()
+                        GlassBackground(cornerRadius: Theme.Radius.window)
                         // Same reason as the platter: keep the column solid to hit-testing.
-                        Color.black.opacity(0.012).ignoresSafeArea()
+                        RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                            .fill(Color.black.opacity(0.012))
                     }
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
                     .transition(.opacity)
