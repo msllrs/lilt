@@ -44,6 +44,10 @@ enum Theme {
         static let panelMinHeight: CGFloat = 480
         /// Gap between the panel and the screen edges.
         static let screenInset: CGFloat = 12
+        /// Transparent margin inside the window frame where the panel's own shadow is drawn.
+        /// (The system window shadow is off: it traces every non-transparent pixel and came out
+        /// square, so the shadow is drawn in SwiftUI instead.)
+        static let shadowMargin: CGFloat = 36
         /// One row height for every top header (search field, page titles) so switching screens
         /// never shifts the title line or where the list starts.
         static let headerRow: CGFloat = 32

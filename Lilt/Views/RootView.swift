@@ -10,6 +10,7 @@ struct RootView: View {
         // always sits; the rest of the window is fully transparent, and macOS hit-tests
         // non-opaque windows by their pixels, so clicks there fall through to whatever is behind.
         // The whole transition is one SwiftUI animation: column fades, glass shrinks to the platter.
+        let radius = mini ? Theme.Radius.panel : Theme.Radius.window
         ZStack(alignment: .bottom) {
             // The window glass lives here, always mounted, so hiding it is explicit and reliable
             // (see GlassBackground). It fades with the column and is then switched off.
@@ -39,11 +40,49 @@ struct RootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-        // The platter's drop shadow reaches the window edge; without this clip it gives the
-        // window shadow a square footprint at the bottom corners.
-        .clipShape(RoundedRectangle(cornerRadius: mini ? Theme.Radius.panel : Theme.Radius.window, style: .continuous))
+        // The platter's drop shadow reaches the panel edge; clip so the panel shape stays clean.
+        .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        // Our own window shadow, drawn in the transparent margin around the visible shape.
+        .background(alignment: .bottom) {
+            PanelShadow(radius: radius, height: mini ? navigation.platterHeight : nil)
+        }
+        .padding(Theme.Size.shadowMargin)
         .animation(Theme.Motion.standard, value: player.current?.id)
         .animation(Theme.Motion.standard, value: mini)
+    }
+}
+
+/// A soft shadow around the visible panel (or the platter in mini). Masked to the outside of
+/// the shape so it never darkens the glass it belongs to.
+private struct PanelShadow: View {
+    let radius: CGFloat
+    /// Height of the shape; nil fills the available height.
+    let height: CGFloat?
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        shape
+            .fill(.black)
+            .frame(height: height)
+            .frame(maxHeight: .infinity, alignment: .bottom)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.55 : 0.28), radius: 22, y: 10)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.12), radius: 3, y: 1)
+            .padding(-Theme.Size.shadowMargin)
+            // Punch out the shape itself: only the shadow outside it survives.
+            .mask {
+                ZStack {
+                    Rectangle()
+                    shape
+                        .frame(height: height)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                        .padding(Theme.Size.shadowMargin)
+                        .blendMode(.destinationOut)
+                }
+                .compositingGroup()
+            }
+            .allowsHitTesting(false)
     }
 }
 

@@ -26,11 +26,12 @@ final class PanelWindow: NSPanel {
         becomesKeyOnlyIfNeeded = false
         backgroundColor = .clear
         isOpaque = false
-        hasShadow = true
+        hasShadow = false
         animationBehavior = .utilityWindow
         collectionBehavior = [.managed, .fullScreenAuxiliary]
-        minSize = NSSize(width: Theme.Size.panelMinWidth, height: Theme.Size.panelMinHeight)
-        maxSize = NSSize(width: Theme.Size.panelMaxWidth, height: .greatestFiniteMagnitude)
+        let margin = Theme.Size.shadowMargin * 2
+        minSize = NSSize(width: Theme.Size.panelMinWidth + margin, height: Theme.Size.panelMinHeight + margin)
+        maxSize = NSSize(width: Theme.Size.panelMaxWidth + margin, height: .greatestFiniteMagnitude)
     }
 
     override var canBecomeKey: Bool { true }
@@ -75,9 +76,10 @@ final class PanelWindow: NSPanel {
 
     /// Full-height column hugging the right edge of `screen`, inset from the edges.
     static func edgeFrame(on screen: NSScreen) -> NSRect {
+        // The window frame includes the shadow margin; the visible panel keeps `screenInset`.
         let visible = screen.visibleFrame
-        let inset = Theme.Size.screenInset
-        let width = Theme.Size.panelWidth
+        let inset = Theme.Size.screenInset - Theme.Size.shadowMargin
+        let width = Theme.Size.panelWidth + Theme.Size.shadowMargin * 2
         return NSRect(
             x: visible.maxX - width - inset,
             y: visible.minY + inset,

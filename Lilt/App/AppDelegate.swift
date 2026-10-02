@@ -250,7 +250,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Tucked well inside the rounded glass; at the corner it peeks out as a dot because the
         // borderless window is transparent there.
         let webView = player.bridge.webView
-        webView.frame = NSRect(x: Theme.Radius.window, y: Theme.Radius.window, width: 1, height: 1)
+        webView.frame = NSRect(x: Theme.Size.shadowMargin + Theme.Radius.window, y: Theme.Size.shadowMargin + Theme.Radius.window, width: 1, height: 1)
         container.addSubview(webView)
 
         hosting.frame = container.bounds
