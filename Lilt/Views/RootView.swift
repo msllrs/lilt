@@ -40,8 +40,16 @@ struct RootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-        // The platter's drop shadow reaches the panel edge; clip so the panel shape stays clean.
-        .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        // Expanded: the platter's drop shadow reaches the panel edge, so clip to the panel shape.
+        // Mini: no outer clip at all. The platter's own glass shape is the only edge; a second
+        // mask on the same curve rasterises it twice and leaves jagged corners.
+        .mask {
+            if mini {
+                Rectangle().padding(-Theme.Size.shadowMargin)
+            } else {
+                RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+            }
+        }
         // Our own window shadow, drawn in the transparent margin around the visible shape.
         .background(alignment: .bottom) {
             PanelShadow(radius: radius, height: mini ? navigation.platterHeight : nil)
@@ -69,8 +77,9 @@ private struct PanelShadow: View {
             .fill(.black)
             .frame(height: height)
             .frame(maxHeight: .infinity, alignment: .bottom)
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.55 : 0.28), radius: 22, y: 10)
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.12), radius: 3, y: 1)
+            // Sized to stay inside the 36pt margin (blur extent + offset), so it never clips.
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.5 : 0.22), radius: 12, y: 5)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.14), radius: 1.5, y: 0.5)
             // Keep everything in the margin, punch out the panel shape itself.
             .mask {
                 ZStack {
