@@ -40,7 +40,7 @@ struct NowPlayingBar: View {
                     isOn: navigation.isMiniPlayer,
                     revealed: isHoveringPlatter
                 ) {
-                    navigation.isMiniPlayer.toggle()
+                    AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer)
                 }
                 .alignmentGuide(.top) { $0[.top] }
             }

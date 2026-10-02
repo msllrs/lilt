@@ -53,45 +53,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         set { UserDefaults.standard.set(newValue, forKey: Self.expandedHeightKey) }
     }
-    private var miniApplied = false
     private var miniEverApplied = false
 
     /// The content transition is pure SwiftUI (column fades, glass contracts). The window frame
-    /// changes only when nothing visible is affected: it shrinks to the platter *after* the fade,
-    /// and grows back *before* the column fades in. Wired to the model's setter so it runs
-    /// synchronously, before SwiftUI could lay the column out in a platter-sized window.
+    /// changes only when nothing visible is affected, and never in the same update as the mode
+    /// flip, or SwiftUI animates the layout's height change and the platter rides up the window.
     private func observeMiniPlayer() {
-        navigation.miniPlayerDidChange = { [weak self] _ in self?.applyMiniPlayer() }
-        applyMiniPlayer()
+        navigation.miniPlayerDidChange = nil
+        // Launch: the saved mode may be mini; size the window for it straight away.
+        if navigation.isMiniPlayer { resizeWindow(mini: true) }
+        miniEverApplied = true
     }
 
-    private func applyMiniPlayer() {
-        guard let panel, navigation.isMiniPlayer != miniApplied || !miniEverApplied else { return }
-        let mini = navigation.isMiniPlayer
-        let firstRun = !miniEverApplied
-        miniApplied = mini
-        miniEverApplied = true
+    /// Entry point for the platter button, menu and shortcut.
+    func setMiniPlayer(_ mini: Bool) {
+        guard mini != navigation.isMiniPlayer else { return }
+        if mini {
+            navigation.isMiniPlayer = true
+            // Shrink after the fade: the region being removed is transparent by then.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) { [weak self] in
+                guard let self, self.navigation.isMiniPlayer else { return }
+                self.resizeWindow(mini: true)
+            }
+        } else {
+            // Grow first, unanimated; the column fades in on the next run loop.
+            resizeWindow(mini: false)
+            DispatchQueue.main.async { [weak self] in self?.navigation.isMiniPlayer = false }
+        }
+    }
+
+    private func resizeWindow(mini: Bool) {
+        guard let panel else { return }
         let margin = Theme.Size.shadowMargin
         let current = panel.frame
+        let screen = panel.screen ?? NSScreen.main ?? NSScreen.screens[0]
         if mini {
             if current.height >= Theme.Size.panelMinHeight + margin * 2 { expandedHeight = current.height }
             let height = navigation.platterHeight + margin * 2
-            let shrink = { [weak self] in
-                guard let self, self.navigation.isMiniPlayer else { return }
-                panel.minSize = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: height)
-                let target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
-                panel.setFrame(Self.onScreen(target, near: panel.screen ?? NSScreen.main ?? NSScreen.screens[0]), display: true)
-            }
-            // At launch there's no fade to wait for. Otherwise wait for it: the region being
-            // removed is transparent by then, so the shrink is invisible. Bottom edge stays put.
-            if firstRun { shrink() } else { DispatchQueue.main.asyncAfter(deadline: .now() + 0.32, execute: shrink) }
-        } else if firstRun {
-            // Launching expanded: the autosaved frame is already right.
+            panel.minSize = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: height)
+            let target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
+            panel.setFrame(Self.onScreen(target, near: screen), display: true)
         } else {
             panel.minSize = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: Theme.Size.panelMinHeight + margin * 2)
-            var target = NSRect(x: current.minX, y: current.minY, width: current.width, height: expandedHeight)
-            target = Self.onScreen(target, near: panel.screen ?? NSScreen.main ?? NSScreen.screens[0])
-            panel.setFrame(target, display: true)
+            let target = NSRect(x: current.minX, y: current.minY, width: current.width, height: expandedHeight)
+            panel.setFrame(Self.onScreen(target, near: screen), display: true)
+            panel.contentView?.layoutSubtreeIfNeeded()
         }
     }
 
@@ -101,7 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         expandedHeight = panel.frame.height
     }
 
-    func toggleMiniPlayer() { navigation.isMiniPlayer.toggle() }
+    func toggleMiniPlayer() { setMiniPlayer(!navigation.isMiniPlayer) }
     func openLibrary() { navigation.open(NavigationModel.library) }
 
     /// Nudges a window frame so its *visible panel* (the frame minus the shadow margin) lies
