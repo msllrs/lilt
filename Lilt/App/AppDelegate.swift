@@ -97,9 +97,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func setQueueVisible(_ visible: Bool) {
         guard visible != navigation.isQueueVisible else { return }
         if visible, navigation.isMiniPlayer { resizeWindow(mini: true, queueVisible: true) }
-        withAnimation(Theme.Motion.standard) { navigation.isQueueVisible = visible }
+        withAnimation(Theme.Motion.bounce) { navigation.isQueueVisible = visible }
         if !visible, navigation.isMiniPlayer {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            // After the spring has settled (its overshoot included).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { [weak self] in
                 guard let self, navigation.isMiniPlayer, !navigation.isQueueVisible else { return }
                 resizeWindow(mini: true)
             }

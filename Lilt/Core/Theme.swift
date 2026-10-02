@@ -63,6 +63,9 @@ enum Theme {
         /// For a container changing size: `snappy` carries a little bounce, and a frame that
         /// overshoots smaller than its content squeezes the content for a few frames.
         static let settle: Animation = .smooth(duration: 0.3)
+        /// A container growing or shrinking with a little overshoot, like the platter revealing
+        /// the queue. Content inside must hold its own size (see NowPlayingBar) or it squeezes.
+        static let bounce: Animation = .spring(duration: 0.42, bounce: 0.22)
         /// Colour drawn from one cover handing over to the next: slow enough to read as a change
         /// of light, not a cut.
         static let cast: Animation = .easeInOut(duration: 0.8)
