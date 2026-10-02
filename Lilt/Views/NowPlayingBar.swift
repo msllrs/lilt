@@ -109,13 +109,13 @@ struct NowPlayingBar: View {
                         .opacity(platter.tintOpacity * (isHoveringPlatter ? 1 + platter.hoverBrightness : 1))
                         .clipShape(shape)
                 }
-                // The dominant colour pooled in the corner behind the cover, as if it spilled.
+                // The dominant colour pooled behind the cover (or along the top), as if it spilled.
                 InterpolatedColor(accent) { accent in
                     if let accent, platter.cornerAccentOpacity > 0 {
                         shape.fill(
                             EllipticalGradient(
                                 colors: [accent.opacity(platter.cornerAccentOpacity), .clear],
-                                center: .topLeading,
+                                center: platter.accentPlacement.unitPoint,
                                 startRadiusFraction: 0,
                                 endRadiusFraction: platter.cornerAccentRadius
                             )

@@ -63,6 +63,10 @@ struct TweakPanel: View {
                 slider("Hover brighten", $style.platter.hoverBrightness, 0...1)
                 slider("Corner accent", $style.platter.cornerAccentOpacity, 0...0.8)
                 slider("Corner reach", $style.platter.cornerAccentRadius, 0.2...1.5)
+                Picker("Accent placement", selection: $style.platter.accentPlacement) {
+                    ForEach(AccentPlacement.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
                 slider("Scrubber tint", $style.platter.scrubberTint, 0...1)
                 slider("Scrubber saturation", $style.platter.scrubberSaturation, 0...3)
                 Toggle("Scrubber coloured like controls", isOn: $style.platter.scrubberLikeControls)

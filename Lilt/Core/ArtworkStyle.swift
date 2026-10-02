@@ -87,6 +87,8 @@ struct PlatterStyle: Equatable {
     var cornerAccentOpacity: Double = 0.32
     /// Reach of that wash, as a fraction of the platter's size.
     var cornerAccentRadius: Double = 1.0
+    /// Where the wash pools: the corner behind the cover, or the top edge's middle.
+    var accentPlacement: AccentPlacement = .corner
     /// How far the scrubber's elapsed line moves from the label colour toward the artwork's
     /// dominant colour (0 = plain black/white, 1 = fully coloured).
     var scrubberTint: Double = 1.0
@@ -127,6 +129,14 @@ struct PlayCastStyle: Equatable {
     var rimBlend: ArtworkBlend = .normal
 
     static let standard = PlayCastStyle()
+}
+
+/// Where the platter's dominant-colour wash sits.
+enum AccentPlacement: String, CaseIterable, Identifiable {
+    case corner, top
+    var id: String { rawValue }
+    var label: String { self == .corner ? "Corner" : "Top middle" }
+    var unitPoint: UnitPoint { self == .corner ? .topLeading : .top }
 }
 
 /// The cover's light spilling down from the top of an album, artist or playlist page.
@@ -352,7 +362,7 @@ final class ArtworkStyle {
         playerShadow = \(snippet(playerShadow))
         heroShadow = \(snippet(heroShadow))
         headerShadow = \(snippet(headerShadow))
-        platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)), hoverBrightness: \(f(platter.hoverBrightness)), cornerAccentOpacity: \(f(platter.cornerAccentOpacity)), cornerAccentRadius: \(f(platter.cornerAccentRadius)), scrubberTint: \(f(platter.scrubberTint)), scrubberSaturation: \(f(platter.scrubberSaturation)), scrubberLikeControls: \(platter.scrubberLikeControls), controlsTint: \(f(platter.controlsTint)), textTint: \(f(platter.textTint)), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow))
+        platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)), hoverBrightness: \(f(platter.hoverBrightness)), cornerAccentOpacity: \(f(platter.cornerAccentOpacity)), cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberSaturation: \(f(platter.scrubberSaturation)), scrubberLikeControls: \(platter.scrubberLikeControls), controlsTint: \(f(platter.controlsTint)), textTint: \(f(platter.textTint)), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow))
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))
         headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), radius: \(f(headerBlur.radius)), saturation: \(f(headerBlur.saturation)), brightness: \(f(headerBlur.brightness)), reach: \(f(headerBlur.reach)), rimOpacity: \(f(headerBlur.rimOpacity)))
