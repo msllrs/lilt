@@ -39,15 +39,9 @@ struct NowPlayingBar: View {
                     MarqueeText(text: player.displayTitle, isActive: isHoveringPlatter, font: .callout.weight(.medium))
                     ArtistLink(name: player.displayArtist, item: player.current?.artistItem)
                 }
+                // Room for the mode button in the corner, only while it's showing (hover, or mini).
+                .padding(.trailing, isHoveringPlatter || navigation.isMiniPlayer ? Theme.Space.lg : 0)
                 Spacer(minLength: 0)
-                // Collapse to a mini player, or expand back. Shown on hover, or always while mini.
-                ModeButton(
-                    symbol: navigation.isMiniPlayer ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left",
-                    isOn: navigation.isMiniPlayer,
-                    revealed: isHoveringPlatter
-                ) {
-                    AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer)
-                }
             }
 
             // The glyphs take a faint share of the cover's colour (less than the scrubber), and
@@ -88,6 +82,18 @@ struct NowPlayingBar: View {
             scrubber
         }
         .padding(Theme.Space.barPadding)
+        // Collapse to a mini player, or expand back: tucked in the top-right corner. Shown on
+        // hover, or always while mini.
+        .overlay(alignment: .topTrailing) {
+            ModeButton(
+                symbol: navigation.isMiniPlayer ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left",
+                isOn: navigation.isMiniPlayer,
+                revealed: isHoveringPlatter
+            ) {
+                AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer)
+            }
+            .padding(Theme.Space.xs)
+        }
         .onHover { hovering in
             withAnimation(Theme.Motion.quick) { isHoveringPlatter = hovering }
         }
