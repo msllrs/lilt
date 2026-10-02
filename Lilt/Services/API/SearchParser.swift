@@ -181,6 +181,11 @@ enum SearchParser {
         let email = runsText(JSON.value(at: ["email", "runs"], in: header)) ?? ""
         let photo = JSON.array(JSON.value(at: ["accountPhoto", "thumbnails"], in: header))
             .flatMap { JSON.string(JSON.dict($0.last)?["url"]) }.flatMap { artworkURL($0, size: 96) }
+        return AccountInfo(name: name, email: email, photoURL: photo)
+    }
+
+    /// From `account/accounts_list`: every channel on the login that isn't the selected one.
+    static func accountAlternatives(from response: [String: Any]) -> [(name: String, pageId: String?)] {
         var alternatives: [(String, String?)] = []
         for item in JSON.findAll(key: "accountItem", in: response) {
             guard let title = runsText(JSON.value(at: ["accountName", "runs"], in: item)),
@@ -188,7 +193,7 @@ enum SearchParser {
             let pageId = JSON.findAll(key: "pageIdToken", in: item).first.flatMap { JSON.string($0["pageId"]) }
             alternatives.append((title, pageId))
         }
-        return AccountInfo(name: name, email: email, photoURL: photo, alternatives: alternatives)
+        return alternatives
     }
 
     // MARK: Library

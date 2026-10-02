@@ -50,10 +50,15 @@ final class YTMusicClient {
         return sections
     }
 
-    /// Which Google account the API is answering for.
+    /// Which Google account the API is answering for, and the other channels on the login.
+    /// The menu endpoint names the active account; the switchable channels only appear in the
+    /// separate accounts list.
     func account() async throws -> AccountInfo? {
-        let response = try await client.post("account/account_menu", body: [:])
-        return SearchParser.account(from: response.value)
+        async let menu = client.post("account/account_menu", body: [:])
+        async let list = client.post("account/accounts_list", body: [:])
+        guard var info = SearchParser.account(from: try await menu.value) else { return nil }
+        info.alternatives = SearchParser.accountAlternatives(from: try await list.value)
+        return info
     }
 
     /// Switch to another account on this login and forget everything cached for the old one.
