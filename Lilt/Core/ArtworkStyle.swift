@@ -93,7 +93,7 @@ struct PlatterStyle: Equatable {
     var scrubberSaturation: Double = 1.3
     /// Colour the scrubber like the glyphs instead (label colour with the controls' share of
     /// tint), ignoring `scrubberTint`.
-    var scrubberLikeControls: Bool = false
+    var scrubberLikeControls: Bool = true
     /// The same colour, more faintly, on the transport and mode glyphs (0 = label colour).
     var controlsTint: Double = 0.64
     /// And on the title and artist lines (the artist takes half of this).
