@@ -65,6 +65,7 @@ struct TweakPanel: View {
                 slider("Corner reach", $style.platter.cornerAccentRadius, 0.2...1.5)
                 slider("Scrubber tint", $style.platter.scrubberTint, 0...1)
                 slider("Scrubber saturation", $style.platter.scrubberSaturation, 0...3)
+                slider("Controls tint", $style.platter.controlsTint, 0...1)
             }
             Section("Header blur") {
                 Toggle("Backdrop ramp (private API)", isOn: $style.headerBlur.useBackdrop)

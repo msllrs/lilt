@@ -63,11 +63,33 @@ final class BackdropHostView: NSView {
 
     override var isFlipped: Bool { false }
 
+    /// The layer runs past the view on the top and sides. Its outermost pixels are never fully
+    /// blurred (the half-resolution pass and edge normalisation both leave a sliver), and the
+    /// column's rounded clip hides anything beyond the panel, so the visible edge is the clip,
+    /// not the layer.
+    private static let bleed: CGFloat = 12
+    private var fadeStart: CGFloat = 1
+
     override func layout() {
         super.layout()
-        backdrop?.frame = bounds
-        fade.frame = bounds
+        let frame = NSRect(x: -Self.bleed, y: 0, width: bounds.width + Self.bleed * 2, height: bounds.height + Self.bleed)
+        backdrop?.frame = frame
+        fade.frame = backdrop?.bounds ?? frame
+        applyFade()
         applyFilters()
+    }
+
+    /// The fade's locations are fractions of the layer, which is taller than the view by the
+    /// bleed; convert from the view-relative fraction the caller knows about.
+    private func applyFade() {
+        let height = bounds.height + Self.bleed
+        guard height > 0 else { return }
+        let start = (Self.bleed + fadeStart * bounds.height) / height
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        fade.colors = [NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
+        fade.locations = [0, NSNumber(value: Double(start)), 1]
+        CATransaction.commit()
     }
 
     override func viewDidChangeBackingProperties() {
@@ -79,13 +101,10 @@ final class BackdropHostView: NSView {
         guard backdrop != nil else { return }
         let changed = radius != self.radius || saturation != self.saturation || brightness != self.brightness
         self.radius = radius; self.saturation = saturation; self.brightness = brightness
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
         // The whole effect fades out below `fadeStart`, so rows melt into it instead of meeting
         // a hard line where the blur stops.
-        fade.colors = [NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
-        fade.locations = [0, NSNumber(value: fadeStart), 1]
-        CATransaction.commit()
+        self.fadeStart = fadeStart
+        applyFade()
         if changed { maskSize = .zero; applyFilters() }
     }
 
@@ -95,7 +114,7 @@ final class BackdropHostView: NSView {
     private func applyFilters() {
         guard let backdrop, bounds.width > 0, bounds.height > 0 else { return }
         let scale = window?.backingScaleFactor ?? 2
-        let size = CGSize(width: (bounds.width * scale).rounded(), height: (bounds.height * scale).rounded())
+        let size = CGSize(width: (backdrop.bounds.width * scale).rounded(), height: (backdrop.bounds.height * scale).rounded())
         guard size != maskSize else { return }
         maskSize = size
         var filters: [Any] = []

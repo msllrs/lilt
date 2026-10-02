@@ -50,30 +50,38 @@ struct NowPlayingBar: View {
                 }
             }
 
-            HStack(spacing: 0) {
-                // Shuffle and repeat flank the transport; they appear on hover, or stay when on.
-                ModeButton(symbol: "shuffle", isOn: player.isShuffled, revealed: isHoveringPlatter) {
-                    player.toggleShuffle()
-                }
-                Spacer(minLength: 0)
-                HStack(spacing: Theme.Space.xl) {
-                    TransportButton(symbol: "backward.fill", size: Theme.Size.controlIcon, enabled: player.current != nil) {
-                        player.previous()
+            // The glyphs take a faint share of the cover's colour (less than the scrubber), and
+            // it slides to the next song's like everything else.
+            InterpolatedColor(accent) { accent in
+                let mono = colorScheme == .dark ? Color.white : Color.black
+                let tint = accent.map { mono.mix(with: $0, by: platter.controlsTint) } ?? mono
+                HStack(spacing: 0) {
+                    // Shuffle and repeat flank the transport; they appear on hover, or stay when on.
+                    ModeButton(symbol: "shuffle", isOn: player.isShuffled, revealed: isHoveringPlatter, tint: tint) {
+                        player.toggleShuffle()
                     }
-                    TransportButton(symbol: player.isPlaying ? "pause.fill" : "play.fill", size: Theme.Size.playIcon, enabled: player.current != nil) {
-                        player.togglePlayPause()
+                    Spacer(minLength: 0)
+                    HStack(spacing: Theme.Space.xl) {
+                        TransportButton(symbol: "backward.fill", size: Theme.Size.controlIcon, enabled: player.current != nil) {
+                            player.previous()
+                        }
+                        TransportButton(symbol: player.isPlaying ? "pause.fill" : "play.fill", size: Theme.Size.playIcon, enabled: player.current != nil) {
+                            player.togglePlayPause()
+                        }
+                        TransportButton(symbol: "forward.fill", size: Theme.Size.controlIcon, enabled: player.hasNext) {
+                            player.next()
+                        }
                     }
-                    TransportButton(symbol: "forward.fill", size: Theme.Size.controlIcon, enabled: player.hasNext) {
-                        player.next()
+                    .foregroundStyle(tint)
+                    Spacer(minLength: 0)
+                    ModeButton(
+                        symbol: player.repeatMode == .one ? "repeat.1" : "repeat",
+                        isOn: player.repeatMode != .off,
+                        revealed: isHoveringPlatter,
+                        tint: tint
+                    ) {
+                        player.cycleRepeat()
                     }
-                }
-                Spacer(minLength: 0)
-                ModeButton(
-                    symbol: player.repeatMode == .one ? "repeat.1" : "repeat",
-                    isOn: player.repeatMode != .off,
-                    revealed: isHoveringPlatter
-                ) {
-                    player.cycleRepeat()
                 }
             }
 
@@ -205,6 +213,8 @@ private struct ModeButton: View {
     let symbol: String
     let isOn: Bool
     let revealed: Bool
+    /// Colour when on; nil for the label colour.
+    var tint: Color? = nil
     let action: () -> Void
 
     var body: some View {
@@ -217,7 +227,7 @@ private struct ModeButton: View {
                     .transition(.blurScale)
             }
             .animation(.snappy(duration: 0.22), value: symbol)
-            .foregroundStyle(isOn ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+            .foregroundStyle(isOn ? (tint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary)) : AnyShapeStyle(.secondary))
             .frame(width: 28, height: 28)
             .contentShape(Circle())
         }
