@@ -222,6 +222,11 @@ final class ImageCache {
         return (CGFloat(pixel[0]) / 255, CGFloat(pixel[1]) / 255, CGFloat(pixel[2]) / 255)
     }
 
+    /// The same artwork at another size, when the URL carries one (`=w240-h240-…`).
+    static func sized(_ url: URL, _ side: Int) -> URL {
+        URL(string: url.absoluteString.replacing(/=w\d+-h\d+/, with: "=w\(side)-h\(side)")) ?? url
+    }
+
     /// The URL with its size parameters removed.
     static func baseKey(_ url: URL) -> String {
         url.absoluteString.replacing(/=w\d+-h\d+[^?#]*/, with: "")

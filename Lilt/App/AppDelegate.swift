@@ -88,7 +88,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    private func resizeWindow(mini: Bool) {
+    // MARK: Up-next list
+
+    /// Opens or closes the queue below the scrubber. In mini the window is the platter, so it
+    /// grows (unanimated, into transparent space above) before the list animates in, and
+    /// shrinks only after the list has animated out; expanded, the platter just grows upward.
+    func setQueueVisible(_ visible: Bool) {
+        guard visible != navigation.isQueueVisible else { return }
+        if visible, navigation.isMiniPlayer { resizeWindow(mini: true, queueVisible: true) }
+        withAnimation(Theme.Motion.standard) { navigation.isQueueVisible = visible }
+        if !visible, navigation.isMiniPlayer {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+                guard let self, navigation.isMiniPlayer, !navigation.isQueueVisible else { return }
+                resizeWindow(mini: true)
+            }
+        }
+        autoHideQueueIfEmpty()
+    }
+
+    /// An empty list only needs a moment to say so; then it folds away on its own.
+    private var queueAutoHide: Task<Void, Never>?
+    private func autoHideQueueIfEmpty() {
+        queueAutoHide?.cancel()
+        guard navigation.isQueueVisible, player.upcoming.isEmpty else { return }
+        queueAutoHide = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled, let self, navigation.isQueueVisible, player.upcoming.isEmpty else { return }
+            setQueueVisible(false)
+        }
+    }
+
+    /// The queue changed length while showing: in mini, follow it (grow now, shrink after).
+    func queueDidChange() {
+        autoHideQueueIfEmpty()
+        guard navigation.isMiniPlayer, navigation.isQueueVisible, let panel else { return }
+        let target = miniHeight(queueVisible: true)
+        if target > panel.frame.height {
+            resizeWindow(mini: true, queueVisible: true)
+        } else if target < panel.frame.height {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+                guard let self, navigation.isMiniPlayer, navigation.isQueueVisible else { return }
+                resizeWindow(mini: true, queueVisible: true)
+            }
+        }
+    }
+
+    /// Window height for the mini player: the platter plus its inset and the shadow margin,
+    /// using the platter's eventual size rather than whatever it's animating through.
+    private func miniHeight(queueVisible: Bool) -> CGFloat {
+        let margin = Theme.Size.shadowMargin
+        let platter = queueVisible
+            ? navigation.platterBaseHeight + Theme.Space.sm + QueueList.height(forCount: player.upcoming.count)
+            : navigation.platterHeight
+        return platter + Theme.Space.panelInset + margin * 2
+    }
+
+    private func resizeWindow(mini: Bool, queueVisible: Bool? = nil) {
         guard let panel else { return }
         let margin = Theme.Size.shadowMargin
         let current = panel.frame
@@ -96,7 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if mini {
             if current.height >= Theme.Size.panelMinHeight + margin * 2 { expandedHeight = current.height }
             // The platter keeps its inset below it, so it doesn't move when the column goes.
-            let height = navigation.platterHeight + Theme.Space.panelInset + margin * 2
+            let height = miniHeight(queueVisible: queueVisible ?? navigation.isQueueVisible)
             panel.minSize = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: height)
             let target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
             panel.setFrame(Self.onScreen(target, near: screen), display: true)
@@ -208,7 +263,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
         Task { [weak self] in
-            guard let image = await ImageCache.shared.load(url), self?.dockArtworkURL == url else { return }
+            // The row thumbnail is 240px; the Dock tile wants more, so ask for a larger rendition
+            // of the same cover (Google thumbnails take the size in the URL).
+            let large = ImageCache.sized(url, 544)
+            var image = await ImageCache.shared.load(large)
+            if image == nil { image = await ImageCache.shared.load(url) }
+            guard let image, self?.dockArtworkURL == url else { return }
             NSApp.applicationIconImage = DiscIcon.tile(artwork: image)
         }
     }

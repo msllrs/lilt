@@ -13,9 +13,9 @@ enum DiscIcon {
     /// The system's rendering of this bundle's icon: the same image Finder and the Dock show.
     @MainActor private static let base = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
 
-    /// - Parameter side: 256 covers the largest Dock tile (128pt at 2x); bigger only costs time.
+    /// - Parameter side: 512 keeps the cover crisp at the largest Dock tile and in ⌘-Tab.
     @MainActor
-    static func tile(artwork: NSImage, side: CGFloat = 256) -> NSImage {
+    static func tile(artwork: NSImage, side: CGFloat = 512) -> NSImage {
         // A single, already rasterised bitmap. A drawing-handler image gets re-rendered at every
         // size AppKit wants when it hands the icon to the Dock.
         let pixels = Int(side)
@@ -43,11 +43,12 @@ enum DiscIcon {
         NSGraphicsContext.saveGraphicsState()
         NSBezierPath(ovalIn: rect).addClip()
         artwork.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
-        // Soft top-left light so it reads as a physical object, not a flat crop.
+        // A faint top-left light so it reads as a physical object; kept light enough that the
+        // cover keeps its contrast.
         NSGradient(colorsAndLocations:
-            (NSColor(white: 1, alpha: 0.26), 0),
-            (NSColor(white: 1, alpha: 0.04), 0.5),
-            (NSColor(white: 0, alpha: 0.14), 1)
+            (NSColor(white: 1, alpha: 0.14), 0),
+            (NSColor(white: 1, alpha: 0.0), 0.45),
+            (NSColor(white: 0, alpha: 0.06), 1)
         )?.draw(in: NSBezierPath(ovalIn: rect), angle: -60)
         NSGraphicsContext.restoreGraphicsState()
         drawChrome(in: rect, side: side)

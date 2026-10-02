@@ -25,6 +25,11 @@ final class NavigationModel {
     @ObservationIgnored var miniPlayerDidChange: ((Bool) -> Void)?
     /// Measured height of the platter, for sizing the mini-player window.
     var platterHeight: CGFloat = 140
+    /// The platter's height without the queue list (title, controls, scrubber and padding).
+    var platterBaseHeight: CGFloat = 140
+    /// The up-next list is open below the scrubber. Toggled by double-clicking the platter;
+    /// goes through `AppDelegate.setQueueVisible` so the mini window can grow first.
+    var isQueueVisible = false
     /// Receives every page opened, for the recents menu. Wired by the app.
     @ObservationIgnored weak var recents: RecentsStore?
 

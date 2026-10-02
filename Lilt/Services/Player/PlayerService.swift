@@ -193,6 +193,52 @@ final class PlayerService {
         save()
     }
 
+    // MARK: Up next
+
+    /// Everything after the current track, in play order.
+    var upcoming: [Track] {
+        guard let i = currentIndex, queue.indices.contains(i) else { return [] }
+        return Array(queue[(i + 1)...])
+    }
+
+    func isQueued(_ track: Track) -> Bool { queue.contains { $0.id == track.id } }
+
+    /// Adds a track to the end of the queue; with nothing playing, it starts a queue of its own.
+    /// A track already in the queue isn't added twice.
+    func enqueue(_ track: Track) {
+        guard !isQueued(track) else { return }
+        guard current != nil else {
+            play([track], startingAt: 0)
+            return
+        }
+        queue.append(track)
+        unshuffledQueue?.append(track)
+        save()
+    }
+
+    /// Removes the track at an offset into `upcoming`.
+    func removeUpcoming(at offset: Int) {
+        guard let i = currentIndex, queue.indices.contains(i + 1 + offset) else { return }
+        let removed = queue.remove(at: i + 1 + offset)
+        unshuffledQueue?.removeAll { $0.id == removed.id }
+        save()
+    }
+
+    /// Reorders `upcoming` the way `ForEach.onMove` reports it.
+    func moveUpcoming(from source: IndexSet, to destination: Int) {
+        guard let i = currentIndex else { return }
+        var rest = upcoming
+        rest.move(fromOffsets: source, toOffset: destination)
+        queue = Array(queue[...i]) + rest
+        save()
+    }
+
+    /// Jumps to a track in `upcoming`.
+    func playUpcoming(at offset: Int) {
+        guard let i = currentIndex, queue.indices.contains(i + 1 + offset) else { return }
+        load(index: i + 1 + offset)
+    }
+
     // MARK: Persistence
 
     private func save() {

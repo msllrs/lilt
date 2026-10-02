@@ -33,70 +33,22 @@ struct NowPlayingBar: View {
 
     var body: some View {
         VStack(spacing: Theme.Space.sm) {
-            HStack(spacing: Theme.Space.md) {
-                artwork
-                // Title and artist take a little of the cover's colour too, the artist half as much.
-                InterpolatedColor(accent) { accent in
-                    let mono = colorScheme == .dark ? Color.white : Color.black
-                    let title = accent.map { mono.mix(with: $0, by: platter.textTint) }
-                    let artist = accent.map { Color.secondary.mix(with: $0, by: platter.textTint * 0.5) }
-                    VStack(alignment: .leading, spacing: 2) {
-                        MarqueeText(
-                            text: player.displayTitle,
-                            isActive: isHoveringPlatter,
-                            font: .callout.weight(.medium),
-                            color: title.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary)
-                        )
-                        ArtistLink(name: player.displayArtist, item: player.current?.artistItem, color: artist ?? .secondary)
-                    }
-                }
-                // Room for the mode button in the corner, only while it's showing (hover).
-                // Eases in with the button; snaps back when the pointer leaves.
-                .padding(.trailing, isHoveringPlatter ? Theme.Space.lg : 0)
-                .transaction { if !isHoveringPlatter { $0.animation = nil } }
-                Spacer(minLength: 0)
+            VStack(spacing: Theme.Space.sm) {
+                playerRows
             }
-
-            // The glyphs take a faint share of the cover's colour (less than the scrubber), and
-            // it slides to the next song's like everything else.
-            InterpolatedColor(accent) { accent in
-                let mono = colorScheme == .dark ? Color.white : Color.black
-                let tint = accent.map { mono.mix(with: $0, by: platter.controlsTint) } ?? mono
-                let dim = accent.map { Color.secondary.mix(with: $0, by: platter.controlsTint) }
-                HStack(spacing: 0) {
-                    // Shuffle and repeat flank the transport; they appear on hover, or stay when on.
-                    ModeButton(symbol: "shuffle", isOn: player.isShuffled, revealed: isHoveringPlatter, tint: tint, dimTint: dim) {
-                        player.toggleShuffle()
-                    }
-                    Spacer(minLength: 0)
-                    HStack(spacing: Theme.Space.xl) {
-                        TransportButton(symbol: "backward.fill", size: Theme.Size.controlIcon, enabled: player.current != nil) {
-                            player.previous()
-                        }
-                        TransportButton(symbol: player.isPlaying ? "pause.fill" : "play.fill", size: Theme.Size.playIcon, enabled: player.current != nil) {
-                            player.togglePlayPause()
-                        }
-                        TransportButton(symbol: "forward.fill", size: Theme.Size.controlIcon, enabled: player.hasNext) {
-                            player.next()
-                        }
-                    }
-                    .foregroundStyle(tint)
-                    Spacer(minLength: 0)
-                    ModeButton(
-                        symbol: player.repeatMode == .one ? "repeat.1" : "repeat",
-                        isOn: player.repeatMode != .off,
-                        revealed: isHoveringPlatter,
-                        tint: tint,
-                        dimTint: dim
-                    ) {
-                        player.cycleRepeat()
-                    }
-                }
+            // The platter's size without the list, so the mini window can be sized for the
+            // list's eventual height instead of chasing the animation.
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { navigation.platterBaseHeight = $0 + Theme.Space.barPadding * 2 }
+            if navigation.isQueueVisible {
+                QueueList()
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
-
-            scrubber
         }
         .padding(Theme.Space.barPadding)
+        // Double-click anywhere on the platter opens or closes what's up next. The whole
+        // rectangle counts, not just the controls and text.
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { AppDelegate.shared?.setQueueVisible(!navigation.isQueueVisible) }
         // Collapse to a mini player, or expand back: tucked in the top-right corner, only on hover.
         .overlay(alignment: .topTrailing) {
             InterpolatedColor(accent) { accent in
@@ -176,6 +128,74 @@ struct NowPlayingBar: View {
         .animation(Theme.Motion.quick, value: glassVisibility)
         .animation(Theme.Motion.standard, value: player.displayArtworkURL)
         .animation(Theme.Motion.cast, value: accent)
+    }
+
+
+    /// Title row, transport row and scrubber.
+    @ViewBuilder
+    private var playerRows: some View {
+        HStack(spacing: Theme.Space.md) {
+            artwork
+            // Title and artist take a little of the cover's colour too, the artist half as much.
+            InterpolatedColor(accent) { accent in
+                let mono = colorScheme == .dark ? Color.white : Color.black
+                let title = accent.map { mono.mix(with: $0, by: platter.textTint) }
+                let artist = accent.map { Color.secondary.mix(with: $0, by: platter.textTint * 0.5) }
+                VStack(alignment: .leading, spacing: 2) {
+                    MarqueeText(
+                        text: player.displayTitle,
+                        isActive: isHoveringPlatter,
+                        font: .callout.weight(.medium),
+                        color: title.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary)
+                    )
+                    ArtistLink(name: player.displayArtist, item: player.current?.artistItem, color: artist ?? .secondary)
+                }
+            }
+            // Room for the mode button in the corner, only while it's showing (hover).
+            // Eases in with the button; snaps back when the pointer leaves.
+            .padding(.trailing, isHoveringPlatter ? Theme.Space.lg : 0)
+            .transaction { if !isHoveringPlatter { $0.animation = nil } }
+            Spacer(minLength: 0)
+        }
+
+        // The glyphs take a faint share of the cover's colour (less than the scrubber), and
+        // it slides to the next song's like everything else.
+        InterpolatedColor(accent) { accent in
+            let mono = colorScheme == .dark ? Color.white : Color.black
+            let tint = accent.map { mono.mix(with: $0, by: platter.controlsTint) } ?? mono
+            let dim = accent.map { Color.secondary.mix(with: $0, by: platter.controlsTint) }
+            HStack(spacing: 0) {
+                // Shuffle and repeat flank the transport; they appear on hover, or stay when on.
+                ModeButton(symbol: "shuffle", isOn: player.isShuffled, revealed: isHoveringPlatter, tint: tint, dimTint: dim) {
+                    player.toggleShuffle()
+                }
+                Spacer(minLength: 0)
+                HStack(spacing: Theme.Space.xl) {
+                    TransportButton(symbol: "backward.fill", size: Theme.Size.controlIcon, enabled: player.current != nil) {
+                        player.previous()
+                    }
+                    TransportButton(symbol: player.isPlaying ? "pause.fill" : "play.fill", size: Theme.Size.playIcon, enabled: player.current != nil) {
+                        player.togglePlayPause()
+                    }
+                    TransportButton(symbol: "forward.fill", size: Theme.Size.controlIcon, enabled: player.hasNext) {
+                        player.next()
+                    }
+                }
+                .foregroundStyle(tint)
+                Spacer(minLength: 0)
+                ModeButton(
+                    symbol: player.repeatMode == .one ? "repeat.1" : "repeat",
+                    isOn: player.repeatMode != .off,
+                    revealed: isHoveringPlatter,
+                    tint: tint,
+                    dimTint: dim
+                ) {
+                    player.cycleRepeat()
+                }
+            }
+        }
+
+        scrubber
     }
 
     /// Artwork opens the album when we know which one it is.

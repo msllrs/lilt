@@ -109,10 +109,32 @@ struct TrackRow: View {
 
     @ViewBuilder
     private var trailing: some View {
-        if let duration = track.durationText {
-            Text(duration)
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.tertiary)
+        HStack(spacing: Theme.Space.sm) {
+            // Add to the queue; a tick once it's in there. Only while hovering, never for the
+            // track that's playing.
+            if !isCurrent {
+                let queued = player.isQueued(track)
+                Button {
+                    player.enqueue(track)
+                    AppDelegate.shared?.queueDidChange()
+                } label: {
+                    Image(systemName: queued ? "checkmark" : "text.line.last.and.arrowtriangle.forward")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
+                        .contentShape(Circle())
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.pressable(scale: 0.85))
+                .disabled(queued)
+                .opacity(isHovering ? 1 : 0)
+                .help(queued ? "In the queue" : "Play next in queue")
+            }
+            if let duration = track.durationText {
+                Text(duration)
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+            }
         }
     }
 }
