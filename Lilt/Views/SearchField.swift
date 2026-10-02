@@ -27,8 +27,11 @@ struct SearchField: View {
         .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous))
         .onAppear { isFocused = true }
         // The panel often isn't key when this first appears; re-claim focus when it becomes key
-        // so showing the panel means you can type straight away.
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+        // so showing the panel means you can type straight away. Only our panel, and only when
+        // the field doesn't already have focus: re-focusing a field that has it selects all its
+        // text, which swallowed the second character of anything typed quickly.
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
+            guard (note.object as? NSWindow) is PanelWindow, !isFocused else { return }
             isFocused = true
         }
     }

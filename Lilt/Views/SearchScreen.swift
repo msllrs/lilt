@@ -19,7 +19,11 @@ struct SearchScreen: View {
 
     var body: some View {
         @Bindable var navigation = navigation
-        content
+        // The content switches type (home, spinner, results). Inside a fixed container the bar
+        // and its text field keep their identity across that switch; attached straight to the
+        // conditional, they were rebuilt on every phase change, and a rebuilt field re-focuses
+        // and selects all its text, eating the next character typed.
+        ZStack { content }
             // A safe-area *bar* (not inset): results scroll beneath it and the system draws its
             // progressive scroll-edge blur under the field.
             .safeAreaBar(edge: .top, spacing: 0) {
