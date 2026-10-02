@@ -42,7 +42,6 @@ struct NowPlayingBar: View {
                 ) {
                     AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer)
                 }
-                .alignmentGuide(.top) { $0[.top] }
             }
 
             HStack(spacing: 0) {
@@ -179,11 +178,18 @@ private struct ModeButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(isOn ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-                .frame(width: 28, height: 28)
-                .contentShape(Circle())
+            ZStack {
+                // Keyed by symbol so a glyph change swaps through the transition instead of
+                // cross-fading two differently placed arrows (which reads as them sliding).
+                Image(systemName: symbol)
+                    .font(.system(size: 12, weight: .semibold))
+                    .id(symbol)
+                    .transition(.blurScale)
+            }
+            .animation(.snappy(duration: 0.22), value: symbol)
+            .foregroundStyle(isOn ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+            .frame(width: 28, height: 28)
+            .contentShape(Circle())
         }
         .buttonStyle(.pressable(scale: 0.88))
         .opacity(isOn ? 1 : revealed ? 0.7 : 0)
