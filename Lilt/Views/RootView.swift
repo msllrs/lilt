@@ -25,9 +25,11 @@ struct RootView: View {
                         }
                     }
                     // Keeps the column solid to hit-testing (its glass pixels are transparent).
+                    // Inset by a point so its antialiased edge never shows beyond the glass.
                     .background {
-                        RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.window - 1, style: .continuous)
                             .fill(Color.black.opacity(0.012))
+                            .padding(1)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
                     .transition(.opacity)
@@ -36,20 +38,20 @@ struct RootView: View {
                 NowPlayingBar()
                     .padding(.horizontal, mini ? 0 : Theme.Space.panelInset)
                     .padding(.bottom, mini ? 0 : Theme.Space.panelInset)
+                    // Expanded: the platter's drop shadow would spill past the panel; keep it in.
+                    .mask {
+                        if mini {
+                            Rectangle().padding(-Theme.Size.shadowMargin)
+                        } else {
+                            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                                .frame(maxHeight: .infinity)
+                                .padding(.top, -2000)
+                        }
+                    }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-        // Expanded: the platter's drop shadow reaches the panel edge, so clip to the panel shape.
-        // Mini: no outer clip at all. The platter's own glass shape is the only edge; a second
-        // mask on the same curve rasterises it twice and leaves jagged corners.
-        .mask {
-            if mini {
-                Rectangle().padding(-Theme.Size.shadowMargin)
-            } else {
-                RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-            }
-        }
         // Our own window shadow, drawn in the transparent margin around the visible shape.
         .background(alignment: .bottom) {
             PanelShadow(radius: radius, height: mini ? navigation.platterHeight : nil)
