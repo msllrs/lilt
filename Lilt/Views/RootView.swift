@@ -5,16 +5,11 @@ struct RootView: View {
     @Environment(NavigationModel.self) private var navigation
 
     var body: some View {
-        Group {
-            // Mini player: the column is gone entirely, not merely faded, so nothing can show
-            // through the short window.
-            if navigation.isMiniPlayer {
-                Color.clear
-            } else {
-                NavigationColumn()
-                    .transition(.opacity)
-            }
-        }
+        // Mini player: the column stays mounted and fades, so its lists don't rebuild and
+        // re-lay out while the window is still resizing underneath them.
+        NavigationColumn()
+            .opacity(navigation.isMiniPlayer ? 0 : 1)
+            .allowsHitTesting(!navigation.isMiniPlayer)
             .safeAreaBar(edge: .bottom, spacing: 0) {
                 if player.current != nil {
                     // Mini: the platter's content sits directly in the window with the window's
@@ -29,9 +24,9 @@ struct RootView: View {
             .animation(Theme.Motion.standard, value: player.current?.id)
             .animation(Theme.Motion.standard, value: navigation.isMiniPlayer)
             .background {
-                if !navigation.isMiniPlayer {
-                    GlassBackground().ignoresSafeArea()
-                }
+                GlassBackground()
+                    .ignoresSafeArea()
+                    .opacity(navigation.isMiniPlayer ? 0 : 1)
             }
             .clipShape(RoundedRectangle(cornerRadius: navigation.isMiniPlayer ? Theme.Radius.panel : Theme.Radius.window, style: .continuous))
     }

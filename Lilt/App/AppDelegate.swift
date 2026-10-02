@@ -76,23 +76,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func applyMiniPlayer() {
         guard let panel else { return }
         let mini = navigation.isMiniPlayer
+        let previous = isMiniApplied
         // Re-run when entering/leaving mini, or when the platter's measured height changes while mini.
-        guard mini != isMiniApplied || (mini && navigation.platterHeight != appliedPlatterHeight) else { return }
-        let current = panel.frame
-        if mini, isMiniApplied == false, current.height >= Theme.Size.panelMinHeight {
-            expandedHeight = current.height
-        }
+        guard mini != previous || (mini && navigation.platterHeight != appliedPlatterHeight) else { return }
         isMiniApplied = mini
         appliedPlatterHeight = navigation.platterHeight
+        let current = panel.frame
+
+        if !mini, previous == nil {
+            // Launching expanded: the autosaved frame already holds whatever height the user
+            // last dragged the window to. Record it and leave it alone.
+            if current.height >= Theme.Size.panelMinHeight { expandedHeight = current.height }
+            return
+        }
+        if mini, previous == false, current.height >= Theme.Size.panelMinHeight {
+            expandedHeight = current.height
+        }
 
         let height = mini ? navigation.platterHeight : expandedHeight
         panel.minSize = NSSize(width: Theme.Size.panelMinWidth, height: mini ? height : Theme.Size.panelMinHeight)
         var target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
         target = Self.onScreen(target, near: panel.screen ?? NSScreen.main ?? NSScreen.screens[0])
-        #if DEBUG
-        NSLog("Lilt mini=%d platter=%.0f expanded=%.0f %@ -> %@", mini ? 1 : 0, navigation.platterHeight, expandedHeight, NSStringFromRect(current), NSStringFromRect(target))
-        #endif
-        panel.setFrame(target, display: true, animate: panel.isVisible)
+        guard panel.isVisible, previous != nil else { panel.setFrame(target, display: true); return }
+        // Same duration and curve as the SwiftUI fade, so window and content move as one.
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.28
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            panel.animator().setFrame(target, display: true)
+        }
+    }
+
+    /// A manual resize while expanded is the new expanded height.
+    func windowDidEndLiveResize(_ notification: Notification) {
+        guard let panel, (notification.object as? NSWindow) === panel, !navigation.isMiniPlayer else { return }
+        expandedHeight = panel.frame.height
     }
 
     /// Nudges a frame so it lies within the screen's visible area.
