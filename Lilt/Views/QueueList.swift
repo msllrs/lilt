@@ -38,71 +38,72 @@ struct QueueList: View {
     }
 
     private var rows: some View {
-        let upcoming = player.upcoming
-        return Group {
-            if upcoming.isEmpty {
+        let entries = player.upcomingEntries
+        // The List stays mounted when empty (the placeholder lays over it), so the last row's
+        // removal animates like any other instead of the whole list being swapped out.
+        return List {
+            // Each entry has its own identity (the same track can be queued twice), so rows
+            // animate out and shuffle up instead of swapping their contents.
+            ForEach(entries) { entry in
+                QueueRow(track: entry.track) {
+                    guard let offset = player.upcomingOffset(of: entry.id) else { return }
+                    withAnimation(Theme.Motion.settle) { player.playUpcoming(at: offset) }
+                } remove: {
+                    guard let offset = player.upcomingOffset(of: entry.id) else { return }
+                    withAnimation(Theme.Motion.settle) { player.removeUpcoming(at: offset) }
+                    AppDelegate.shared?.queueDidChange()
+                }
+                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+            .onMove { source, destination in
+                withAnimation(Theme.Motion.settle) { player.moveUpcoming(from: source, to: destination) }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .contentMargins(0, for: .scrollContent)
+        .environment(\.defaultMinListRowHeight, Self.rowHeight)
+        .scrollIndicators(.never)
+        // AppKit's table still insets rows by 8pt a side after the margins are zeroed;
+        // pull it back so rows line up with the platter's artwork and controls.
+        .padding(.horizontal, -Self.tableInset)
+        // Rows fade out at an edge only when there's more beyond it: no top fade while
+        // sitting at the top, no bottom fade once scrolled to the end.
+        .onScrollGeometryChange(for: ScrollEdges.self) { geometry in
+            ScrollEdges(
+                moreAbove: geometry.contentOffset.y > 0.5,
+                moreBelow: geometry.contentOffset.y + geometry.containerSize.height < geometry.contentSize.height - 0.5
+            )
+        } action: { _, edges in
+            withAnimation(Theme.Motion.quick) { scrollEdges = edges }
+        }
+        .mask {
+            let height = Self.height(forCount: entries.count) - Self.dividerHeight
+            let top = scrollEdges.moreAbove ? Self.edgeFade / height : 0
+            let bottom = scrollEdges.moreBelow ? Self.edgeFade / height : 0
+            LinearGradient(
+                stops: [
+                    .init(color: top > 0 ? .clear : .black, location: 0),
+                    .init(color: .black, location: top),
+                    .init(color: .black, location: 1 - bottom),
+                    .init(color: bottom > 0 ? .clear : .black, location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .overlay {
+            if entries.isEmpty {
                 Text("Nothing up next")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List {
-                    // Each entry has its own identity (the same track can be queued twice), so
-                    // rows animate out and shuffle up instead of swapping their contents.
-                    ForEach(player.upcomingEntries) { entry in
-                        QueueRow(track: entry.track) {
-                            guard let offset = player.upcomingOffset(of: entry.id) else { return }
-                            withAnimation(Theme.Motion.standard) { player.playUpcoming(at: offset) }
-                        } remove: {
-                            guard let offset = player.upcomingOffset(of: entry.id) else { return }
-                            withAnimation(Theme.Motion.standard) { player.removeUpcoming(at: offset) }
-                            AppDelegate.shared?.queueDidChange()
-                        }
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                    }
-                    .onMove { source, destination in
-                        withAnimation(Theme.Motion.standard) { player.moveUpcoming(from: source, to: destination) }
-                    }
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .contentMargins(0, for: .scrollContent)
-                .environment(\.defaultMinListRowHeight, Self.rowHeight)
-                .scrollIndicators(.never)
-                // AppKit's table still insets rows by 8pt a side after the margins are zeroed;
-                // pull it back so rows line up with the platter's artwork and controls.
-                .padding(.horizontal, -Self.tableInset)
-                // Rows fade out at an edge only when there's more beyond it: no top fade while
-                // sitting at the top, no bottom fade once scrolled to the end.
-                .onScrollGeometryChange(for: ScrollEdges.self) { geometry in
-                    ScrollEdges(
-                        moreAbove: geometry.contentOffset.y > 0.5,
-                        moreBelow: geometry.contentOffset.y + geometry.containerSize.height < geometry.contentSize.height - 0.5
-                    )
-                } action: { _, edges in
-                    withAnimation(Theme.Motion.quick) { scrollEdges = edges }
-                }
-                .mask {
-                    let height = Self.height(forCount: upcoming.count) - Self.dividerHeight
-                    let top = scrollEdges.moreAbove ? Self.edgeFade / height : 0
-                    let bottom = scrollEdges.moreBelow ? Self.edgeFade / height : 0
-                    LinearGradient(
-                        stops: [
-                            .init(color: top > 0 ? .clear : .black, location: 0),
-                            .init(color: .black, location: top),
-                            .init(color: .black, location: 1 - bottom),
-                            .init(color: bottom > 0 ? .clear : .black, location: 1),
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                }
+                    .transition(.opacity)
             }
         }
-        .frame(height: Self.height(forCount: upcoming.count) - Self.dividerHeight)
-        .animation(Theme.Motion.standard, value: upcoming.count)
+        .frame(height: Self.height(forCount: entries.count) - Self.dividerHeight)
+        .animation(Theme.Motion.settle, value: entries.count)
     }
 }
 
@@ -114,20 +115,32 @@ private struct QueueRow: View {
     @State private var isHovering = false
 
     var body: some View {
-        HStack(spacing: Theme.Space.sm) {
-            // Same hover state as list rows: a play glyph over the cover.
-            ArtworkView(url: track.artworkURL, size: 28, radius: Theme.Radius.artwork(28), context: .row)
-                .playOverlay(isVisible: isHovering, symbol: "play.fill", radius: Theme.Radius.artwork(28), size: 28)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(track.title)
-                    .font(.caption)
-                    .lineLimit(1)
-                Text(track.artist)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+        // A plain tap gesture on List row content never fires on macOS (the table takes the
+        // mouse-down for selection), so the row is a Button; the remove button sits beside it
+        // as a sibling, not nested inside it.
+        Button(action: play) {
+            HStack(spacing: Theme.Space.sm) {
+                // Same hover state as list rows: a play glyph over the cover.
+                ArtworkView(url: track.artworkURL, size: 28, radius: Theme.Radius.artwork(28), context: .row)
+                    .playOverlay(isVisible: isHovering, symbol: "play.fill", radius: Theme.Radius.artwork(28), size: 28)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(track.title)
+                        .font(.caption)
+                        .lineLimit(1)
+                    Text(track.artist)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                // Room for the remove button.
+                Color.clear.frame(width: 22, height: 22)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: QueueList.rowHeight)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .trailing) {
             Button(action: remove) {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .semibold))
@@ -137,16 +150,14 @@ private struct QueueRow: View {
             }
             .buttonStyle(.pressable(scale: 0.85))
             .opacity(isHovering ? 1 : 0)
+            .allowsHitTesting(isHovering)
             .help("Remove from queue")
         }
-        .frame(height: QueueList.rowHeight)
-        .contentShape(Rectangle())
         .background {
             RoundedRectangle(cornerRadius: Theme.Radius.artwork(28) + Theme.Space.xs, style: .continuous)
                 .fill(.fill.quaternary)
                 .opacity(isHovering ? 0.6 : 0)
         }
-        .onTapGesture(perform: play)
         .onHover { hovering in
             withAnimation(Theme.Motion.quick) { isHovering = hovering }
         }

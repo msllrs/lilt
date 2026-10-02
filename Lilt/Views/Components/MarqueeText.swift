@@ -19,6 +19,7 @@ struct MarqueeText: View {
     var delay: TimeInterval = 0.6
 
     @State private var textWidth: CGFloat = 0
+    @State private var textHeight: CGFloat = 0
     @State private var availableWidth: CGFloat = 0
     @State private var scrollStart: Date?
 
@@ -41,12 +42,15 @@ struct MarqueeText: View {
             .scrollIndicators(.hidden)
         }
         .foregroundStyle(color)
+        // Exactly one line tall. A scroll view would happily shrink to nothing when its
+        // container is squeezed, taking the title with it.
+        .frame(height: textHeight > 0 ? textHeight : nil)
         .frame(maxWidth: .infinity, alignment: .leading)
         .mask { edgeFade }
         .background {
-            // Measures the natural width without taking part in layout.
+            // Measures the natural size without taking part in layout.
             Text(text).font(font).fixedSize().hidden()
-                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { textWidth = $0 }
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { textWidth = $0.width; textHeight = $0.height }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
         .onChange(of: shouldScroll, initial: true) { _, on in

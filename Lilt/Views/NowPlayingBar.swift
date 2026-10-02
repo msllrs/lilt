@@ -51,6 +51,8 @@ struct NowPlayingBar: View {
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
+        // The player rows never give up height to the list below them.
+        .fixedSize(horizontal: false, vertical: true)
         .padding(Theme.Space.barPadding)
         // The list slides in from under the scrubber; clipping to the platter keeps that, and the
         // list itself, inside the glass while the platter grows and shrinks.

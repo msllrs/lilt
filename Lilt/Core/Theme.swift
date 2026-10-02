@@ -60,6 +60,9 @@ enum Theme {
     enum Motion {
         static let quick: Animation = .easeOut(duration: 0.18)
         static let standard: Animation = .snappy(duration: 0.28)
+        /// For a container changing size: `snappy` carries a little bounce, and a frame that
+        /// overshoots smaller than its content squeezes the content for a few frames.
+        static let settle: Animation = .smooth(duration: 0.3)
         /// Colour drawn from one cover handing over to the next: slow enough to read as a change
         /// of light, not a cut.
         static let cast: Animation = .easeInOut(duration: 0.8)
