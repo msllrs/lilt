@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         showPanel()
         observeLoginPresentation()
         observeDockIcon()
+        observeQueue()
         observeMiniPlayer()
         Task {
             await auth.refresh()
@@ -115,6 +116,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             try? await Task.sleep(for: .seconds(1.5))
             guard !Task.isCancelled, let self, navigation.isQueueVisible, player.upcoming.isEmpty else { return }
             setQueueVisible(false)
+        }
+    }
+
+    /// Watches the hand-queued segment itself, so the list also reacts when playback consumes
+    /// it (the last queued track starting empties it, and the list folds away after a moment).
+    private func observeQueue() {
+        withObservationTracking {
+            _ = player.manualCount
+            _ = player.currentIndex
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.queueDidChange()
+                self?.observeQueue()
+            }
         }
     }
 
