@@ -24,17 +24,9 @@ struct SearchScreen: View {
             // progressive scroll-edge blur under the field.
             .safeAreaBar(edge: .top, spacing: 0) {
                 HStack(spacing: Theme.Space.xs) {
-                    Button {
-                        navigation.open(NavigationModel.library)
-                    } label: {
-                        Image(systemName: "books.vertical")
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 32, height: 32)
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.pressable(scale: 0.88))
-                    .help("Library")
+                    // The library button itself is drawn by the column, static above the pages
+                    // (it becomes the back chevron); this just keeps its room.
+                    Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
                     SearchField(text: $navigation.query)
                     RecentsMenu()
                 }

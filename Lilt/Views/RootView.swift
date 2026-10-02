@@ -168,14 +168,20 @@ private struct NavigationColumn: View {
             }
         }
         .animation(Self.enter, value: path)
-        // The back button stays put while pages slide beneath it; it only fades in and out.
+        // One static control in the top-left corner: the library glyph on the search root, the
+        // back chevron on every page. Pages slide beneath it; it only swaps glyphs in place.
         .overlay(alignment: .topLeading) {
+            // Alone in the overlay: a second child would make an implicit, centred stack.
+            LeadingButton(isBack: !path.isEmpty)
+                .padding(.top, Theme.Space.panelInset)
+                .padding(.leading, Theme.Space.panelInset)
+        }
+        .background {
             if !path.isEmpty {
-                BackButton()
-                    .frame(height: Theme.Size.headerRow)
-                    .padding(.top, Theme.Space.panelInset)
-                    .padding(.leading, Theme.Space.panelInset)
-                    .transition(.opacity.animation(Self.enter))
+                // ⌘[ goes back; a hidden button carries the shortcut without touching the control.
+                Button("Back") { navigation.pop() }
+                    .keyboardShortcut("[", modifiers: .command)
+                    .hidden()
             }
         }
         .onChange(of: path.last?.id, initial: true) { _, top in
@@ -184,21 +190,30 @@ private struct NavigationColumn: View {
     }
 }
 
-private struct BackButton: View {
+private struct LeadingButton: View {
     @Environment(NavigationModel.self) private var navigation
+    let isBack: Bool
+
+    private var symbol: String { isBack ? "chevron.left" : "books.vertical" }
 
     var body: some View {
         Button {
-            navigation.pop()
+            if isBack { navigation.pop() } else { navigation.open(NavigationModel.library) }
         } label: {
-            Image(systemName: "chevron.left")
-                .font(.body.weight(.semibold))
-                .frame(width: 28, height: 28)
-                .contentShape(Circle())
+            ZStack {
+                // Keyed by symbol so library ↔ back swaps through scale, blur and fade in place.
+                Image(systemName: symbol)
+                    .font(isBack ? .body.weight(.semibold) : .body)
+                    .foregroundStyle(isBack ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                    .id(symbol)
+                    .transition(.blurScale)
+            }
+            .animation(.snappy(duration: 0.22), value: symbol)
+            .frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
+            .contentShape(Circle())
         }
         .buttonStyle(.pressable(scale: 0.88))
-        .keyboardShortcut("[", modifiers: .command)
-        .help("Back")
+        .help(isBack ? "Back" : "Library")
     }
 }
 
