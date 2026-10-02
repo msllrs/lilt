@@ -56,7 +56,10 @@ struct RootView: View {
         }
         .padding(Theme.Size.shadowMargin)
         .animation(Theme.Motion.standard, value: player.current?.id)
-        .animation(Theme.Motion.standard, value: mini)
+        // Collapsing animates (column fades, glass contracts). Expanding doesn't: the window has
+        // just grown and SwiftUI would interpolate the platter from its position in the old frame,
+        // which reads as the controls dropping in from the top.
+        .animation(mini ? Theme.Motion.standard : nil, value: mini)
     }
 }
 
