@@ -127,11 +127,11 @@ enum NoteColorMode: String, CaseIterable, Identifiable {
 /// The music notes drifting out of the playing track's disc. Mirrors `CAEmitterCell`'s knobs;
 /// fractions of a second, points per second, radians.
 struct NotesStyle: Equatable {
-    var colorMode: NoteColorMode = .label
+    var colorMode: NoteColorMode = .artwork
     /// Seconds for one trip around the hue wheel in `hueDrift` mode.
     var huePeriod: Double = 8
     /// The emission angle swings this far either side of straight up, in radians (0 = off).
-    var sway: Double = 0
+    var sway: Double = 0.5
     /// Seconds for one full left-right-left swing.
     var swayPeriod: Double = 3
     // Tuned by Matt in the tweak panel on 2026-10-02.
