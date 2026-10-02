@@ -124,6 +124,19 @@ struct PlayCastStyle: Equatable {
     static let standard = PlayCastStyle()
 }
 
+/// The cover's light spilling down from the top of an album, artist or playlist page.
+struct PageAmbientStyle: Equatable {
+    /// Strength of the blurred cover wash at the very top.
+    var opacity: Double = 0.28
+    var saturation: Double = 3.0
+    /// Blur radius in points.
+    var blur: Double = 120
+    /// How far down the page the wash reaches before fading out, in points.
+    var reach: Double = 360
+
+    static let standard = PageAmbientStyle()
+}
+
 /// The blur behind floating headers.
 struct HeaderBlurStyle: Equatable {
     /// Use a Core Animation backdrop with a variable blur ramp (private API, guarded), rather
@@ -249,6 +262,7 @@ final class ArtworkStyle {
     var notes: NotesStyle = .standard
     var playCast: PlayCastStyle = .standard
     var headerBlur: HeaderBlurStyle = .standard
+    var pageAmbient: PageAmbientStyle = .standard
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
@@ -291,6 +305,7 @@ final class ArtworkStyle {
         notes = .standard
         playCast = .standard
         headerBlur = .standard
+        pageAmbient = .standard
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -317,6 +332,7 @@ final class ArtworkStyle {
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))
         headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), radius: \(f(headerBlur.radius)), saturation: \(f(headerBlur.saturation)), brightness: \(f(headerBlur.brightness)), reach: \(f(headerBlur.reach)))
+        pageAmbient = PageAmbientStyle(opacity: \(f(pageAmbient.opacity)), saturation: \(f(pageAmbient.saturation)), blur: \(f(pageAmbient.blur)), reach: \(f(pageAmbient.reach)))
         """
     }
 

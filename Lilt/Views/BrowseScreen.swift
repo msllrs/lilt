@@ -40,6 +40,8 @@ struct BrowseScreen: View {
     var body: some View {
         content
             .safeAreaBar(edge: .top, spacing: 0) { navigationHeader }
+            // The cover's light spills down from the top of the page, behind everything.
+            .background(alignment: .top) { PageAmbient(url: (page?.item.artworkURL) ?? item.artworkURL) }
             .task(id: item.id) { await load() }
     }
 

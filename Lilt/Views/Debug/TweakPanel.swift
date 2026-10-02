@@ -69,6 +69,12 @@ struct TweakPanel: View {
                 slider("Controls tint", $style.platter.controlsTint, 0...1)
                 slider("Text tint", $style.platter.textTint, 0...1)
             }
+            Section("Page ambient") {
+                slider("Opacity", $style.pageAmbient.opacity, 0...1)
+                slider("Saturation", $style.pageAmbient.saturation, 0...8)
+                slider("Blur", $style.pageAmbient.blur, 0...300)
+                slider("Reach", $style.pageAmbient.reach, 80...800)
+            }
             Section("Header blur") {
                 Toggle("Backdrop ramp (private API)", isOn: $style.headerBlur.useBackdrop)
                     .disabled(!ProgressiveBlurBackdrop.isAvailable)

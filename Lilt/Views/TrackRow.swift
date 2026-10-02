@@ -119,6 +119,8 @@ struct TrackRow: View {
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.tertiary)
                     .opacity(isHovering ? 0 : 1)
+                    // Swaps with the button instantly; the eased hover fade is for the row.
+                    .transaction { $0.animation = nil }
             }
             Button {
                 player.enqueue(track)
@@ -147,6 +149,7 @@ struct TrackRow: View {
             }
             .buttonStyle(.pressable(scale: 0.85))
             .opacity(isHovering ? 1 : 0)
+            .transaction { $0.animation = nil }
             .allowsHitTesting(isHovering)
             .help("Add to queue")
         }
