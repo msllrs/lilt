@@ -61,7 +61,7 @@ struct CollapsibleSection<Content: View>: View {
                     .font(.system(size: 8, weight: .bold))
                     .rotationEffect(.degrees(isCollapsed ? -90 : 0))
                     .opacity(isHovering || isCollapsed ? 1 : 0)
-                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 3.5 }
+                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4.5 }
                 Spacer(minLength: 0)
             }
             .foregroundStyle(.secondary)
