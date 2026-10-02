@@ -5,11 +5,17 @@ struct RootView: View {
     @Environment(NavigationModel.self) private var navigation
 
     var body: some View {
-        // Mini player: the column stays mounted and fades, so its lists don't rebuild and
-        // re-lay out while the window is still resizing underneath them.
-        NavigationColumn()
-            .opacity(navigation.isMiniPlayer ? 0 : 1)
-            .allowsHitTesting(!navigation.isMiniPlayer)
+        // Mini player: the column is removed (a fade keeps its last layout on screen while the
+        // window shrinks). It must not stay mounted: its header would still demand height in a
+        // platter-sized window and push the platter down.
+        Group {
+            if navigation.isMiniPlayer {
+                Color.clear
+            } else {
+                NavigationColumn()
+                    .transition(.opacity)
+            }
+        }
             .safeAreaBar(edge: .bottom, spacing: 0) {
                 if player.current != nil {
                     // Mini: the platter's content sits directly in the window with the window's
