@@ -13,24 +13,36 @@ struct HeaderBackdrop: ViewModifier {
     /// beneath it. Keeps the blur off the hero artwork on an unscrolled page.
     var visibility: CGFloat = 1
 
+    private var style: HeaderBlurStyle { ArtworkStyle.shared.headerBlur }
+
     func body(content: Content) -> some View {
+        let useBackdrop = style.useBackdrop && ProgressiveBlurBackdrop.isAvailable
+        let reach = useBackdrop ? CGFloat(style.reach) : self.reach
         content.background(alignment: .top) {
             GeometryReader { geometry in
-                Rectangle()
-                    .fill(.thinMaterial)
-                    .mask {
-                        LinearGradient(
-                            stops: [
-                                .init(color: .black, location: 0),
-                                .init(color: .black, location: geometry.size.height / (geometry.size.height + reach)),
-                                .init(color: .clear, location: 1),
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+                let fadeStart = geometry.size.height / (geometry.size.height + reach)
+                Group {
+                    if useBackdrop {
+                        // A true blur ramp: strongest under the header, gone by `reach`.
+                        ProgressiveBlurBackdrop(radius: style.radius, saturation: style.saturation, brightness: style.brightness, fadeStart: fadeStart)
+                    } else {
+                        Rectangle()
+                            .fill(.thinMaterial)
+                            .mask {
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: .black, location: 0),
+                                        .init(color: .black, location: fadeStart),
+                                        .init(color: .clear, location: 1),
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            }
                     }
-                    .frame(height: geometry.size.height + reach)
-                    .opacity(visibility)
+                }
+                .frame(height: geometry.size.height + reach)
+                .opacity(visibility)
             }
             .ignoresSafeArea(edges: .top)
             .allowsHitTesting(false)

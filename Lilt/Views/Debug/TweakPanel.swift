@@ -60,6 +60,20 @@ struct TweakPanel: View {
                 slider("Ambient opacity", $style.platter.tintOpacity, 0...1)
                 slider("Ambient saturation", $style.platter.tintSaturation, 0...8)
                 slider("Ambient blur", $style.platter.tintBlur, 0...300)
+                slider("Hover brighten", $style.platter.hoverBrightness, 0...1)
+                slider("Corner accent", $style.platter.cornerAccentOpacity, 0...0.8)
+                slider("Corner reach", $style.platter.cornerAccentRadius, 0.2...1.5)
+                slider("Scrubber tint", $style.platter.scrubberTint, 0...1)
+                slider("Scrubber saturation", $style.platter.scrubberSaturation, 0...3)
+            }
+            Section("Header blur") {
+                Toggle("Backdrop ramp (private API)", isOn: $style.headerBlur.useBackdrop)
+                    .disabled(!ProgressiveBlurBackdrop.isAvailable)
+                LabeledContent("Available", value: ProgressiveBlurBackdrop.isAvailable ? "yes" : "no")
+                slider("Radius", $style.headerBlur.radius, 0...60)
+                slider("Saturation", $style.headerBlur.saturation, 0...3)
+                slider("Brightness", $style.headerBlur.brightness, -0.5...0.5)
+                slider("Reach", $style.headerBlur.reach, 0...96)
             }
             Section("Play capsule cast") {
                 slider("Saturation", $style.playCast.saturation, 0...4)

@@ -16,6 +16,8 @@ final class ImageCache {
     private var averages: [String: (r: CGFloat, g: CGFloat, b: CGFloat)] = [:]
     /// Average luminance of the outer perimeter per cached URL, for picking the keyline colour.
     private var edges: [String: CGFloat] = [:]
+    /// Dominant colour per cached URL (nil entry when the cover is effectively grey).
+    private var dominants: [String: (r: CGFloat, g: CGFloat, b: CGFloat)?] = [:]
     /// base key → URLs of the variants currently cached.
     private var variants: [String: [URL]] = [:]
     private var inflight: [URL: Task<NSImage?, Never>] = [:]
@@ -86,6 +88,19 @@ final class ImageCache {
         return Color(nsColor: adjusted)
     }
 
+    /// The artwork's dominant colour, brightened into a band that reads as a line or accent on
+    /// both light and dark glass. Nil for covers with no colour to speak of, so callers fall
+    /// back to the label colour rather than tinting grey.
+    func accent(for url: URL, saturationBoost: CGFloat) -> Color? {
+        guard let entry = dominants[url.absoluteString] ?? variants[Self.baseKey(url)]?.lazy.compactMap({ self.dominants[$0.absoluteString] }).first,
+              let c = entry else { return nil }
+        let color = NSColor(red: c.r, green: c.g, blue: c.b, alpha: 1)
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        color.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        let adjusted = NSColor(hue: h, saturation: min(1, s * saturationBoost), brightness: min(max(b, 0.45), 0.8), alpha: 1)
+        return Color(nsColor: adjusted)
+    }
+
     /// Any cached rendition of the same artwork, regardless of size.
     func anyVariant(for url: URL) -> NSImage? {
         let key = Self.baseKey(url)
@@ -119,6 +134,57 @@ final class ImageCache {
         if let edge = Self.edgeLuminance(of: image) {
             edges[url.absoluteString] = edge
         }
+        dominants[url.absoluteString] = Self.dominantColor(of: image)
+    }
+
+    /// Histogram over a small downsample: pixels are binned by hue, saturation and brightness,
+    /// each vote weighted by how colourful it is, and the winning bin's mean is the answer. An
+    /// average would turn a red-and-blue cover purple; this picks one of them.
+    private static func dominantColor(of image: NSImage) -> (r: CGFloat, g: CGFloat, b: CGFloat)? {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let side = 24
+        var pixels = [UInt8](repeating: 0, count: side * side * 4)
+        guard let context = CGContext(
+            data: &pixels, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side * 4,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.interpolationQuality = .high
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: side, height: side))
+
+        struct Bin { var weight: CGFloat = 0; var r: CGFloat = 0; var g: CGFloat = 0; var b: CGFloat = 0 }
+        let hueBins = 12, satBins = 2, briBins = 3
+        var bins = [Bin](repeating: Bin(), count: hueBins * satBins * briBins)
+        var colourful: CGFloat = 0, total: CGFloat = 0
+        for i in stride(from: 0, to: pixels.count, by: 4) {
+            let r = CGFloat(pixels[i]) / 255, g = CGFloat(pixels[i + 1]) / 255, b = CGFloat(pixels[i + 2]) / 255
+            let maxC = max(r, g, b), minC = min(r, g, b), delta = maxC - minC
+            let sat = maxC > 0 ? delta / maxC : 0
+            total += 1
+            // Grey and near-black pixels carry no colour information; they only vote weakly.
+            guard sat > 0.15, maxC > 0.12 else { continue }
+            colourful += 1
+            var hue: CGFloat = 0
+            if delta > 0 {
+                if maxC == r { hue = ((g - b) / delta).truncatingRemainder(dividingBy: 6) }
+                else if maxC == g { hue = (b - r) / delta + 2 }
+                else { hue = (r - g) / delta + 4 }
+                hue /= 6
+                if hue < 0 { hue += 1 }
+            }
+            let h = min(Int(hue * CGFloat(hueBins)), hueBins - 1)
+            let sIndex = sat > 0.5 ? 1 : 0
+            let bIndex = min(Int(maxC * CGFloat(briBins)), briBins - 1)
+            let index = (h * satBins + sIndex) * briBins + bIndex
+            // Saturated, mid-bright pixels are what the eye calls "the colour" of a cover.
+            let weight = sat * (1 - abs(maxC - 0.6) * 0.8)
+            bins[index].weight += weight
+            bins[index].r += r * weight
+            bins[index].g += g * weight
+            bins[index].b += b * weight
+        }
+        // A cover that is nearly all grey has no dominant colour.
+        guard total > 0, colourful / total > 0.08, let best = bins.max(by: { $0.weight < $1.weight }), best.weight > 0 else { return nil }
+        return (best.r / best.weight, best.g / best.weight, best.b / best.weight)
     }
 
     /// Downsamples to a small grid and averages the outer ring of pixels.

@@ -9,12 +9,16 @@ struct Scrubber: NSViewRepresentable {
     var range: ClosedRange<Double>
     /// Called with the live value while dragging, and `ended == true` on release.
     var onEditing: (_ value: Double, _ ended: Bool) -> Void
+    /// Colour of the elapsed line and rail; nil for the label colour.
+    var tint: NSColor? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(onEditing: onEditing) }
 
     func makeNSView(context: Context) -> NSSlider {
         let slider = NSSlider()
-        slider.cell = LineSliderCell()
+        let cell = LineSliderCell()
+        cell.tint = tint
+        slider.cell = cell
         slider.minValue = range.lowerBound
         slider.maxValue = range.upperBound
         slider.doubleValue = value
@@ -30,6 +34,10 @@ struct Scrubber: NSViewRepresentable {
         context.coordinator.onEditing = onEditing
         slider.minValue = range.lowerBound
         slider.maxValue = range.upperBound
+        if let cell = slider.cell as? LineSliderCell, cell.tint != tint {
+            cell.tint = tint
+            slider.needsDisplay = true
+        }
         // Don't fight the user's hand while they're dragging.
         if !context.coordinator.isDragging {
             slider.doubleValue = value
@@ -51,9 +59,11 @@ struct Scrubber: NSViewRepresentable {
     }
 }
 
-/// A neutral track with no knob. Elapsed is the label colour, so black in light mode and
-/// white in dark, over a faint rail in the same colour.
+/// A track with no knob. Elapsed is the label colour, so black in light mode and white in dark,
+/// or an artwork tint when one is set, over a faint rail in the same colour.
 final class LineSliderCell: NSSliderCell {
+    var tint: NSColor?
+
     override func drawKnob(_ knobRect: NSRect) {}
 
     override func drawBar(inside rect: NSRect, flipped: Bool) {
@@ -62,14 +72,15 @@ final class LineSliderCell: NSSliderCell {
         let full = controlView?.bounds ?? rect
         let height: CGFloat = 5
         let rail = NSRect(x: full.minX, y: rect.midY - height / 2, width: full.width, height: height)
-        NSColor.labelColor.withAlphaComponent(0.15).setFill()
+        let color = tint ?? NSColor.labelColor
+        color.withAlphaComponent(0.15).setFill()
         NSBezierPath(roundedRect: rail, xRadius: height / 2, yRadius: height / 2).fill()
 
         let span = maxValue - minValue
         let fraction = span > 0 ? CGFloat((doubleValue - minValue) / span) : 0
         let width = max(rail.width * min(max(fraction, 0), 1), height)
         let elapsed = NSRect(x: rail.minX, y: rail.minY, width: width, height: height)
-        NSColor.labelColor.setFill()
+        color.setFill()
         NSBezierPath(roundedRect: elapsed, xRadius: height / 2, yRadius: height / 2).fill()
     }
 }

@@ -60,5 +60,8 @@ enum Theme {
     enum Motion {
         static let quick: Animation = .easeOut(duration: 0.18)
         static let standard: Animation = .snappy(duration: 0.28)
+        /// Colour drawn from one cover handing over to the next: slow enough to read as a change
+        /// of light, not a cut.
+        static let cast: Animation = .easeInOut(duration: 0.8)
     }
 }

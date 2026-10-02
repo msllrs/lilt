@@ -81,6 +81,16 @@ struct PlatterStyle: Equatable {
     var tintSaturation: Double = 4.0
     /// Blur radius in points.
     var tintBlur: Double = 160
+    /// How much brighter the ambient fill gets while the pointer is over the platter (0 = none).
+    var hoverBrightness: Double = 0.35
+    /// A wash of the artwork's dominant colour in the top-leading corner, behind the cover.
+    var cornerAccentOpacity: Double = 0.25
+    /// Reach of that wash, as a fraction of the platter's size.
+    var cornerAccentRadius: Double = 0.7
+    /// How far the scrubber's elapsed line moves from the label colour toward the artwork's
+    /// dominant colour (0 = plain black/white, 1 = fully coloured).
+    var scrubberTint: Double = 1.0
+    var scrubberSaturation: Double = 1.3
 
     /// Tuned by Matt in the tweak panel on 2026-10-01.
     static let standard = PlatterStyle()
@@ -105,6 +115,23 @@ struct PlayCastStyle: Equatable {
     var rimBlend: ArtworkBlend = .normal
 
     static let standard = PlayCastStyle()
+}
+
+/// The blur behind floating headers.
+struct HeaderBlurStyle: Equatable {
+    /// Use a Core Animation backdrop with a variable blur ramp (private API, guarded), rather
+    /// than a system material faded out with a mask.
+    var useBackdrop: Bool = true
+    /// Blur radius in points at the top of the header.
+    var radius: Double = 24
+    /// Saturation of what shows through, like the system materials' boost.
+    var saturation: Double = 1.4
+    /// Brightness shift of what shows through (-1...1).
+    var brightness: Double = 0.0
+    /// How far below the header the blur reaches before fading to nothing.
+    var reach: Double = 32
+
+    static let standard = HeaderBlurStyle()
 }
 
 /// How music notes are coloured.
@@ -214,6 +241,7 @@ final class ArtworkStyle {
     var platter: PlatterStyle = .standard
     var notes: NotesStyle = .standard
     var playCast: PlayCastStyle = .standard
+    var headerBlur: HeaderBlurStyle = .standard
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
@@ -255,6 +283,7 @@ final class ArtworkStyle {
         platter = .standard
         notes = .standard
         playCast = .standard
+        headerBlur = .standard
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -277,9 +306,10 @@ final class ArtworkStyle {
         playerShadow = \(snippet(playerShadow))
         heroShadow = \(snippet(heroShadow))
         headerShadow = \(snippet(headerShadow))
-        platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)))
+        platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)), hoverBrightness: \(f(platter.hoverBrightness)), cornerAccentOpacity: \(f(platter.cornerAccentOpacity)), cornerAccentRadius: \(f(platter.cornerAccentRadius)), scrubberTint: \(f(platter.scrubberTint)), scrubberSaturation: \(f(platter.scrubberSaturation)))
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))
+        headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), radius: \(f(headerBlur.radius)), saturation: \(f(headerBlur.saturation)), brightness: \(f(headerBlur.brightness)), reach: \(f(headerBlur.reach)))
         """
     }
 

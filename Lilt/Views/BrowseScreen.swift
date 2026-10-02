@@ -249,17 +249,22 @@ struct BrowseScreen: View {
                 Button {
                     player.play(page.tracks, startingAt: 0)
                 } label: {
-                    Label("Play", systemImage: "play.fill")
-                        .font(.callout.weight(.semibold))
-                        .padding(.horizontal, Theme.Space.lg + Theme.Space.xs)
-                        .padding(.vertical, Theme.Space.sm + Theme.Space.xs)
-                        // Glass and rim live on the label so the press scale moves the whole capsule.
-                        // The cover above casts its colour onto the glass, a wash along the top
-                        // edge, and the lit rim.
-                        .glassEffect(.regular.tint(artworkCast(page)?.opacity(playCast.tintOpacity)).interactive(), in: .capsule)
-                        .overlay { castGlow(artworkCast(page)) }
-                        .glassEdge(Capsule(), cast: artworkCast(page), castMix: playCast.rimMix, blur: playCast.rimBlur, blend: playCast.rimBlend.blendMode)
-                        .contentShape(Capsule())
+                    // The cast is interpolated, so a new cover's colour arrives as a change of
+                    // light over the capsule rather than a cut.
+                    InterpolatedColor(artworkCast(page)) { cast in
+                        Label("Play", systemImage: "play.fill")
+                            .font(.callout.weight(.semibold))
+                            .padding(.horizontal, Theme.Space.lg + Theme.Space.xs)
+                            .padding(.vertical, Theme.Space.sm + Theme.Space.xs)
+                            // Glass and rim live on the label so the press scale moves the whole capsule.
+                            // The cover above casts its colour onto the glass, a wash along the top
+                            // edge, and the lit rim.
+                            .glassEffect(.regular.tint(cast?.opacity(playCast.tintOpacity)).interactive(), in: .capsule)
+                            .overlay { castGlow(cast) }
+                            .glassEdge(Capsule(), cast: cast, castMix: playCast.rimMix, blur: playCast.rimBlur, blend: playCast.rimBlend.blendMode)
+                            .contentShape(Capsule())
+                    }
+                    .animation(Theme.Motion.cast, value: artworkCast(page))
                 }
                 .buttonStyle(.pressable)
             }

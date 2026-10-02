@@ -21,6 +21,12 @@ struct NowPlayingBar: View {
         return ImageCache.shared.cached(url) ?? ImageCache.shared.anyVariant(for: url)
     }
 
+    /// The cover's dominant colour, for the corner accent and the scrubber.
+    private var accent: Color? {
+        guard let url = player.displayArtworkURL else { return nil }
+        return ImageCache.shared.accent(for: url, saturationBoost: platter.scrubberSaturation)
+    }
+
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
     @State private var isHoveringPlatter = false
@@ -97,14 +103,31 @@ struct NowPlayingBar: View {
                 if let ambientImage {
                     shape.fill(.clear)
                         .overlay {
+                            // Keyed by cover so one blurred wash crossfades into the next.
                             Image(nsImage: ambientImage)
                                 .resizable()
                                 .scaledToFill()
                                 .saturation(platter.tintSaturation)
                                 .blur(radius: platter.tintBlur)
-                                .opacity(platter.tintOpacity)
+                                .id(player.displayArtworkURL)
+                                .transition(.opacity)
                         }
+                        // A touch brighter under the pointer, like glass catching more light.
+                        .opacity(platter.tintOpacity * (isHoveringPlatter ? 1 + platter.hoverBrightness : 1))
                         .clipShape(shape)
+                }
+                // The dominant colour pooled in the corner behind the cover, as if it spilled.
+                InterpolatedColor(accent) { accent in
+                    if let accent, platter.cornerAccentOpacity > 0 {
+                        shape.fill(
+                            EllipticalGradient(
+                                colors: [accent.opacity(platter.cornerAccentOpacity), .clear],
+                                center: .topLeading,
+                                startRadiusFraction: 0,
+                                endRadiusFraction: platter.cornerAccentRadius
+                            )
+                        )
+                    }
                 }
             }
             .opacity(glassVisibility)
@@ -121,6 +144,7 @@ struct NowPlayingBar: View {
         .glassEdge(shape, opacity: min(platter.borderOpacity * 6, 1) * glassVisibility)
         .animation(Theme.Motion.quick, value: glassVisibility)
         .animation(Theme.Motion.standard, value: player.displayArtworkURL)
+        .animation(Theme.Motion.cast, value: accent)
     }
 
     /// Artwork opens the album when we know which one it is.
@@ -141,19 +165,26 @@ struct NowPlayingBar: View {
         HStack(spacing: Theme.Space.xs + 2) {
             Text(timeString(isScrubbing ? scrubValue : player.currentTime))
                 .fixedSize()
-            Scrubber(
-                value: .constant(isScrubbing ? scrubValue : player.currentTime),
-                range: 0...max(player.duration, 1),
-                onEditing: { value, ended in
-                    scrubValue = value
-                    if ended {
-                        player.seek(to: value)
-                        isScrubbing = false
-                    } else {
-                        isScrubbing = true
-                    }
-                }
-            )
+            // The line takes on the cover's dominant colour, by the tweakable amount, and that
+            // colour slides to the next song's rather than switching.
+            InterpolatedColor(accent) { accent in
+                let mono = colorScheme == .dark ? Color.white : Color.black
+                let tint = accent.map { mono.mix(with: $0, by: platter.scrubberTint) }
+                Scrubber(
+                    value: .constant(isScrubbing ? scrubValue : player.currentTime),
+                    range: 0...max(player.duration, 1),
+                    onEditing: { value, ended in
+                        scrubValue = value
+                        if ended {
+                            player.seek(to: value)
+                            isScrubbing = false
+                        } else {
+                            isScrubbing = true
+                        }
+                    },
+                    tint: tint.map { NSColor($0) }
+                )
+            }
             .frame(height: 12)
             Text(timeString(player.duration))
                 .fixedSize()
