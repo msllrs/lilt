@@ -9,6 +9,8 @@ struct QueueList: View {
     static let maxRows = 5
     /// The horizontal inset a plain List keeps around its rows on macOS.
     static let tableInset: CGFloat = 8
+    /// How far rows fade out at the top and bottom when the list scrolls.
+    static let edgeFade: CGFloat = 14
 
     /// Hairline between the player and the list, plus the gap beneath it.
     static let dividerHeight: CGFloat = 1 + Theme.Space.sm
@@ -62,6 +64,38 @@ struct QueueList: View {
                 // AppKit's table still insets rows by 8pt a side after the margins are zeroed;
                 // pull it back so rows line up with the platter's artwork and controls.
                 .padding(.horizontal, -Self.tableInset)
+                // When there's more than fits, rows don't hit a hard edge: they fade out, and the
+                // same blur ramp as the headers sits over both ends.
+                .mask {
+                    if upcoming.count > Self.maxRows {
+                        LinearGradient(
+                            stops: [
+                                .init(color: .clear, location: 0),
+                                .init(color: .black, location: Self.edgeFade / Self.height(forCount: upcoming.count)),
+                                .init(color: .black, location: 1 - Self.edgeFade / Self.height(forCount: upcoming.count)),
+                                .init(color: .clear, location: 1),
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    } else {
+                        Rectangle()
+                    }
+                }
+                .overlay(alignment: .top) {
+                    if upcoming.count > Self.maxRows, ProgressiveBlurBackdrop.isAvailable {
+                        ProgressiveBlurBackdrop(radius: 10, saturation: 1, brightness: 0, fadeStart: 0.3)
+                            .frame(height: Self.edgeFade * 2)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .overlay(alignment: .bottom) {
+                    if upcoming.count > Self.maxRows, ProgressiveBlurBackdrop.isAvailable {
+                        ProgressiveBlurBackdrop(radius: 10, saturation: 1, brightness: 0, fadeStart: 0.3, flipped: true)
+                            .frame(height: Self.edgeFade * 2)
+                            .allowsHitTesting(false)
+                    }
+                }
             }
         }
         .frame(height: Self.height(forCount: upcoming.count) - Self.dividerHeight)

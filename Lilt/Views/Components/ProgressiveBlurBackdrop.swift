@@ -15,6 +15,8 @@ struct ProgressiveBlurBackdrop: NSViewRepresentable {
     var brightness: Double
     /// Fraction of the height over which the effect is at full strength before fading out.
     var fadeStart: Double
+    /// Upside down: full blur at the bottom edge, fading upward (for the bottom of a list).
+    var flipped: Bool = false
 
     /// True when the private classes exist and accept the filter we need.
     static let isAvailable: Bool = {
@@ -25,6 +27,7 @@ struct ProgressiveBlurBackdrop: NSViewRepresentable {
     func makeNSView(context: Context) -> BackdropHostView { BackdropHostView() }
 
     func updateNSView(_ view: BackdropHostView, context: Context) {
+        view.flipped = flipped
         view.configure(radius: radius, saturation: saturation, brightness: brightness, fadeStart: fadeStart)
     }
 
@@ -69,12 +72,18 @@ final class BackdropHostView: NSView {
     /// not the layer.
     private static let bleed: CGFloat = 12
     private var fadeStart: CGFloat = 1
+    var flipped = false {
+        didSet { if flipped != oldValue { maskSize = .zero; needsLayout = true } }
+    }
 
     override func layout() {
         super.layout()
-        let frame = NSRect(x: -Self.bleed, y: 0, width: bounds.width + Self.bleed * 2, height: bounds.height + Self.bleed)
+        // Bleed past the edge the effect is strongest at (top normally, bottom when flipped).
+        let frame = NSRect(x: -Self.bleed, y: flipped ? -Self.bleed : 0, width: bounds.width + Self.bleed * 2, height: bounds.height + Self.bleed)
         backdrop?.frame = frame
         fade.frame = backdrop?.bounds ?? frame
+        fade.startPoint = CGPoint(x: 0.5, y: flipped ? 0 : 1)
+        fade.endPoint = CGPoint(x: 0.5, y: flipped ? 1 : 0)
         applyFade()
         applyFilters()
     }
@@ -118,7 +127,7 @@ final class BackdropHostView: NSView {
         guard size != maskSize else { return }
         maskSize = size
         var filters: [Any] = []
-        if let blur = ProgressiveBlurBackdrop.makeFilter("variableBlur"), let mask = Self.rampMask(size: size) {
+        if let blur = ProgressiveBlurBackdrop.makeFilter("variableBlur"), let mask = Self.rampMask(size: size, flipped: flipped) {
             blur.setValue(radius, forKey: "inputRadius")
             blur.setValue(mask, forKey: "inputMaskImage")
             blur.setValue(true, forKey: "inputNormalizeEdges")
@@ -141,12 +150,13 @@ final class BackdropHostView: NSView {
     /// The variable blur's mask at the layer's pixel size. The filter reads the mask's alpha:
     /// opaque means the full radius, clear means none, so this is a transparency ramp from the
     /// top down.
-    private static func rampMask(size: CGSize) -> CGImage? {
+    private static func rampMask(size: CGSize, flipped: Bool) -> CGImage? {
         let space = CGColorSpaceCreateDeviceRGB()
         guard let context = CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0, space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         let colors = [CGColor(red: 0, green: 0, blue: 0, alpha: 1), CGColor(red: 0, green: 0, blue: 0, alpha: 0)] as CFArray
         guard let gradient = CGGradient(colorsSpace: space, colors: colors, locations: [0, 1]) else { return nil }
-        context.drawLinearGradient(gradient, start: CGPoint(x: 0, y: size.height), end: .zero, options: [])
+        let top = CGPoint(x: 0, y: size.height)
+        context.drawLinearGradient(gradient, start: flipped ? .zero : top, end: flipped ? top : .zero, options: [])
         return context.makeImage()
     }
 }
