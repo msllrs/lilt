@@ -11,6 +11,11 @@ struct RootView: View {
         // non-opaque windows by their pixels, so clicks there fall through to whatever is behind.
         // The whole transition is one SwiftUI animation: column fades, glass shrinks to the platter.
         ZStack(alignment: .bottom) {
+            // The window glass lives here, always mounted, so hiding it is explicit and reliable
+            // (see GlassBackground). It fades with the column and is then switched off.
+            GlassBackground(cornerRadius: Theme.Radius.window, isHidden: mini)
+                .opacity(mini ? 0 : 1)
+                .allowsHitTesting(false)
             if !mini {
                 NavigationColumn()
                     .safeAreaBar(edge: .bottom, spacing: 0) {
@@ -18,11 +23,8 @@ struct RootView: View {
                             Color.clear.frame(height: navigation.platterHeight + Theme.Space.panelInset)
                         }
                     }
-                    // No ignoresSafeArea here: the bottom safe area is the platter's spacer, and
-                    // ignoring it pushed the glass below the window edge, squaring off the corners.
+                    // Keeps the column solid to hit-testing (its glass pixels are transparent).
                     .background {
-                        GlassBackground(cornerRadius: Theme.Radius.window)
-                        // Same reason as the platter: keep the column solid to hit-testing.
                         RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
                             .fill(Color.black.opacity(0.012))
                     }
@@ -37,6 +39,9 @@ struct RootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        // The platter's drop shadow reaches the window edge; without this clip it gives the
+        // window shadow a square footprint at the bottom corners.
+        .clipShape(RoundedRectangle(cornerRadius: mini ? Theme.Radius.panel : Theme.Radius.window, style: .continuous))
         .animation(Theme.Motion.standard, value: player.current?.id)
         .animation(Theme.Motion.standard, value: mini)
     }
