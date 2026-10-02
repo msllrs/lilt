@@ -46,8 +46,9 @@ private struct NavigationColumn: View {
 
     /// How far a screen travels while entering or leaving.
     private static let travel: CGFloat = 20
-    /// Softness at the far end of the hand-off.
-    private static let blur: CGFloat = 8
+    /// Softness at the far end of the hand-off. Off: blurring a full column of artwork every
+    /// frame is what made the hand-off stutter. Slide and fade are cheap; this isn't.
+    private static let blur: CGFloat = 0
     /// The outgoing screen gets out of the way faster than the incoming one arrives, so the two
     /// never read as a double exposure on the glass.
     private static let exit: Animation = .easeOut(duration: 0.12)
@@ -118,6 +119,8 @@ private extension View {
         self
             .offset(x: edge == .leading ? -travel : edge == .trailing ? travel : 0)
             .blur(radius: parked ? blur : 0)
+            // Fade the screen as one flattened layer rather than row by row.
+            .compositingGroup()
             .opacity(parked ? 0 : 1)
             .animation(animation, value: value)
             .allowsHitTesting(!parked)
