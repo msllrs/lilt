@@ -38,7 +38,17 @@ struct SpinningArtwork: View {
             let elapsed = resumedAt.map { context.date.timeIntervalSince($0) } ?? 0
             let angle = baseAngle + (isSpinning ? elapsed * Self.degreesPerSecond : 0)
             ArtworkView(url: url, size: size, radius: radius, context: self.context, rotation: .degrees(angle))
-                .overlay { spindleHole.opacity(disc).scaleEffect(disc) }
+                // A real hole through the middle, so the background shows like a CD's centre.
+                .mask {
+                    ZStack {
+                        Rectangle()
+                        Circle()
+                            .frame(width: holeSize * disc, height: holeSize * disc)
+                            .blendMode(.destinationOut)
+                    }
+                    .compositingGroup()
+                }
+                .overlay { hub.opacity(disc).scaleEffect(disc) }
         }
         .onChange(of: isSpinning) { _, spinning in
             if spinning {
@@ -61,11 +71,30 @@ struct SpinningArtwork: View {
 
     private var radius: CGFloat { restRadius + (size / 2 - restRadius) * disc }
 
-    /// The hole in the middle of the record, scaled to the artwork.
-    private var spindleHole: some View {
-        Circle()
-            .fill(.black.opacity(0.75))
-            .overlay(Circle().strokeBorder(.white.opacity(0.35), lineWidth: 0.5))
-            .frame(width: size * 0.175, height: size * 0.175)
+    private var hubSize: CGFloat { size * 0.36 }
+    private var holeSize: CGFloat { size * 0.15 }
+
+    /// The clear plastic hub of a CD: a frosted ring between the hole and the label, with thin
+    /// edge lines and a catch of light at the top left.
+    private var hub: some View {
+        let ringWidth = (hubSize - holeSize) / 2
+        return ZStack {
+            Circle()
+                .strokeBorder(.white.opacity(0.42), lineWidth: ringWidth)
+            Circle()
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.55), .white.opacity(0.05), .black.opacity(0.08)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: ringWidth
+                )
+            // Outer edge of the hub, and the lip of the hole.
+            Circle().stroke(.black.opacity(0.22), lineWidth: 0.5)
+            Circle().stroke(.black.opacity(0.3), lineWidth: 0.5)
+                .frame(width: holeSize, height: holeSize)
+        }
+        .frame(width: hubSize, height: hubSize)
     }
 }
