@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         observeLoginPresentation()
         observeDockIcon()
         observeMiniPlayer()
+        refreshShadowAfterTransition()
         Task {
             await auth.refresh()
             if !auth.isSignedIn { auth.isPresentingLogin = true }
@@ -57,9 +58,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
+    /// The window shadow is computed from the drawn pixels and cached, so it must be recomputed
+    /// after the content changes shape: during and after the mini transition, and once the first
+    /// layout has settled at launch.
     private func refreshShadowAfterTransition() {
         guard let panel else { return }
-        for delay in [0.1, 0.3, 0.45] {
+        for delay in [0.1, 0.3, 0.5, 1.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { panel.invalidateShadow() }
         }
     }
