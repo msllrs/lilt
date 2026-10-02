@@ -201,12 +201,9 @@ final class PlayerService {
         return Array(queue[(i + 1)...])
     }
 
-    func isQueued(_ track: Track) -> Bool { queue.contains { $0.id == track.id } }
-
-    /// Adds a track to the end of the queue; with nothing playing, it starts a queue of its own.
-    /// A track already in the queue isn't added twice.
+    /// Adds a track to the end of the queue (as many times as you like); with nothing playing,
+    /// it starts a queue of its own.
     func enqueue(_ track: Track) {
-        guard !isQueued(track) else { return }
         guard current != nil else {
             play([track], startingAt: 0)
             return
@@ -220,7 +217,7 @@ final class PlayerService {
     func removeUpcoming(at offset: Int) {
         guard let i = currentIndex, queue.indices.contains(i + 1 + offset) else { return }
         let removed = queue.remove(at: i + 1 + offset)
-        unshuffledQueue?.removeAll { $0.id == removed.id }
+        if let j = unshuffledQueue?.lastIndex(where: { $0.id == removed.id }) { unshuffledQueue?.remove(at: j) }
         save()
     }
 

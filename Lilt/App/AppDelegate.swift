@@ -269,7 +269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             var image = await ImageCache.shared.load(large)
             if image == nil { image = await ImageCache.shared.load(url) }
             guard let image, self?.dockArtworkURL == url else { return }
-            NSApp.applicationIconImage = DiscIcon.tile(artwork: image)
+            NSApp.applicationIconImage = DiscIcon.tile(artwork: image, edgeLuminance: ImageCache.shared.edgeLuminance(for: large))
         }
     }
 

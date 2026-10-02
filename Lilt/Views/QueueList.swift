@@ -24,7 +24,8 @@ struct QueueList: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
-                    ForEach(Array(upcoming.enumerated()), id: \.element.id) { offset, track in
+                    // Identity by position: the same track can sit in the queue more than once.
+                    ForEach(Array(upcoming.enumerated()), id: \.offset) { offset, track in
                         QueueRow(track: track) {
                             player.playUpcoming(at: offset)
                         } remove: {

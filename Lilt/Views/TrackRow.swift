@@ -8,6 +8,9 @@ struct TrackRow: View {
 
     @Environment(PlayerService.self) private var player
     @State private var isHovering = false
+    /// The add-to-queue button shows a tick for a moment after a click.
+    @State private var showsTick = false
+    @State private var justQueued: Task<Void, Never>?
     /// 0 = ordinary row, 1 = the playing track's pill highlight. Animated explicitly, on the
     /// same curve as the artwork's own disc transition.
     @State private var disc: CGFloat
@@ -113,22 +116,34 @@ struct TrackRow: View {
             // Add to the queue; a tick once it's in there. Only while hovering, never for the
             // track that's playing.
             if !isCurrent {
-                let queued = player.isQueued(track)
                 Button {
                     player.enqueue(track)
                     AppDelegate.shared?.queueDidChange()
+                    // A tick to confirm, then back to the queue glyph so it can be added again.
+                    justQueued?.cancel()
+                    justQueued = Task {
+                        try? await Task.sleep(for: .seconds(1.2))
+                        guard !Task.isCancelled else { return }
+                        showsTick = false
+                    }
+                    showsTick = true
                 } label: {
-                    Image(systemName: queued ? "checkmark" : "text.line.last.and.arrowtriangle.forward")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22, height: 22)
-                        .contentShape(Circle())
-                        .contentTransition(.symbolEffect(.replace))
+                    let symbol = showsTick ? "checkmark" : "text.line.last.and.arrowtriangle.forward"
+                    ZStack {
+                        // Glyph swap: scale, blur and fade in place, like the platter's buttons.
+                        Image(systemName: symbol)
+                            .font(.system(size: 11, weight: .semibold))
+                            .id(symbol)
+                            .transition(.blurScale)
+                    }
+                    .animation(.snappy(duration: 0.22), value: symbol)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 22)
+                    .contentShape(Circle())
                 }
                 .buttonStyle(.pressable(scale: 0.85))
-                .disabled(queued)
                 .opacity(isHovering ? 1 : 0)
-                .help(queued ? "In the queue" : "Play next in queue")
+                .help("Add to queue")
             }
             if let duration = track.durationText {
                 Text(duration)

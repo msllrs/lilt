@@ -15,7 +15,7 @@ enum DiscIcon {
 
     /// - Parameter side: 512 keeps the cover crisp at the largest Dock tile and in ⌘-Tab.
     @MainActor
-    static func tile(artwork: NSImage, side: CGFloat = 512) -> NSImage {
+    static func tile(artwork: NSImage, edgeLuminance: CGFloat, side: CGFloat = 512) -> NSImage {
         // A single, already rasterised bitmap. A drawing-handler image gets re-rendered at every
         // size AppKit wants when it hands the icon to the Dock.
         let pixels = Int(side)
@@ -23,7 +23,7 @@ enum DiscIcon {
                                    samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
                                    bytesPerRow: 0, bitsPerPixel: 0)!
         // Points equal pixels here: the bitmap context's user space is the rep's point size, and
-        // everything below draws in `side` units. The Dock scales a 256pt image to its tile.
+        // everything below draws in `side` units. The Dock scales a 512pt image to its tile.
         rep.size = NSSize(width: side, height: side)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
@@ -32,39 +32,77 @@ enum DiscIcon {
         base.draw(in: bounds)
         let plate = bounds.insetBy(dx: side * plateInset, dy: side * plateInset)
         let disc = plate.insetBy(dx: plate.width * discInset, dy: plate.height * discInset)
-        drawArtworkDisc(artwork, in: disc, side: side)
+        drawArtworkDisc(artwork, in: disc, edgeLuminance: edgeLuminance, side: side)
         NSGraphicsContext.restoreGraphicsState()
         let image = NSImage(size: rep.size)
         image.addRepresentation(rep)
         return image
     }
 
-    private static func drawArtworkDisc(_ artwork: NSImage, in rect: NSRect, side: CGFloat) {
+    /// The cover on the disc with the same finish as artwork in the app (see ArtworkView): the
+    /// spotlight from the top edge in plus-lighter, and the adaptive hairline keyline.
+    @MainActor
+    private static func drawArtworkDisc(_ artwork: NSImage, in rect: NSRect, edgeLuminance: CGFloat, side: CGFloat) {
+        let style = ArtworkStyle.shared
+        let face = NSBezierPath(ovalIn: rect)
         NSGraphicsContext.saveGraphicsState()
-        NSBezierPath(ovalIn: rect).addClip()
+        face.addClip()
         artwork.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
-        // A faint top-left light so it reads as a physical object; kept light enough that the
-        // cover keeps its contrast.
-        NSGradient(colorsAndLocations:
-            (NSColor(white: 1, alpha: 0.14), 0),
-            (NSColor(white: 1, alpha: 0.0), 0.45),
-            (NSColor(white: 0, alpha: 0.06), 1)
-        )?.draw(in: NSBezierPath(ovalIn: rect), angle: -60)
+        if style.spotlightOpacity > 0, let cg = NSGraphicsContext.current?.cgContext {
+            cg.saveGState()
+            cg.setBlendMode(blendMode(style.spotlightBlend))
+            let colors = [
+                CGColor(gray: 1, alpha: style.spotlightOpacity),
+                CGColor(gray: 1, alpha: style.spotlightOpacity * 0.35),
+                CGColor(gray: 1, alpha: 0),
+            ] as CFArray
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceGray(), colors: colors, locations: [0, 0.45, 1]) {
+                // SwiftUI's UnitPoint y runs down; this context's y runs up.
+                let center = CGPoint(x: rect.minX + rect.width * style.spotlightCenterX, y: rect.maxY - rect.height * style.spotlightCenterY)
+                cg.drawRadialGradient(gradient, startCenter: center, startRadius: 0, endCenter: center, endRadius: rect.width * style.spotlightRadius, options: [])
+            }
+            cg.restoreGState()
+        }
         NSGraphicsContext.restoreGraphicsState()
-        drawChrome(in: rect, side: side)
+
+        // Keyline just inside the edge (dark on pale art, light on dark), separator just outside.
+        // Scaled so it stays a hairline at Dock sizes, roughly one point at 2x.
+        let line = side / 256
+        let keyline: NSColor? = switch style.keylineMode {
+        case .off: nil
+        case .dark: NSColor(white: 0, alpha: style.keylineDarkOpacity)
+        case .light: NSColor(white: 1, alpha: style.keylineLightOpacity)
+        case .adaptive: edgeLuminance > style.keylineThreshold
+            ? NSColor(white: 0, alpha: style.keylineDarkOpacity)
+            : NSColor(white: 1, alpha: style.keylineLightOpacity)
+        }
+        if let keyline {
+            let inner = NSBezierPath(ovalIn: rect.insetBy(dx: line / 2, dy: line / 2))
+            inner.lineWidth = line
+            keyline.setStroke()
+            inner.stroke()
+        }
+        if style.separatorOpacity > 0 {
+            let outer = NSBezierPath(ovalIn: rect.insetBy(dx: -line / 2, dy: -line / 2))
+            outer.lineWidth = line
+            NSColor(white: 0, alpha: style.separatorOpacity).setStroke()
+            outer.stroke()
+        }
+        drawHub(in: rect, side: side)
     }
 
-    /// Edge, hub and spindle hole, matching the generic disc in the shipped icon.
-    private static func drawChrome(in rect: NSRect, side: CGFloat) {
-        let edge = NSBezierPath(ovalIn: rect.insetBy(dx: side * 0.002, dy: side * 0.002))
-        edge.lineWidth = side * 0.005
-        NSColor(white: 0, alpha: 0.28).setStroke()
-        edge.stroke()
-        let inner = NSBezierPath(ovalIn: rect.insetBy(dx: side * 0.008, dy: side * 0.008))
-        inner.lineWidth = side * 0.003
-        NSColor(white: 1, alpha: 0.5).setStroke()
-        inner.stroke()
+    private static func blendMode(_ blend: ArtworkBlend) -> CGBlendMode {
+        switch blend {
+        case .plusLighter: .plusLighter
+        case .softLight: .softLight
+        case .screen: .screen
+        case .overlay: .overlay
+        case .normal: .normal
+        }
+    }
 
+    /// Hub and spindle hole, matching the generic disc in the shipped icon.
+    private static func drawHub(in rect: NSRect, side: CGFloat) {
         let hubSize = rect.width * 0.30
         let hubRect = NSRect(x: rect.midX - hubSize / 2, y: rect.midY - hubSize / 2, width: hubSize, height: hubSize)
         let hub = NSBezierPath(ovalIn: hubRect)
