@@ -40,7 +40,9 @@ struct NowPlayingBar: View {
                     ArtistLink(name: player.displayArtist, item: player.current?.artistItem)
                 }
                 // Room for the mode button in the corner, only while it's showing (hover, or mini).
+                // Eases in with the button; snaps back when the pointer leaves.
                 .padding(.trailing, isHoveringPlatter || navigation.isMiniPlayer ? Theme.Space.lg : 0)
+                .transaction { if !isHoveringPlatter { $0.animation = nil } }
                 Spacer(minLength: 0)
             }
 
