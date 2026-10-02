@@ -197,9 +197,11 @@ struct NowPlayingBar: View {
                 }
             }
             // Room for the mode button in the corner, only while it's showing (hover).
-            // Eases in with the button; snaps back when the pointer leaves.
+            // Eases in with the button; snaps back when the pointer leaves. Scoped to the hover
+            // change alone: blanking the whole transaction froze the title's other motion too,
+            // so it jumped while the rest of the platter eased.
             .padding(.trailing, isHoveringPlatter ? Theme.Space.lg : 0)
-            .transaction { if !isHoveringPlatter { $0.animation = nil } }
+            .animation(isHoveringPlatter ? Theme.Motion.quick : nil, value: isHoveringPlatter)
             Spacer(minLength: 0)
         }
 
