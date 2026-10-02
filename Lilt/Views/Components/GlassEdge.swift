@@ -9,6 +9,9 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
     var cast: Color? = nil
     /// How much of `cast` goes into the highlight (0 = plain white).
     var castMix: Double = 0.5
+    /// Softens the rim into a glow.
+    var blur: Double = 0
+    var blend: BlendMode = .normal
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -24,8 +27,10 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
                     startPoint: .top,
                     endPoint: .bottom
                 ),
-                lineWidth: 1
+                lineWidth: 1 + blur * 0.5
             )
+            .blur(radius: blur)
+            .blendMode(blend)
             .opacity(opacity)
             .allowsHitTesting(false)
         }
@@ -40,7 +45,7 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
 }
 
 extension View {
-    func glassEdge<S: InsettableShape>(_ shape: S, opacity: Double = 1, cast: Color? = nil, castMix: Double = 0.5) -> some View {
-        modifier(GlassEdge(shape: shape, opacity: opacity, cast: cast, castMix: castMix))
+    func glassEdge<S: InsettableShape>(_ shape: S, opacity: Double = 1, cast: Color? = nil, castMix: Double = 0.5, blur: Double = 0, blend: BlendMode = .normal) -> some View {
+        modifier(GlassEdge(shape: shape, opacity: opacity, cast: cast, castMix: castMix, blur: blur, blend: blend))
     }
 }

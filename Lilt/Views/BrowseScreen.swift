@@ -258,7 +258,7 @@ struct BrowseScreen: View {
                         // edge, and the lit rim.
                         .glassEffect(.regular.tint(artworkCast(page)?.opacity(playCast.tintOpacity)).interactive(), in: .capsule)
                         .overlay { castGlow(artworkCast(page)) }
-                        .glassEdge(Capsule(), cast: artworkCast(page), castMix: playCast.rimMix)
+                        .glassEdge(Capsule(), cast: artworkCast(page), castMix: playCast.rimMix, blur: playCast.rimBlur, blend: playCast.rimBlend.blendMode)
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.pressable)

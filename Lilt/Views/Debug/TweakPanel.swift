@@ -68,6 +68,10 @@ struct TweakPanel: View {
                 slider("Glow opacity", $style.playCast.glowOpacity, 0...1)
                 slider("Glow blur", $style.playCast.glowBlur, 0...40)
                 slider("Glow height", $style.playCast.glowHeight, 0.05...1)
+                slider("Rim blur", $style.playCast.rimBlur, 0...8)
+                Picker("Rim blend", selection: $style.playCast.rimBlend) {
+                    ForEach(ArtworkBlend.allCases) { Text($0.rawValue).tag($0) }
+                }
             }
             Section("Music notes") {
                 Picker("Colour", selection: $style.notes.colorMode) {
