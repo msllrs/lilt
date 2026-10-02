@@ -182,10 +182,15 @@ struct NowPlayingBar: View {
     @ViewBuilder
     private var artwork: some View {
         let view = ArtworkView(url: player.displayArtworkURL, size: Theme.Size.barArtwork, radius: Theme.Radius.barArtwork, context: .player)
-        if let album = player.current?.albumItem {
-            Button { navigation.open(album) } label: { view }
+        let album = player.current?.albumItem
+        if album != nil || navigation.isMiniPlayer {
+            Button {
+                // In mini there is no column to show the album in: expand first, then open it.
+                if navigation.isMiniPlayer { AppDelegate.shared?.setMiniPlayer(false) }
+                if let album { navigation.open(album) }
+            } label: { view }
                 .buttonStyle(.plain)
-                .help(album.title)
+                .help(album?.title ?? "Expand")
         } else {
             view
         }
