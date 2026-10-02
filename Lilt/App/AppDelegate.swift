@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         makePanel()
         showPanel()
         observeLoginPresentation()
+        observeDockIcon()
         Task {
             await auth.refresh()
             if !auth.isSignedIn { auth.isPresentingLogin = true }
@@ -32,6 +33,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         player.persistNow()
+    }
+
+    // MARK: Dock
+
+    /// Right-click menu on the Dock tile: what's playing, transport, and show.
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+        if let track = player.current {
+            let title = NSMenuItem(title: "\(track.title) — \(track.artist)", action: nil, keyEquivalent: "")
+            title.isEnabled = false
+            menu.addItem(title)
+            menu.addItem(.separator())
+            menu.addItem(withTitle: player.isPlaying ? "Pause" : "Play", action: #selector(dockTogglePlayPause), keyEquivalent: "")
+            let next = menu.addItem(withTitle: "Next", action: #selector(dockNext), keyEquivalent: "")
+            next.isEnabled = player.hasNext
+            menu.addItem(withTitle: "Previous", action: #selector(dockPrevious), keyEquivalent: "")
+            menu.addItem(.separator())
+        }
+        menu.addItem(withTitle: "Show Lilt", action: #selector(dockShow), keyEquivalent: "")
+        return menu
+    }
+
+    @objc private func dockTogglePlayPause() { player.togglePlayPause() }
+    @objc private func dockNext() { player.next() }
+    @objc private func dockPrevious() { player.previous() }
+    @objc private func dockShow() { showPanel() }
+
+    /// The Dock tile is a disc: generic when idle, the current cover when a track is loaded.
+    private var dockArtworkURL: URL?
+
+    private func observeDockIcon() {
+        withObservationTracking {
+            _ = player.current?.artworkURL
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.updateDockIcon()
+                self?.observeDockIcon()
+            }
+        }
+        updateDockIcon()
+    }
+
+    private func updateDockIcon() {
+        let url = player.current?.artworkURL
+        guard url != dockArtworkURL || NSApp.applicationIconImage == nil else { return }
+        dockArtworkURL = url
+        guard let url else {
+            NSApp.applicationIconImage = DiscIcon.generic()
+            return
+        }
+        Task { [weak self] in
+            guard let image = await ImageCache.shared.load(url), self?.dockArtworkURL == url else { return }
+            NSApp.applicationIconImage = DiscIcon.disc(artwork: image)
+        }
     }
 
     /// A borderless non-activating panel doesn't become key on its own; when the user brings the
