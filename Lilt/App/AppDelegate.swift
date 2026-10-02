@@ -38,13 +38,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: Mini player
 
-    /// The column's height before collapsing, restored on expand.
-    private var expandedFrame: NSRect?
-    private var isMiniApplied = false
+    private static let expandedHeightKey = "expandedPanelHeight"
+    private var isMiniApplied: Bool?
+    private var appliedPlatterHeight: CGFloat = 0
+
+    /// The column's height when not collapsed, kept separately so a relaunch in mini mode can
+    /// never make the small frame the thing we "restore" to.
+    private var expandedHeight: CGFloat {
+        get {
+            let saved = UserDefaults.standard.double(forKey: Self.expandedHeightKey)
+            return saved >= Theme.Size.panelMinHeight ? saved : PanelWindow.edgeFrame(on: NSScreen.main ?? NSScreen.screens[0]).height
+        }
+        set { UserDefaults.standard.set(newValue, forKey: Self.expandedHeightKey) }
+    }
 
     private func observeMiniPlayer() {
         withObservationTracking {
             _ = navigation.isMiniPlayer
+            _ = navigation.platterHeight
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.applyMiniPlayer()
@@ -54,31 +65,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         applyMiniPlayer()
     }
 
-    /// Shrinks the window to the platter (keeping its bottom edge where it is) or restores it.
+    /// Shrinks the window to the platter (keeping its bottom edge where it is) or restores it,
+    /// always landing fully on screen.
     private func applyMiniPlayer() {
-        guard let panel, navigation.isMiniPlayer != isMiniApplied else { return }
-        isMiniApplied = navigation.isMiniPlayer
+        guard let panel else { return }
+        let mini = navigation.isMiniPlayer
+        // Re-run when entering/leaving mini, or when the platter's measured height changes while mini.
+        guard mini != isMiniApplied || (mini && navigation.platterHeight != appliedPlatterHeight) else { return }
         let current = panel.frame
-        let target: NSRect
-        if navigation.isMiniPlayer {
-            expandedFrame = current
-            let height = navigation.platterHeight + Theme.Space.panelInset * 2
-            panel.minSize = NSSize(width: Theme.Size.panelMinWidth, height: height)
-            target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
-        } else {
-            panel.minSize = NSSize(width: Theme.Size.panelMinWidth, height: Theme.Size.panelMinHeight)
-            let height = expandedFrame?.height ?? Theme.Size.panelMinHeight
-            target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
+        if mini, isMiniApplied == false, current.height >= Theme.Size.panelMinHeight {
+            expandedHeight = current.height
         }
-        #if DEBUG
-        NSLog("Lilt mini=%d platterHeight=%.0f from=%@ to=%@", navigation.isMiniPlayer ? 1 : 0, navigation.platterHeight, NSStringFromRect(current), NSStringFromRect(target))
-        #endif
-        panel.setFrame(target, display: true, animate: true)
-        #if DEBUG
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            NSLog("Lilt mini settled frame=%@ minSize=%@", NSStringFromRect(panel.frame), NSStringFromSize(panel.minSize))
-        }
-        #endif
+        isMiniApplied = mini
+        appliedPlatterHeight = navigation.platterHeight
+
+        let height = mini ? navigation.platterHeight + Theme.Space.panelInset * 2 : expandedHeight
+        panel.minSize = NSSize(width: Theme.Size.panelMinWidth, height: mini ? height : Theme.Size.panelMinHeight)
+        var target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
+        target = Self.onScreen(target, near: panel.screen ?? NSScreen.main ?? NSScreen.screens[0])
+        panel.setFrame(target, display: true, animate: panel.isVisible)
+    }
+
+    /// Nudges a frame so it lies within the screen's visible area.
+    static func onScreen(_ frame: NSRect, near screen: NSScreen) -> NSRect {
+        let visible = screen.visibleFrame
+        var f = frame
+        f.size.height = min(f.height, visible.height)
+        f.size.width = min(f.width, visible.width)
+        if f.maxY > visible.maxY { f.origin.y = visible.maxY - f.height }
+        if f.minY < visible.minY { f.origin.y = visible.minY }
+        if f.maxX > visible.maxX { f.origin.x = visible.maxX - f.width }
+        if f.minX < visible.minX { f.origin.x = visible.minX }
+        return f
     }
 
     func toggleMiniPlayer() { navigation.isMiniPlayer.toggle() }
@@ -259,6 +277,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if !window.setFrameUsingName(PanelWindow.autosaveName) {
             window.setFrame(PanelWindow.edgeFrame(on: screen), display: false)
         }
+        // A saved frame can end up off screen (display changes, a mini-player relaunch); never
+        // start hidden.
+        window.setFrame(Self.onScreen(window.frame, near: window.screen ?? screen), display: false)
         window.setFrameAutosaveName(PanelWindow.autosaveName)
         panel = window
     }
