@@ -75,19 +75,25 @@ struct CollapsibleSection<Content: View>: View {
 
         // Rows reveal from under the title and fold back behind it: a height clip, so nothing
         // ever draws over the header. While folding, the bottom edge fades rather than cuts.
+        // Clip and fade apply only while folding or folded; an open section is left untouched
+        // so the last row's ambient shadow can spill past the section as usual.
         VStack(spacing: 0) { content() }
             .frame(maxHeight: isCollapsed ? 0 : nil, alignment: .top)
-            .clipped()
             .mask {
-                LinearGradient(
-                    stops: [
-                        .init(color: .black, location: 0),
-                        .init(color: .black, location: 1 - 0.35 * fold),
-                        .init(color: .black.opacity(1 - fold), location: 1),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+                if fold > 0 {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black, location: 0),
+                            .init(color: .black, location: 1 - 0.35 * fold),
+                            .init(color: .black.opacity(1 - fold), location: 1),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                } else {
+                    // Oversized so shadows past the frame survive.
+                    Rectangle().padding(-40)
+                }
             }
             .allowsHitTesting(!isCollapsed)
     }
