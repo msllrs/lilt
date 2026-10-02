@@ -22,32 +22,38 @@ struct MarqueeText: View {
     private var shouldScroll: Bool { isActive && overflows }
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            // Measures the natural width without affecting layout.
-            Text(text).font(font).fixedSize().hidden()
-                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { textWidth = $0 }
-
-            if scrolling {
-                HStack(spacing: gap) {
-                    Text(text).font(font).fixedSize()
-                    Text(text).font(font).fixedSize()
+        // The truncating label drives layout; it's flexible, so it never widens its row.
+        Text(text)
+            .font(font)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .opacity(scrolling ? 0 : 1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // The scrolling copy and the measuring copy live in overlay/background, which don't
+            // take part in layout, so a long string can't push the row past its container.
+            .overlay(alignment: .leading) {
+                if scrolling {
+                    HStack(spacing: gap) {
+                        Text(text).font(font).fixedSize()
+                        Text(text).font(font).fixedSize()
+                    }
+                    .offset(x: offset)
                 }
-                .offset(x: offset)
-            } else {
-                Text(text).font(font).lineLimit(1).truncationMode(.tail)
             }
-        }
-        .foregroundStyle(color)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .clipped()
-        .mask { edgeFade }
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
-        .onChange(of: shouldScroll, initial: true) { _, on in
-            on ? start() : stop()
-        }
-        .onChange(of: text) { _, _ in
-            if scrolling { stop(); if shouldScroll { start() } }
-        }
+            .background {
+                Text(text).font(font).fixedSize().hidden()
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { textWidth = $0 }
+            }
+            .foregroundStyle(color)
+            .clipped()
+            .mask { edgeFade }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
+            .onChange(of: shouldScroll, initial: true) { _, on in
+                on ? start() : stop()
+            }
+            .onChange(of: text) { _, _ in
+                if scrolling { stop(); if shouldScroll { start() } }
+            }
     }
 
     /// Fades the edges only while content runs past them.
