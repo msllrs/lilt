@@ -85,9 +85,17 @@ final class PlayerService {
         var manualCount: Int?
     }
 
-    /// How many tracks right after the current one were put there by hand ("up next"). They
-    /// play before the rest of whatever list is running, and they're all the queue view shows.
-    private(set) var manualCount = 0
+    /// One token per track put right after the current one by hand ("up next"). They play
+    /// before the rest of whatever list is running, and they're all the queue view shows. The
+    /// tokens give each entry a stable identity even when the same track is queued twice, so
+    /// rows can animate in, out and around.
+    private var manualTokens: [UUID] = []
+    var manualCount: Int { manualTokens.count }
+
+    struct QueuedEntry: Identifiable, Equatable {
+        let id: UUID
+        let track: Track
+    }
 
     init(auth: AuthService) {
         bridge = PlayerBridge(dataStore: auth.dataStore)
@@ -106,7 +114,7 @@ final class PlayerService {
         guard tracks.indices.contains(index) else { return }
         queue = tracks
         unshuffledQueue = nil
-        manualCount = 0
+        manualTokens = []
         if isShuffled { shuffleRemainder(keeping: index) } else { load(index: index) }
     }
 
@@ -215,6 +223,13 @@ final class PlayerService {
         return i + 1 < end ? Array(queue[(i + 1)..<end]) : []
     }
 
+    /// `upcoming` with each entry's stable identity.
+    var upcomingEntries: [QueuedEntry] {
+        zip(manualTokens, upcoming).map { QueuedEntry(id: $0, track: $1) }
+    }
+
+    func upcomingOffset(of id: UUID) -> Int? { manualTokens.firstIndex(of: id) }
+
     /// Adds a track to the end of what's queued by hand, ahead of the rest of the list (as many
     /// times as you like); with nothing playing, it starts a queue of its own.
     func enqueue(_ track: Track) {
@@ -227,7 +242,7 @@ final class PlayerService {
         if unshuffledQueue != nil, let j = unshuffledQueue!.firstIndex(where: { $0.id == queue[i].id }) {
             unshuffledQueue!.insert(track, at: min(unshuffledQueue!.count, j + 1 + manualCount))
         }
-        manualCount += 1
+        manualTokens.append(UUID())
         save()
     }
 
@@ -236,7 +251,7 @@ final class PlayerService {
         guard let i = currentIndex, offset < manualCount, queue.indices.contains(i + 1 + offset) else { return }
         let removed = queue.remove(at: i + 1 + offset)
         if let j = unshuffledQueue?.lastIndex(where: { $0.id == removed.id }) { unshuffledQueue?.remove(at: j) }
-        manualCount -= 1
+        manualTokens.remove(at: offset)
         save()
     }
 
@@ -245,6 +260,7 @@ final class PlayerService {
         guard let i = currentIndex, manualCount > 0 else { return }
         var segment = upcoming
         segment.move(fromOffsets: source, toOffset: destination)
+        manualTokens.move(fromOffsets: source, toOffset: destination)
         queue.replaceSubrange((i + 1)..<(i + 1 + segment.count), with: segment)
         save()
     }
@@ -253,7 +269,7 @@ final class PlayerService {
     func playUpcoming(at offset: Int) {
         guard let i = currentIndex, offset < manualCount, queue.indices.contains(i + 1 + offset) else { return }
         queue.removeSubrange((i + 1)..<(i + 1 + offset))
-        manualCount -= offset
+        manualTokens.removeFirst(offset)
         load(index: i + 1)
     }
 
@@ -262,7 +278,7 @@ final class PlayerService {
     private func adjustManual(for newIndex: Int) {
         guard let old = currentIndex, manualCount > 0, queue.indices.contains(old) else { return }
         if newIndex == old + 1 {
-            manualCount -= 1
+            manualTokens.removeFirst()
             return
         }
         let end = min(queue.count, old + 1 + manualCount)
@@ -296,7 +312,8 @@ final class PlayerService {
         isShuffled = saved.isShuffled ?? false
         unshuffledQueue = saved.unshuffledQueue
         repeatMode = saved.repeatMode ?? .off
-        manualCount = min(saved.manualCount ?? 0, max(0, saved.queue.count - index - 1))
+        let manual = min(saved.manualCount ?? 0, max(0, saved.queue.count - index - 1))
+        manualTokens = (0..<manual).map { _ in UUID() }
         needsLoad = true
     }
 

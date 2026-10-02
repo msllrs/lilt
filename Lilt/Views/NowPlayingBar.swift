@@ -169,10 +169,8 @@ struct NowPlayingBar: View {
             }
             .allowsHitTesting(false)
         }
-        .animation(Theme.Motion.cast, value: cast)
         .animation(Theme.Motion.quick, value: glassVisibility)
         .animation(Theme.Motion.standard, value: player.displayArtworkURL)
-        .animation(Theme.Motion.cast, value: accent)
     }
 
 

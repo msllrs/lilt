@@ -266,7 +266,6 @@ struct BrowseScreen: View {
                             .glassEdge(Capsule(), cast: cast, castMix: playCast.rimMix, blur: playCast.rimBlur, blend: playCast.rimBlend.blendMode)
                             .contentShape(Capsule())
                     }
-                    .animation(Theme.Motion.cast, value: artworkCast(page))
                 }
                 .buttonStyle(.pressable)
             }

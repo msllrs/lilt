@@ -47,11 +47,14 @@ struct QueueList: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
-                    // Identity by position: the same track can sit in the queue more than once.
-                    ForEach(Array(upcoming.enumerated()), id: \.offset) { offset, track in
-                        QueueRow(track: track) {
-                            player.playUpcoming(at: offset)
+                    // Each entry has its own identity (the same track can be queued twice), so
+                    // rows animate out and shuffle up instead of swapping their contents.
+                    ForEach(player.upcomingEntries) { entry in
+                        QueueRow(track: entry.track) {
+                            guard let offset = player.upcomingOffset(of: entry.id) else { return }
+                            withAnimation(Theme.Motion.standard) { player.playUpcoming(at: offset) }
                         } remove: {
+                            guard let offset = player.upcomingOffset(of: entry.id) else { return }
                             withAnimation(Theme.Motion.standard) { player.removeUpcoming(at: offset) }
                             AppDelegate.shared?.queueDidChange()
                         }
@@ -60,7 +63,7 @@ struct QueueList: View {
                         .listRowBackground(Color.clear)
                     }
                     .onMove { source, destination in
-                        player.moveUpcoming(from: source, to: destination)
+                        withAnimation(Theme.Motion.standard) { player.moveUpcoming(from: source, to: destination) }
                     }
                 }
                 .listStyle(.plain)
