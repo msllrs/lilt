@@ -50,9 +50,9 @@ struct NowPlayingBar: View {
                         ArtistLink(name: player.displayArtist, item: player.current?.artistItem, color: artist ?? .secondary)
                     }
                 }
-                // Room for the mode button in the corner, only while it's showing (hover, or mini).
+                // Room for the mode button in the corner, only while it's showing (hover).
                 // Eases in with the button; snaps back when the pointer leaves.
-                .padding(.trailing, isHoveringPlatter || navigation.isMiniPlayer ? Theme.Space.lg : 0)
+                .padding(.trailing, isHoveringPlatter ? Theme.Space.lg : 0)
                 .transaction { if !isHoveringPlatter { $0.animation = nil } }
                 Spacer(minLength: 0)
             }
@@ -95,12 +95,11 @@ struct NowPlayingBar: View {
             scrubber
         }
         .padding(Theme.Space.barPadding)
-        // Collapse to a mini player, or expand back: tucked in the top-right corner. Shown on
-        // hover, or always while mini.
+        // Collapse to a mini player, or expand back: tucked in the top-right corner, only on hover.
         .overlay(alignment: .topTrailing) {
             ModeButton(
                 symbol: navigation.isMiniPlayer ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left",
-                isOn: navigation.isMiniPlayer,
+                isOn: false,
                 revealed: isHoveringPlatter
             ) {
                 AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer)
