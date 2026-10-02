@@ -13,16 +13,30 @@ enum DiscIcon {
     /// The system's rendering of this bundle's icon: the same image Finder and the Dock show.
     @MainActor private static let base = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
 
+    /// - Parameter side: 256 covers the largest Dock tile (128pt at 2x); bigger only costs time.
     @MainActor
-    static func tile(artwork: NSImage, side: CGFloat = 1024) -> NSImage {
-        let base = base
-        return NSImage(size: NSSize(width: side, height: side), flipped: false) { bounds in
-            base.draw(in: bounds)
-            let plate = bounds.insetBy(dx: side * plateInset, dy: side * plateInset)
-            let disc = plate.insetBy(dx: plate.width * discInset, dy: plate.height * discInset)
-            drawArtworkDisc(artwork, in: disc, side: side)
-            return true
-        }
+    static func tile(artwork: NSImage, side: CGFloat = 256) -> NSImage {
+        // A single, already rasterised bitmap. A drawing-handler image gets re-rendered at every
+        // size AppKit wants when it hands the icon to the Dock.
+        let pixels = Int(side)
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
+                                   samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                                   bytesPerRow: 0, bitsPerPixel: 0)!
+        // Points equal pixels here: the bitmap context's user space is the rep's point size, and
+        // everything below draws in `side` units. The Dock scales a 256pt image to its tile.
+        rep.size = NSSize(width: side, height: side)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.current?.imageInterpolation = .high
+        let bounds = NSRect(x: 0, y: 0, width: side, height: side)
+        base.draw(in: bounds)
+        let plate = bounds.insetBy(dx: side * plateInset, dy: side * plateInset)
+        let disc = plate.insetBy(dx: plate.width * discInset, dy: plate.height * discInset)
+        drawArtworkDisc(artwork, in: disc, side: side)
+        NSGraphicsContext.restoreGraphicsState()
+        let image = NSImage(size: rep.size)
+        image.addRepresentation(rep)
+        return image
     }
 
     private static func drawArtworkDisc(_ artwork: NSImage, in rect: NSRect, side: CGFloat) {
