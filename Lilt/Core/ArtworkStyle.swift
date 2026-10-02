@@ -86,6 +86,24 @@ struct PlatterStyle: Equatable {
     static let standard = PlatterStyle()
 }
 
+/// How the hero artwork's colour is cast onto the Play capsule beneath it.
+struct PlayCastStyle: Equatable {
+    /// Saturation boost on the sampled artwork colour.
+    var saturation: Double = 1.6
+    /// Tint applied to the glass material itself.
+    var tintOpacity: Double = 0.12
+    /// How much of the colour goes into the lit top edge of the rim (0 = plain white).
+    var rimMix: Double = 0.5
+    /// A soft wash of the colour inside the capsule, falling off from the top edge.
+    var glowOpacity: Double = 0.35
+    /// Blur radius of that wash, in points.
+    var glowBlur: Double = 10
+    /// How far down the capsule the wash reaches, as a fraction of its height.
+    var glowHeight: Double = 0.6
+
+    static let standard = PlayCastStyle()
+}
+
 /// The music notes drifting out of the playing track's disc. Mirrors `CAEmitterCell`'s knobs;
 /// fractions of a second, points per second, radians.
 struct NotesStyle: Equatable {
@@ -157,6 +175,7 @@ final class ArtworkStyle {
 
     var platter: PlatterStyle = .standard
     var notes: NotesStyle = .standard
+    var playCast: PlayCastStyle = .standard
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
@@ -195,6 +214,7 @@ final class ArtworkStyle {
         headerShadow = .header
         platter = .standard
         notes = .standard
+        playCast = .standard
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -217,6 +237,7 @@ final class ArtworkStyle {
         headerShadow = \(snippet(headerShadow))
         platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)))
         notes = NotesStyle(birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
+        playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)))
         """
     }
 

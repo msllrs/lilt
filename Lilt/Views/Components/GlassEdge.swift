@@ -7,6 +7,8 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
     var opacity: Double = 1
     /// A colour cast onto the lit top edge, e.g. from artwork sitting above the glass.
     var cast: Color? = nil
+    /// How much of `cast` goes into the highlight (0 = plain white).
+    var castMix: Double = 0.5
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -33,12 +35,12 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
         let white = Color.white.opacity(colorScheme == .dark ? 0.45 : 0.9)
         guard let cast else { return white }
         // The cast reads strongest right where the highlight is.
-        return cast.mix(with: white, by: colorScheme == .dark ? 0.35 : 0.5)
+        return white.mix(with: cast, by: castMix)
     }
 }
 
 extension View {
-    func glassEdge<S: InsettableShape>(_ shape: S, opacity: Double = 1, cast: Color? = nil) -> some View {
-        modifier(GlassEdge(shape: shape, opacity: opacity, cast: cast))
+    func glassEdge<S: InsettableShape>(_ shape: S, opacity: Double = 1, cast: Color? = nil, castMix: Double = 0.5) -> some View {
+        modifier(GlassEdge(shape: shape, opacity: opacity, cast: cast, castMix: castMix))
     }
 }

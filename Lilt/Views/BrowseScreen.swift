@@ -63,10 +63,33 @@ struct BrowseScreen: View {
         .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
     }
 
+    private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
+
     /// The hero artwork's dominant colour, for casting onto the controls beneath it.
     private func artworkCast(_ page: BrowsePage) -> Color? {
         guard let url = page.item.artworkURL else { return nil }
-        return ImageCache.shared.tint(for: url, saturationBoost: 1.6)
+        return ImageCache.shared.tint(for: url, saturationBoost: playCast.saturation)
+    }
+
+    /// A soft wash of the artwork colour inside the capsule, strongest at the top edge.
+    @ViewBuilder
+    private func castGlow(_ cast: Color?) -> some View {
+        if let cast, playCast.glowOpacity > 0 {
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: cast.opacity(playCast.glowOpacity), location: 0),
+                            .init(color: .clear, location: playCast.glowHeight),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .blur(radius: playCast.glowBlur)
+                .clipShape(Capsule())
+                .allowsHitTesting(false)
+        }
     }
 
     /// On album pages the subtitle is the artist; link it.
@@ -196,9 +219,11 @@ struct BrowseScreen: View {
                         .padding(.horizontal, Theme.Space.lg + Theme.Space.xs)
                         .padding(.vertical, Theme.Space.sm + Theme.Space.xs)
                         // Glass and rim live on the label so the press scale moves the whole capsule.
-                        // The cover above casts its colour onto the glass and its lit top edge.
-                        .glassEffect(.regular.tint(artworkCast(page)?.opacity(0.12)).interactive(), in: .capsule)
-                        .glassEdge(Capsule(), cast: artworkCast(page))
+                        // The cover above casts its colour onto the glass, a wash along the top
+                        // edge, and the lit rim.
+                        .glassEffect(.regular.tint(artworkCast(page)?.opacity(playCast.tintOpacity)).interactive(), in: .capsule)
+                        .overlay { castGlow(artworkCast(page)) }
+                        .glassEdge(Capsule(), cast: artworkCast(page), castMix: playCast.rimMix)
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.pressable)

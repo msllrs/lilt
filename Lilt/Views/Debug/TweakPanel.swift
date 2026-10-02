@@ -59,6 +59,14 @@ struct TweakPanel: View {
                 slider("Ambient saturation", $style.platter.tintSaturation, 0...8)
                 slider("Ambient blur", $style.platter.tintBlur, 0...300)
             }
+            Section("Play capsule cast") {
+                slider("Saturation", $style.playCast.saturation, 0...4)
+                slider("Glass tint", $style.playCast.tintOpacity, 0...0.6)
+                slider("Rim colour", $style.playCast.rimMix, 0...1)
+                slider("Glow opacity", $style.playCast.glowOpacity, 0...1)
+                slider("Glow blur", $style.playCast.glowBlur, 0...40)
+                slider("Glow height", $style.playCast.glowHeight, 0.05...1)
+            }
             Section("Music notes") {
                 slider("Rate (per sec)", $style.notes.birthRate, 0...6)
                 slider("Lifetime", $style.notes.lifetime, 0.3...5)
