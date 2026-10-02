@@ -86,8 +86,10 @@ struct NowPlayingBar: View {
             ZStack {
                 Color.clear
                     .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
+                    // In mini the window's own shadow does this job; a soft shadow in the app's
+                    // pixels would just grow the window's hit shape and get a hard shadow of its own.
                     .shadow(
-                        color: .black.opacity(platter.shadowOpacity),
+                        color: .black.opacity(navigation.isMiniPlayer ? 0 : platter.shadowOpacity),
                         radius: platter.shadowRadius,
                         y: platter.shadowOffsetY
                     )
