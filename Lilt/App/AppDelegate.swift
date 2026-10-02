@@ -79,10 +79,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         isMiniApplied = mini
         appliedPlatterHeight = navigation.platterHeight
 
-        let height = mini ? navigation.platterHeight + Theme.Space.panelInset * 2 : expandedHeight
+        let height = mini ? navigation.platterHeight : expandedHeight
         panel.minSize = NSSize(width: Theme.Size.panelMinWidth, height: mini ? height : Theme.Size.panelMinHeight)
         var target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
         target = Self.onScreen(target, near: panel.screen ?? NSScreen.main ?? NSScreen.screens[0])
+        #if DEBUG
+        NSLog("Lilt mini=%d platter=%.0f expanded=%.0f %@ -> %@", mini ? 1 : 0, navigation.platterHeight, expandedHeight, NSStringFromRect(current), NSStringFromRect(target))
+        #endif
         panel.setFrame(target, display: true, animate: panel.isVisible)
     }
 

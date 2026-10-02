@@ -11,6 +11,7 @@ struct LiltApp: App {
             SettingsView()
                 .environment(delegate.auth)
                 .environment(delegate.player)
+                .environment(delegate.music)
         }
         .commands {
             CommandGroup(replacing: .newItem) {}

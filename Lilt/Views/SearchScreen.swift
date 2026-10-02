@@ -24,8 +24,6 @@ struct SearchScreen: View {
             // progressive scroll-edge blur under the field.
             .safeAreaBar(edge: .top, spacing: 0) {
                 HStack(spacing: Theme.Space.xs) {
-                    SearchField(text: $navigation.query)
-                    RecentsMenu()
                     Button {
                         navigation.open(NavigationModel.library)
                     } label: {
@@ -37,6 +35,8 @@ struct SearchScreen: View {
                     }
                     .buttonStyle(.pressable(scale: 0.88))
                     .help("Library")
+                    SearchField(text: $navigation.query)
+                    RecentsMenu()
                 }
                 .padding(.top, Theme.Space.panelInset)
                 .padding(.horizontal, Theme.Space.panelInset)

@@ -5,22 +5,35 @@ struct RootView: View {
     @Environment(NavigationModel.self) private var navigation
 
     var body: some View {
-        NavigationColumn()
-            // Mini player: the column fades out and the window shrinks to the platter.
-            .opacity(navigation.isMiniPlayer ? 0 : 1)
-            .allowsHitTesting(!navigation.isMiniPlayer)
+        Group {
+            // Mini player: the column is gone entirely, not merely faded, so nothing can show
+            // through the short window.
+            if navigation.isMiniPlayer {
+                Color.clear
+            } else {
+                NavigationColumn()
+                    .transition(.opacity)
+            }
+        }
             .safeAreaBar(edge: .bottom, spacing: 0) {
                 if player.current != nil {
+                    // Mini: the platter's content sits directly in the window with the window's
+                    // own inset, no card inside a card.
+                    // Mini: no inset at all; the platter's own glass and corners are the window.
                     NowPlayingBar()
-                        .padding(.horizontal, Theme.Space.panelInset)
-                        .padding(.bottom, Theme.Space.panelInset)
+                        .padding(.horizontal, navigation.isMiniPlayer ? 0 : Theme.Space.panelInset)
+                        .padding(.bottom, navigation.isMiniPlayer ? 0 : Theme.Space.panelInset)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .animation(Theme.Motion.standard, value: player.current?.id)
             .animation(Theme.Motion.standard, value: navigation.isMiniPlayer)
-            .background { GlassBackground().ignoresSafeArea() }
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
+            .background {
+                if !navigation.isMiniPlayer {
+                    GlassBackground().ignoresSafeArea()
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: navigation.isMiniPlayer ? Theme.Radius.panel : Theme.Radius.window, style: .continuous))
     }
 }
 

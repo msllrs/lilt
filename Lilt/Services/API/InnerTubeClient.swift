@@ -32,6 +32,13 @@ final class InnerTubeClient {
     private let auth: AuthService
     private let session: URLSession
 
+    private static let pageIdKey = "accountPageId"
+    /// Selects a brand account / channel on the signed-in login; nil is the primary account.
+    var pageId: String? {
+        get { UserDefaults.standard.string(forKey: Self.pageIdKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.pageIdKey) }
+    }
+
     init(auth: AuthService) {
         self.auth = auth
         let config = URLSessionConfiguration.ephemeral
@@ -62,6 +69,9 @@ final class InnerTubeClient {
         request.setValue("67", forHTTPHeaderField: "X-YouTube-Client-Name")
         request.setValue(Self.clientVersion, forHTTPHeaderField: "X-YouTube-Client-Version")
         request.setValue("0", forHTTPHeaderField: "X-Goog-AuthUser")
+        if let pageId, !pageId.isEmpty {
+            request.setValue(pageId, forHTTPHeaderField: "X-Goog-PageId")
+        }
         request.setValue(InnerTubeAuth.cookieHeader(cookies), forHTTPHeaderField: "Cookie")
         request.setValue(InnerTubeAuth.sapisidHash(sapisid: sapisid), forHTTPHeaderField: "Authorization")
 

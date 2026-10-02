@@ -50,6 +50,24 @@ final class YTMusicClient {
         return sections
     }
 
+    /// Which Google account the API is answering for.
+    func account() async throws -> AccountInfo? {
+        let response = try await client.post("account/account_menu", body: [:])
+        return SearchParser.account(from: response.value)
+    }
+
+    /// Switch to another account on this login and forget everything cached for the old one.
+    func switchAccount(pageId: String?) {
+        client.pageId = pageId
+        pageCache = [:]
+        homeCache = nil
+        libraryCache = nil
+        accountGeneration += 1
+    }
+
+    /// Bumps whenever the account changes, so screens can reload.
+    private(set) var accountGeneration = 0
+
     /// The signed-in library: playlists (with Liked Music first), saved albums, and artists.
     func library(forceRefresh: Bool = false) async throws -> LibraryContent {
         if !forceRefresh, let cached = libraryCache, Date.now.timeIntervalSince(cached.fetched) < Self.homeTTL {

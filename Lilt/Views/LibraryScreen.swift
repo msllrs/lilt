@@ -13,12 +13,13 @@ struct LibraryScreen: View {
 
     @State private var phase: Phase = .loading
     @State private var content = LibraryContent()
+    @State private var account: AccountInfo?
     @State private var scrollOffset: CGFloat = 0
 
     var body: some View {
         body_
             .safeAreaBar(edge: .top, spacing: 0) { header }
-            .task { await load() }
+            .task(id: music.accountGeneration) { await load() }
     }
 
     private var header: some View {
@@ -28,6 +29,7 @@ struct LibraryScreen: View {
             Text("Library")
                 .font(.callout.weight(.medium))
             Spacer()
+            if let account { accountMenu(account) }
         }
         .padding(.top, Theme.Space.panelInset)
         .padding(.horizontal, Theme.Space.panelInset)
@@ -75,6 +77,31 @@ struct LibraryScreen: View {
         }
     }
 
+    /// The avatar of the account this library belongs to; click to see or switch accounts.
+    private func accountMenu(_ account: AccountInfo) -> some View {
+        Menu {
+            Section {
+                Label("\(account.name) — \(account.email)", systemImage: "checkmark")
+            }
+            if !account.alternatives.isEmpty {
+                Section("Switch to") {
+                    ForEach(Array(account.alternatives.enumerated()), id: \.offset) { _, alt in
+                        Button(alt.name) {
+                            music.switchAccount(pageId: alt.pageId)
+                        }
+                    }
+                }
+            }
+        } label: {
+            ArtworkView(url: account.photoURL, size: 28, radius: 14, context: .header)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(account.email)
+    }
+
     /// Empty sections still show, with YouTube's own explanation, so it's clear the page loaded
     /// and the account simply has nothing saved there.
     @ViewBuilder
@@ -95,7 +122,9 @@ struct LibraryScreen: View {
 
     private func load() async {
         do {
+            async let who = music.account()
             content = try await music.library()
+            account = try? await who
             phase = .loaded
         } catch is CancellationError {
         } catch {

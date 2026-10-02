@@ -172,6 +172,25 @@ enum SearchParser {
         return page
     }
 
+    // MARK: Account
+
+    /// From `account/account_menu`: the active account header and any switchable identities.
+    static func account(from response: [String: Any]) -> AccountInfo? {
+        guard let header = JSON.findAll(key: "activeAccountHeaderRenderer", in: response).first else { return nil }
+        let name = runsText(JSON.value(at: ["accountName", "runs"], in: header)) ?? ""
+        let email = runsText(JSON.value(at: ["email", "runs"], in: header)) ?? ""
+        let photo = JSON.array(JSON.value(at: ["accountPhoto", "thumbnails"], in: header))
+            .flatMap { JSON.string(JSON.dict($0.last)?["url"]) }.flatMap { artworkURL($0, size: 96) }
+        var alternatives: [(String, String?)] = []
+        for item in JSON.findAll(key: "accountItem", in: response) {
+            guard let title = runsText(JSON.value(at: ["accountName", "runs"], in: item)),
+                  (item["isSelected"] as? Bool) != true else { continue }
+            let pageId = JSON.findAll(key: "pageIdToken", in: item).first.flatMap { JSON.string($0["pageId"]) }
+            alternatives.append((title, pageId))
+        }
+        return AccountInfo(name: name, email: email, photoURL: photo, alternatives: alternatives)
+    }
+
     // MARK: Library
 
     /// Every artist/album/playlist item in a library browse response, whether YouTube laid it
