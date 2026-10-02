@@ -36,15 +36,18 @@ struct CollapsibleSection<Content: View>: View {
         Button {
             withAnimation(Theme.Motion.standard) { collapsedSections.toggle(id) }
         } label: {
-            HStack(spacing: Theme.Space.xs) {
+            HStack(alignment: .firstTextBaseline, spacing: Theme.Space.xs) {
                 Text(title)
                     .font(.caption.weight(.semibold))
                     .textCase(.uppercase)
                     .kerning(0.6)
+                // Caps have no descenders, so the glyph sits on the baseline and is lifted to
+                // the optical middle of the cap height.
                 Image(systemName: "chevron.down")
                     .font(.system(size: 8, weight: .bold))
                     .rotationEffect(.degrees(isCollapsed ? -90 : 0))
                     .opacity(isHovering || isCollapsed ? 1 : 0)
+                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 3.5 }
                 Spacer(minLength: 0)
             }
             .foregroundStyle(.secondary)
@@ -56,9 +59,11 @@ struct CollapsibleSection<Content: View>: View {
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
 
-        if !isCollapsed {
-            content()
-                .transition(.opacity.combined(with: .move(edge: .top)))
-        }
+        // Rows reveal from under the title and fold back behind it: a height clip, so nothing
+        // ever draws over the header.
+        VStack(spacing: 0) { content() }
+            .frame(maxHeight: isCollapsed ? 0 : nil, alignment: .top)
+            .clipped()
+            .allowsHitTesting(!isCollapsed)
     }
 }
