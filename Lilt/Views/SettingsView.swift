@@ -22,7 +22,7 @@ struct SettingsView: View {
                     LabeledContent("YouTube Music", value: "Not signed in")
                     Button("Sign In…") {
                         auth.isPresentingLogin = true
-                        (NSApp.delegate as? AppDelegate)?.showPanel()
+                        AppDelegate.shared?.showPanel()
                     }
                 }
             }

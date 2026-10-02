@@ -50,7 +50,7 @@ final class PanelWindow: NSPanel {
             .subtracting([.capsLock, .numericPad, .function])
         guard modifiers.contains(.command),
               let key = event.charactersIgnoringModifiers?.lowercased(),
-              let delegate = NSApp.delegate as? AppDelegate else { return false }
+              let delegate = AppDelegate.shared else { return false }
         switch (key, modifiers) {
         case ("w", [.command]):
             delegate.hidePanel()
