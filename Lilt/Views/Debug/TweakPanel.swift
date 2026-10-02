@@ -68,6 +68,8 @@ struct TweakPanel: View {
                 Toggle("Scrubber coloured like controls", isOn: $style.platter.scrubberLikeControls)
                 slider("Controls tint", $style.platter.controlsTint, 0...1)
                 slider("Text tint", $style.platter.textTint, 0...1)
+                Toggle("Cast on rim (like play capsule)", isOn: $style.platter.castEdge)
+                Toggle("Cast glow inside (like play capsule)", isOn: $style.platter.castGlow)
             }
             Section("Page ambient") {
                 slider("Opacity", $style.pageAmbient.opacity, 0...1)

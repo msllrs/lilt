@@ -8,6 +8,13 @@ struct NowPlayingBar: View {
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous) }
     private var platter: PlatterStyle { ArtworkStyle.shared.platter }
+    private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
+
+    /// The cover's colour as the play capsule samples it, for the rim and glow.
+    private var cast: Color? {
+        guard platter.castEdge || platter.castGlow, let url = player.displayArtworkURL else { return nil }
+        return ImageCache.shared.tint(for: url, saturationBoost: playCast.saturation)
+    }
 
     /// 0 when nothing scrolls beneath the platter, 1 once rows are passing under it. As a mini
     /// player the platter is the whole window, so it always wears its glass.
@@ -127,7 +134,42 @@ struct NowPlayingBar: View {
         .background { shape.fill(Color.black.opacity(0.012)) }
         .contentShape(shape)
         // Border slider scales the rim; 0.10 default reads as a subtle glass edge.
-        .glassEdge(shape, opacity: min(platter.borderOpacity * 6, 1) * glassVisibility)
+        // The rim as on the play capsule: the cover's colour on the lit top edge, and a soft wash
+        // of it inside falling off from the top. Both optional, both interpolated between songs.
+        .overlay {
+            InterpolatedColor(cast) { cast in
+                if let cast, platter.castGlow, playCast.glowOpacity > 0 {
+                    shape.fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: cast.opacity(playCast.glowOpacity), location: 0),
+                                .init(color: .clear, location: playCast.glowHeight),
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .blur(radius: playCast.glowBlur)
+                    .clipShape(shape)
+                    .opacity(glassVisibility)
+                    .allowsHitTesting(false)
+                }
+            }
+        }
+        .overlay {
+            InterpolatedColor(cast) { cast in
+                Color.clear.glassEdge(
+                    shape,
+                    opacity: min(platter.borderOpacity * 6, 1) * glassVisibility,
+                    cast: platter.castEdge ? cast : nil,
+                    castMix: playCast.rimMix,
+                    blur: platter.castEdge ? playCast.rimBlur : 0,
+                    blend: platter.castEdge ? playCast.rimBlend.blendMode : .normal
+                )
+            }
+            .allowsHitTesting(false)
+        }
+        .animation(Theme.Motion.cast, value: cast)
         .animation(Theme.Motion.quick, value: glassVisibility)
         .animation(Theme.Motion.standard, value: player.displayArtworkURL)
         .animation(Theme.Motion.cast, value: accent)
