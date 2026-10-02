@@ -1,24 +1,20 @@
 import AppKit
 import SwiftUI
 
-/// A native `NSSlider` for the playhead. SwiftUI's own slider lets a drag fall through to
-/// "move window by background" in a borderless window; a real AppKit control never does.
-///
-/// The native knob is never drawn. Instead the slider reports its knob's centre and hover state
-/// so the caller can float a Liquid Glass knob over the exact spot.
+/// A native `NSSlider` for the playhead, drawn as a bare progress line with no knob: click to
+/// jump, drag to scrub. SwiftUI's own slider lets a drag fall through to "move window by
+/// background" in a borderless window; a real AppKit control never does.
 struct Scrubber: NSViewRepresentable {
     @Binding var value: Double
     var range: ClosedRange<Double>
     /// Called with the live value while dragging, and `ended == true` on release.
     var onEditing: (_ value: Double, _ ended: Bool) -> Void
-    /// Knob centre x (in the slider's coordinates) and whether the pointer is over the track.
-    var onKnob: (_ centerX: CGFloat, _ hovering: Bool) -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(onEditing: onEditing, onKnob: onKnob) }
+    func makeCoordinator() -> Coordinator { Coordinator(onEditing: onEditing) }
 
-    func makeNSView(context: Context) -> HoverSlider {
-        let slider = HoverSlider()
-        slider.cell = HiddenKnobSliderCell()
+    func makeNSView(context: Context) -> NSSlider {
+        let slider = NSSlider()
+        slider.cell = LineSliderCell()
         slider.minValue = range.lowerBound
         slider.maxValue = range.upperBound
         slider.doubleValue = value
@@ -27,13 +23,11 @@ struct Scrubber: NSViewRepresentable {
         slider.controlSize = .mini
         slider.isContinuous = true
         slider.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        slider.onKnob = { [weak coordinator = context.coordinator] x, hovering in coordinator?.onKnob(x, hovering) }
         return slider
     }
 
-    func updateNSView(_ slider: HoverSlider, context: Context) {
+    func updateNSView(_ slider: NSSlider, context: Context) {
         context.coordinator.onEditing = onEditing
-        context.coordinator.onKnob = onKnob
         slider.minValue = range.lowerBound
         slider.maxValue = range.upperBound
         // Don't fight the user's hand while they're dragging.
@@ -45,13 +39,9 @@ struct Scrubber: NSViewRepresentable {
     @MainActor
     final class Coordinator: NSObject {
         var onEditing: (Double, Bool) -> Void
-        var onKnob: (CGFloat, Bool) -> Void
         private(set) var isDragging = false
 
-        init(onEditing: @escaping (Double, Bool) -> Void, onKnob: @escaping (CGFloat, Bool) -> Void) {
-            self.onEditing = onEditing
-            self.onKnob = onKnob
-        }
+        init(onEditing: @escaping (Double, Bool) -> Void) { self.onEditing = onEditing }
 
         @objc func changed(_ slider: NSSlider) {
             let ended = NSApp.currentEvent?.type == .leftMouseUp
@@ -61,38 +51,9 @@ struct Scrubber: NSViewRepresentable {
     }
 }
 
-/// Tracks hover and reports knob position after every draw.
-final class HoverSlider: NSSlider {
-    var onKnob: ((CGFloat, Bool) -> Void)?
-    private(set) var isHovering = false
-    private var tracking: NSTrackingArea?
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let tracking { removeTrackingArea(tracking) }
-        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
-        addTrackingArea(area)
-        tracking = area
-    }
-
-    override func mouseEntered(with event: NSEvent) { isHovering = true; report() }
-    override func mouseExited(with event: NSEvent) { isHovering = false; report() }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        report()
-    }
-
-    fileprivate func report() {
-        guard let cell = cell as? NSSliderCell else { return }
-        let knob = cell.knobRect(flipped: isFlipped)
-        onKnob?(knob.midX, isHovering)
-    }
-}
-
-/// Draws a neutral track (no accent colour) and never the knob; a glass knob floats above it.
-/// Elapsed is the label colour, so black in light mode and white in dark, over a faint rail.
-final class HiddenKnobSliderCell: NSSliderCell {
+/// A neutral track with no knob. Elapsed is the label colour, so black in light mode and
+/// white in dark, over a faint rail in the same colour.
+final class LineSliderCell: NSSliderCell {
     override func drawKnob(_ knobRect: NSRect) {}
 
     override func drawBar(inside rect: NSRect, flipped: Bool) {

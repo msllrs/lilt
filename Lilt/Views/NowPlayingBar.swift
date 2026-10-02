@@ -22,8 +22,6 @@ struct NowPlayingBar: View {
 
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
-    @State private var knobX: CGFloat = 0
-    @State private var isHoveringScrubber = false
 
     var body: some View {
         VStack(spacing: Theme.Space.sm) {
@@ -120,35 +118,14 @@ struct NowPlayingBar: View {
                     } else {
                         isScrubbing = true
                     }
-                },
-                onKnob: { x, hovering in
-                    knobX = x
-                    isHoveringScrubber = hovering
                 }
             )
             .frame(height: 12)
-            .overlay(alignment: .leading) { glassKnob }
             Text(timeString(player.duration))
                 .fixedSize()
         }
         .font(.caption2.monospacedDigit())
         .foregroundStyle(.tertiary)
-    }
-
-    /// A Liquid Glass playhead modelled on Control Center's display slider: a wide pill that
-    /// sits across the track and lenses it, appearing only on hover or while dragging.
-    private var glassKnob: some View {
-        let active = isHoveringScrubber || isScrubbing
-        return Capsule()
-            .fill(.clear)
-            .frame(width: 26, height: 14)
-            .glassEffect(.regular.interactive(), in: .capsule)
-            .glassEdge(Capsule())
-            .scaleEffect(active ? 1 : 0.7)
-            .opacity(active ? 1 : 0)
-            .position(x: knobX, y: 6)
-            .animation(.snappy(duration: 0.18), value: active)
-            .allowsHitTesting(false)
     }
 
     private func timeString(_ seconds: Double) -> String {
