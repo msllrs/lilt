@@ -54,7 +54,14 @@ final class NoteEmitterHostView: NSView {
         emitter.birthRate = isPlaying ? 1 : 0
         if style != applied {
             applied = style
-            emitter.emitterCells = ["music.note", "music.quarternote.3"].map { Self.cell(symbol: $0, style: style) }
+            // Core Animation has no random range for acceleration, so vary drift by spawning
+            // from several cells spread across the range, each with a share of the birth rate.
+            let drifts: [Double] = style.driftRange > 0
+                ? [-1, -0.5, 0, 0.5, 1].map { style.drift + $0 * style.driftRange }
+                : [style.drift]
+            emitter.emitterCells = ["music.note", "music.quarternote.3"].flatMap { symbol in
+                drifts.map { drift in Self.cell(symbol: symbol, style: style, drift: drift, share: 1 / Double(drifts.count)) }
+            }
             applyColor()
         }
     }
@@ -68,7 +75,7 @@ final class NoteEmitterHostView: NSView {
     }
 
     /// A white symbol glyph so the cell's `color` tints it.
-    private static func cell(symbol: String, style: NotesStyle) -> CAEmitterCell {
+    private static func cell(symbol: String, style: NotesStyle, drift: Double, share: Double) -> CAEmitterCell {
         let cell = CAEmitterCell()
         let config = NSImage.SymbolConfiguration(pointSize: style.glyphSize, weight: .semibold)
             .applying(.init(paletteColors: [.white]))
@@ -77,7 +84,7 @@ final class NoteEmitterHostView: NSView {
             cell.contents = image.cgImage(forProposedRect: &rect, context: nil, hints: nil)
             cell.contentsScale = 2
         }
-        cell.birthRate = Float(style.birthRate)
+        cell.birthRate = Float(style.birthRate * share)
         cell.lifetime = Float(style.lifetime)
         cell.lifetimeRange = Float(style.lifetimeRange)
         cell.velocity = style.velocity
@@ -85,7 +92,7 @@ final class NoteEmitterHostView: NSView {
         cell.emissionLongitude = .pi / 2
         cell.emissionRange = style.spread
         cell.yAcceleration = style.gravity
-        cell.xAcceleration = style.drift
+        cell.xAcceleration = drift
         cell.scale = style.scale
         cell.scaleRange = style.scaleRange
         cell.scaleSpeed = style.scaleSpeed

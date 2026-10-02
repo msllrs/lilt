@@ -76,6 +76,7 @@ struct TweakPanel: View {
                 slider("Spread", $style.notes.spread, 0...Double.pi)
                 slider("Rise", $style.notes.gravity, -40...40)
                 slider("Drift", $style.notes.drift, -40...40)
+                slider("Drift random", $style.notes.driftRange, 0...40)
                 slider("Glyph size", $style.notes.glyphSize, 6...24)
                 slider("Scale", $style.notes.scale, 0.1...1.5)
                 slider("Scale random", $style.notes.scaleRange, 0...1)
