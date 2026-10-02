@@ -55,16 +55,23 @@ struct ArtworkView: View {
     private var keylineWidth: CGFloat { CGFloat(style.keylineWidth) / max(displayScale, 1) }
 
     /// Neutral keyline picked from the artwork's perimeter: dark on pale edges, light on dark.
+    /// In dark mode the edge is always light, since a dark line vanishes against the container.
     private var keyline: Color? {
+        if style.keylineMode == .off { return nil }
+        if colorScheme == .dark { return .white.opacity(style.darkKeylineOpacity) }
         switch style.keylineMode {
-        case .off: nil
-        case .dark: .black.opacity(style.keylineDarkOpacity)
-        case .light: .white.opacity(style.keylineLightOpacity)
+        case .off: return nil
+        case .dark: return .black.opacity(style.keylineDarkOpacity)
+        case .light: return .white.opacity(style.keylineLightOpacity)
         case .adaptive:
-            (url.map { ImageCache.shared.edgeLuminance(for: $0) } ?? 0.5) > style.keylineThreshold
+            return (url.map { ImageCache.shared.edgeLuminance(for: $0) } ?? 0.5) > style.keylineThreshold
                 ? .black.opacity(style.keylineDarkOpacity)
                 : .white.opacity(style.keylineLightOpacity)
         }
+    }
+
+    private var separatorOpacity: Double {
+        colorScheme == .dark ? style.darkSeparatorOpacity : style.separatorOpacity
     }
 
     var body: some View {
@@ -147,9 +154,9 @@ struct ArtworkView: View {
     /// sits on, in the surface's own foreground tone.
     @ViewBuilder
     private var outerSeparator: some View {
-        if style.separatorOpacity > 0 {
+        if separatorOpacity > 0 {
             shape.inset(by: -keylineWidth / 2)
-                .stroke(Color.primary.opacity(style.separatorOpacity), lineWidth: keylineWidth)
+                .stroke(Color.primary.opacity(separatorOpacity), lineWidth: keylineWidth)
         }
     }
 

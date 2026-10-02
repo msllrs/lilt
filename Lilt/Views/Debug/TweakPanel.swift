@@ -36,6 +36,8 @@ struct TweakPanel: View {
                 slider("Light opacity", $style.keylineLightOpacity, 0...0.4)
                 slider("Light/dark threshold", $style.keylineThreshold, 0...1)
                 slider("Outer separator", $style.separatorOpacity, 0...0.5)
+                slider("Dark: keyline (white)", $style.darkKeylineOpacity, 0...0.6)
+                slider("Dark: separator", $style.darkSeparatorOpacity, 0...0.6)
             }
             Section("Ambient shadow") {
                 Picker("For", selection: $shadowContext) {
