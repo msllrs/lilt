@@ -14,7 +14,15 @@ final class NavigationModel {
     var query: String { didSet { save() } }
     var path: [BrowseItem] { didSet { save() } }
     /// Collapse the column to just the now-playing platter.
-    var isMiniPlayer: Bool { didSet { save() } }
+    var isMiniPlayer: Bool {
+        didSet {
+            save()
+            // Runs synchronously after the write and before SwiftUI lays anything out, which is
+            // when the window frame must change.
+            if isMiniPlayer != oldValue { miniPlayerDidChange?(isMiniPlayer) }
+        }
+    }
+    @ObservationIgnored var miniPlayerDidChange: ((Bool) -> Void)?
     /// Measured height of the platter, for sizing the mini-player window.
     var platterHeight: CGFloat = 140
     /// Receives every page opened, for the recents menu. Wired by the app.

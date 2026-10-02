@@ -63,21 +63,21 @@ private struct PanelShadow: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        let margin = Theme.Size.shadowMargin
+        // The caster is exactly the panel shape; only its shadow reaches into the margin.
         shape
             .fill(.black)
             .frame(height: height)
             .frame(maxHeight: .infinity, alignment: .bottom)
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.55 : 0.28), radius: 22, y: 10)
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.12), radius: 3, y: 1)
-            .padding(-Theme.Size.shadowMargin)
-            // Punch out the shape itself: only the shadow outside it survives.
+            // Keep everything in the margin, punch out the panel shape itself.
             .mask {
                 ZStack {
-                    Rectangle()
+                    Rectangle().padding(-margin)
                     shape
                         .frame(height: height)
                         .frame(maxHeight: .infinity, alignment: .bottom)
-                        .padding(Theme.Size.shadowMargin)
                         .blendMode(.destinationOut)
                 }
                 .compositingGroup()

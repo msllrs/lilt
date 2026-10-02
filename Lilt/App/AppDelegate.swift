@@ -29,7 +29,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         observeLoginPresentation()
         observeDockIcon()
         observeMiniPlayer()
-        refreshShadowAfterTransition()
         Task {
             await auth.refresh()
             if !auth.isSignedIn { auth.isPresentingLogin = true }
@@ -45,43 +44,78 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: Mini player
 
-    /// Mini mode is purely a content change; the window keeps its frame so nothing re-lays out
-    /// under a live resize. The shadow follows the drawn shape, so it must be recomputed.
+    private static let expandedHeightKey = "expandedPanelHeight"
+    /// Window height (margins included) to return to when leaving mini.
+    private var expandedHeight: CGFloat {
+        get {
+            let saved = UserDefaults.standard.double(forKey: Self.expandedHeightKey)
+            return saved > 0 ? saved : PanelWindow.edgeFrame(on: NSScreen.main ?? NSScreen.screens[0]).height
+        }
+        set { UserDefaults.standard.set(newValue, forKey: Self.expandedHeightKey) }
+    }
+    private var miniApplied = false
+    private var miniEverApplied = false
+
+    /// The content transition is pure SwiftUI (column fades, glass contracts). The window frame
+    /// changes only when nothing visible is affected: it shrinks to the platter *after* the fade,
+    /// and grows back *before* the column fades in. Wired to the model's setter so it runs
+    /// synchronously, before SwiftUI could lay the column out in a platter-sized window.
     private func observeMiniPlayer() {
-        withObservationTracking {
-            _ = navigation.isMiniPlayer
-        } onChange: { [weak self] in
-            Task { @MainActor in
-                self?.refreshShadowAfterTransition()
-                self?.observeMiniPlayer()
+        navigation.miniPlayerDidChange = { [weak self] _ in self?.applyMiniPlayer() }
+        applyMiniPlayer()
+    }
+
+    private func applyMiniPlayer() {
+        guard let panel, navigation.isMiniPlayer != miniApplied || !miniEverApplied else { return }
+        let mini = navigation.isMiniPlayer
+        let firstRun = !miniEverApplied
+        miniApplied = mini
+        miniEverApplied = true
+        let margin = Theme.Size.shadowMargin
+        let current = panel.frame
+        if mini {
+            if current.height >= Theme.Size.panelMinHeight + margin * 2 { expandedHeight = current.height }
+            let height = navigation.platterHeight + margin * 2
+            let shrink = { [weak self] in
+                guard let self, self.navigation.isMiniPlayer else { return }
+                panel.minSize = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: height)
+                panel.setFrame(NSRect(x: current.minX, y: current.minY, width: current.width, height: height), display: true)
             }
+            // At launch there's no fade to wait for. Otherwise wait for it: the region being
+            // removed is transparent by then, so the shrink is invisible. Bottom edge stays put.
+            if firstRun { shrink() } else { DispatchQueue.main.asyncAfter(deadline: .now() + 0.32, execute: shrink) }
+        } else if firstRun {
+            // Launching expanded: the autosaved frame is already right.
+        } else {
+            panel.minSize = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: Theme.Size.panelMinHeight + margin * 2)
+            var target = NSRect(x: current.minX, y: current.minY, width: current.width, height: expandedHeight)
+            target = Self.onScreen(target, near: panel.screen ?? NSScreen.main ?? NSScreen.screens[0])
+            panel.setFrame(target, display: true)
         }
     }
 
-    /// The window shadow is computed from the drawn pixels and cached, so it must be recomputed
-    /// after the content changes shape: during and after the mini transition, and once the first
-    /// layout has settled at launch.
-    private func refreshShadowAfterTransition() {
-        guard let panel else { return }
-        for delay in [0.1, 0.3, 0.5, 1.0] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { panel.invalidateShadow() }
-        }
+    /// A manual resize while expanded is the new expanded height.
+    func windowDidEndLiveResize(_ notification: Notification) {
+        guard let panel, (notification.object as? NSWindow) === panel, !navigation.isMiniPlayer else { return }
+        expandedHeight = panel.frame.height
     }
 
     func toggleMiniPlayer() { navigation.isMiniPlayer.toggle() }
     func openLibrary() { navigation.open(NavigationModel.library) }
 
-    /// Nudges a frame so it lies within the screen's visible area.
+    /// Nudges a window frame so its *visible panel* (the frame minus the shadow margin) lies
+    /// within the screen's visible area. The margin itself may hang off screen.
     static func onScreen(_ frame: NSRect, near screen: NSScreen) -> NSRect {
+        let margin = Theme.Size.shadowMargin
         let visible = screen.visibleFrame
-        var f = frame
-        f.size.height = min(f.height, visible.height)
-        f.size.width = min(f.width, visible.width)
-        if f.maxY > visible.maxY { f.origin.y = visible.maxY - f.height }
-        if f.minY < visible.minY { f.origin.y = visible.minY }
-        if f.maxX > visible.maxX { f.origin.x = visible.maxX - f.width }
-        if f.minX < visible.minX { f.origin.x = visible.minX }
-        return f
+        var panel = frame.insetBy(dx: margin, dy: margin)
+        panel.size.height = min(panel.height, visible.height)
+        panel.size.width = min(panel.width, visible.width)
+        if panel.maxY > visible.maxY { panel.origin.y = visible.maxY - panel.height }
+        if panel.minY < visible.minY { panel.origin.y = visible.minY }
+        if panel.maxX > visible.maxX { panel.origin.x = visible.maxX - panel.width }
+        if panel.minX < visible.minX { panel.origin.x = visible.minX }
+        return panel.insetBy(dx: -margin, dy: -margin)
     }
 
 

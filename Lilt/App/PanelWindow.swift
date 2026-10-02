@@ -37,6 +37,10 @@ final class PanelWindow: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
+    /// The frame includes a transparent shadow margin that is allowed to hang off the screen;
+    /// AppKit would otherwise push the whole window (and the visible panel) inward.
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
+
     /// A non-activating panel receives key events without Lilt being the active app, and in that
     /// state the menu bar (and its shortcuts) still belong to the previous app. Handle Lilt's own
     /// shortcuts here so they work straight from the panel.
