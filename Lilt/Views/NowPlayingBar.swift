@@ -22,6 +22,7 @@ struct NowPlayingBar: View {
 
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
+    @State private var isHoveringPlatter = false
 
     var body: some View {
         VStack(spacing: Theme.Space.sm) {
@@ -36,21 +37,39 @@ struct NowPlayingBar: View {
                 Spacer(minLength: 0)
             }
 
-            HStack(spacing: Theme.Space.xl) {
-                TransportButton(symbol: "backward.fill", size: Theme.Size.controlIcon, enabled: player.current != nil) {
-                    player.previous()
+            HStack(spacing: 0) {
+                // Shuffle and repeat flank the transport; they appear on hover, or stay when on.
+                ModeButton(symbol: "shuffle", isOn: player.isShuffled, revealed: isHoveringPlatter) {
+                    player.toggleShuffle()
                 }
-                TransportButton(symbol: player.isPlaying ? "pause.fill" : "play.fill", size: Theme.Size.playIcon, enabled: player.current != nil) {
-                    player.togglePlayPause()
+                Spacer(minLength: 0)
+                HStack(spacing: Theme.Space.xl) {
+                    TransportButton(symbol: "backward.fill", size: Theme.Size.controlIcon, enabled: player.current != nil) {
+                        player.previous()
+                    }
+                    TransportButton(symbol: player.isPlaying ? "pause.fill" : "play.fill", size: Theme.Size.playIcon, enabled: player.current != nil) {
+                        player.togglePlayPause()
+                    }
+                    TransportButton(symbol: "forward.fill", size: Theme.Size.controlIcon, enabled: player.hasNext) {
+                        player.next()
+                    }
                 }
-                TransportButton(symbol: "forward.fill", size: Theme.Size.controlIcon, enabled: player.hasNext) {
-                    player.next()
+                Spacer(minLength: 0)
+                ModeButton(
+                    symbol: player.repeatMode == .one ? "repeat.1" : "repeat",
+                    isOn: player.repeatMode != .off,
+                    revealed: isHoveringPlatter
+                ) {
+                    player.cycleRepeat()
                 }
             }
 
             scrubber
         }
         .padding(Theme.Space.barPadding)
+        .onHover { hovering in
+            withAnimation(Theme.Motion.quick) { isHoveringPlatter = hovering }
+        }
         .background {
             // Glass, tint, edge and shadow only earn their place when rows pass beneath; at the
             // end of a list the platter is bare.
@@ -132,6 +151,28 @@ struct NowPlayingBar: View {
         let total = Int(seconds.rounded(.down))
         let (h, m, s) = (total / 3600, total % 3600 / 60, total % 60)
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
+    }
+}
+
+/// Shuffle / repeat: faint while hovering the platter, solid when on, hidden otherwise.
+private struct ModeButton: View {
+    let symbol: String
+    let isOn: Bool
+    let revealed: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(isOn ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                .frame(width: 28, height: 28)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.pressable(scale: 0.88))
+        .opacity(isOn ? 1 : revealed ? 0.7 : 0)
+        .allowsHitTesting(isOn || revealed)
+        .help(symbol.hasPrefix("repeat") ? "Repeat" : "Shuffle")
     }
 }
 

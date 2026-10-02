@@ -6,9 +6,25 @@ import Observation
 @MainActor
 @Observable
 final class PlayerService {
+    enum RepeatMode: String, Codable {
+        case off, all, one
+
+        var next: RepeatMode {
+            switch self {
+            case .off: .all
+            case .all: .one
+            case .one: .off
+            }
+        }
+    }
+
     private(set) var queue: [Track] = []
     private(set) var currentIndex: Int?
     private(set) var isPlaying = false
+    private(set) var isShuffled = false
+    private(set) var repeatMode: RepeatMode = .off
+    /// The queue's order before shuffling, so turning shuffle off restores it.
+    private var unshuffledQueue: [Track]?
     private(set) var currentTime: Double = 0
     private(set) var duration: Double = 0
 
@@ -21,7 +37,10 @@ final class PlayerService {
         guard let i = currentIndex, queue.indices.contains(i) else { return nil }
         return queue[i]
     }
-    var hasNext: Bool { currentIndex.map { $0 + 1 < queue.count } ?? false }
+    var hasNext: Bool {
+        guard let i = currentIndex else { return false }
+        return i + 1 < queue.count || (repeatMode != .off && !queue.isEmpty)
+    }
     var hasPrevious: Bool { currentIndex.map { $0 > 0 } ?? false }
     // The queued track is the source of truth for what's shown: it's correct the instant you
     // click and its artwork is already cached. The web player's metadata lags a beat behind a
@@ -60,6 +79,9 @@ final class PlayerService {
         var queue: [Track]
         var index: Int?
         var time: Double
+        var isShuffled: Bool?
+        var unshuffledQueue: [Track]?
+        var repeatMode: RepeatMode?
     }
 
     init(auth: AuthService) {
@@ -78,7 +100,39 @@ final class PlayerService {
     func play(_ tracks: [Track], startingAt index: Int) {
         guard tracks.indices.contains(index) else { return }
         queue = tracks
-        load(index: index)
+        unshuffledQueue = nil
+        if isShuffled { shuffleRemainder(keeping: index) } else { load(index: index) }
+    }
+
+    /// Shuffle what's left after the current track; off restores the original order.
+    func toggleShuffle() {
+        isShuffled.toggle()
+        guard let i = currentIndex, queue.indices.contains(i) else { save(); return }
+        if isShuffled {
+            shuffleRemainder(keeping: i, reload: false)
+        } else if let original = unshuffledQueue {
+            let currentId = queue[i].id
+            queue = original
+            currentIndex = original.firstIndex { $0.id == currentId } ?? i
+            unshuffledQueue = nil
+        }
+        save()
+    }
+
+    func cycleRepeat() {
+        repeatMode = repeatMode.next
+        save()
+    }
+
+    /// Keeps the chosen track in place and shuffles everything after it.
+    private func shuffleRemainder(keeping index: Int, reload: Bool = true) {
+        unshuffledQueue = unshuffledQueue ?? queue
+        let current = queue[index]
+        var rest = queue
+        rest.remove(at: index)
+        rest.shuffle()
+        queue = [current] + rest
+        if reload { load(index: 0) } else { currentIndex = 0 }
     }
 
     func togglePlayPause() {
@@ -109,8 +163,12 @@ final class PlayerService {
     }
 
     func next() {
-        guard let i = currentIndex, i + 1 < queue.count else { return }
-        load(index: i + 1)
+        guard let i = currentIndex else { return }
+        if i + 1 < queue.count {
+            load(index: i + 1)
+        } else if repeatMode != .off, !queue.isEmpty {
+            load(index: 0)
+        }
     }
 
     func previous() {
@@ -139,7 +197,10 @@ final class PlayerService {
 
     private func save() {
         lastSavedTime = currentTime
-        let saved = Saved(queue: queue, index: currentIndex, time: currentTime)
+        let saved = Saved(
+            queue: queue, index: currentIndex, time: currentTime,
+            isShuffled: isShuffled, unshuffledQueue: unshuffledQueue, repeatMode: repeatMode
+        )
         UserDefaults.standard.set(try? JSONEncoder().encode(saved), forKey: Self.savedKey)
     }
 
@@ -150,6 +211,9 @@ final class PlayerService {
         queue = saved.queue
         currentIndex = index
         currentTime = saved.time
+        isShuffled = saved.isShuffled ?? false
+        unshuffledQueue = saved.unshuffledQueue
+        repeatMode = saved.repeatMode ?? .off
         needsLoad = true
     }
 
@@ -197,8 +261,10 @@ final class PlayerService {
         case .remote(.previous):
             previous()
         case .ended(let videoId):
-            guard videoId == current?.id else { return }
-            if hasNext {
+            guard videoId == current?.id, let i = currentIndex else { return }
+            if repeatMode == .one {
+                load(index: i)
+            } else if hasNext {
                 next()
             } else {
                 // Let YouTube Music continue with its own pick; `adopt` picks it up.
