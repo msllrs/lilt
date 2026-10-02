@@ -7,22 +7,22 @@ enum BrowseKind: String, Codable, Sendable {
 }
 
 /// The Google account YouTube Music is answering for.
-struct AccountInfo: Equatable, Sendable {
+struct AccountInfo: Equatable, Codable, Sendable {
     var name: String
     var email: String
     var photoURL: URL?
     /// Other channels/brand accounts on this login, with the page id to select each (nil for
     /// the primary Google account).
-    var alternatives: [(name: String, pageId: String?)] = []
+    var alternatives: [Alternative] = []
 
-    static func == (lhs: AccountInfo, rhs: AccountInfo) -> Bool {
-        lhs.name == rhs.name && lhs.email == rhs.email && lhs.photoURL == rhs.photoURL
-            && lhs.alternatives.map(\.pageId) == rhs.alternatives.map(\.pageId)
+    struct Alternative: Equatable, Codable, Sendable {
+        var name: String
+        var pageId: String?
     }
 }
 
 /// The signed-in library, gathered from several InnerTube browse endpoints.
-struct LibraryContent: Sendable {
+struct LibraryContent: Codable, Sendable {
     var playlists: [BrowseItem] = []
     var albums: [BrowseItem] = []
     var artists: [BrowseItem] = []
@@ -60,7 +60,7 @@ struct SearchResults: Sendable {
 }
 
 /// One entry on the home feed: a song to play or a page to open.
-enum HomeItem: Identifiable, Hashable, Sendable {
+enum HomeItem: Identifiable, Hashable, Codable, Sendable {
     case track(Track)
     case browse(BrowseItem)
 
@@ -73,7 +73,7 @@ enum HomeItem: Identifiable, Hashable, Sendable {
 }
 
 /// A shelf on the home feed ("Listen again", "Quick picks", "Mixed for you"…).
-struct HomeSection: Identifiable, Hashable, Sendable {
+struct HomeSection: Identifiable, Hashable, Codable, Sendable {
     var id: String { title }
     let title: String
     var items: [HomeItem]

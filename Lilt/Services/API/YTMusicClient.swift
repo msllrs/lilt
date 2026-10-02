@@ -13,10 +13,43 @@ final class YTMusicClient {
     @ObservationIgnored private var pageCache: [String: BrowsePage] = [:]
     @ObservationIgnored private var homeCache: (sections: [HomeSection], fetched: Date)?
     @ObservationIgnored private var libraryCache: (content: LibraryContent, fetched: Date)?
+
+    // Disk persistence so a relaunch starts warm: stale-while-revalidate.
+    private struct Persisted: Codable {
+        var home: [HomeSection]?
+        var homeFetched: Date?
+        var library: LibraryContent?
+        var libraryFetched: Date?
+        var account: AccountInfo?
+    }
+    private static let persistedURL: URL = {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("feeds.json")
+    }()
+
+    private func persist() {
+        let data = Persisted(
+            home: homeCache?.sections, homeFetched: homeCache?.fetched,
+            library: libraryCache?.content, libraryFetched: libraryCache?.fetched,
+            account: cachedAccount
+        )
+        try? JSONEncoder().encode(data).write(to: Self.persistedURL, options: .atomic)
+    }
+
+    private func restore() {
+        guard let data = try? Data(contentsOf: Self.persistedURL),
+              let saved = try? JSONDecoder().decode(Persisted.self, from: data) else { return }
+        // Restored content is shown immediately but treated as stale so it refreshes behind.
+        if let home = saved.home { homeCache = (home, saved.homeFetched ?? .distantPast) }
+        if let library = saved.library { libraryCache = (library, saved.libraryFetched ?? .distantPast) }
+        cachedAccount = saved.account
+    }
     private static let homeTTL: TimeInterval = 5 * 60
 
     init(auth: AuthService) {
         client = InnerTubeClient(auth: auth)
+        restore()
     }
 
     func search(_ query: String) async throws -> SearchResults {
@@ -57,6 +90,7 @@ final class YTMusicClient {
             }
         }
         homeCache = (sections, .now)
+        persist()
         ImageCache.shared.prefetch(sections.prefix(3).flatMap { section in
             section.items.prefix(10).map { item -> URL? in
                 switch item {
@@ -77,6 +111,7 @@ final class YTMusicClient {
         guard var info = SearchParser.account(from: try await menu.value) else { return nil }
         info.alternatives = SearchParser.accountAlternatives(from: try await list.value)
         cachedAccount = info
+        persist()
         return info
     }
 
@@ -87,6 +122,7 @@ final class YTMusicClient {
         homeCache = nil
         libraryCache = nil
         cachedAccount = nil
+        try? FileManager.default.removeItem(at: Self.persistedURL)
         accountGeneration += 1
     }
 
@@ -118,6 +154,7 @@ final class YTMusicClient {
         content.artists = (SearchParser.libraryItems(from: try await artists.value) + SearchParser.libraryItems(from: try await subscriptions.value))
             .filter { $0.kind == .artist && seenArtists.insert($0.id).inserted }
         libraryCache = (content, .now)
+        persist()
         ImageCache.shared.prefetch((content.playlists + content.albums + content.artists).prefix(24).map(\.artworkURL))
         return content
     }

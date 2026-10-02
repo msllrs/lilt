@@ -185,13 +185,13 @@ enum SearchParser {
     }
 
     /// From `account/accounts_list`: every channel on the login that isn't the selected one.
-    static func accountAlternatives(from response: [String: Any]) -> [(name: String, pageId: String?)] {
-        var alternatives: [(String, String?)] = []
+    static func accountAlternatives(from response: [String: Any]) -> [AccountInfo.Alternative] {
+        var alternatives: [AccountInfo.Alternative] = []
         for item in JSON.findAll(key: "accountItem", in: response) {
             guard let title = runsText(JSON.value(at: ["accountName", "runs"], in: item)),
                   (item["isSelected"] as? Bool) != true else { continue }
             let pageId = JSON.findAll(key: "pageIdToken", in: item).first.flatMap { JSON.string($0["pageId"]) }
-            alternatives.append((title, pageId))
+            alternatives.append(.init(name: title, pageId: pageId))
         }
         return alternatives
     }

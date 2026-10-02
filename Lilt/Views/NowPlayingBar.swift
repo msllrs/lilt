@@ -84,13 +84,17 @@ struct NowPlayingBar: View {
             // Glass, tint, edge and shadow only earn their place when rows pass beneath; at the
             // end of a list the platter is bare.
             ZStack {
-                Color.clear
-                    .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
-                    .shadow(
-                        color: .black.opacity(platter.shadowOpacity),
-                        radius: platter.shadowRadius,
-                        y: platter.shadowOffsetY
-                    )
+                // In mini the window's own glass is the backdrop; a second glass layer on top
+                // would just double the blur.
+                if !navigation.isMiniPlayer {
+                    Color.clear
+                        .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
+                        .shadow(
+                            color: .black.opacity(platter.shadowOpacity),
+                            radius: platter.shadowRadius,
+                            y: platter.shadowOffsetY
+                        )
+                }
                 // The artwork itself, blurred across the platter: vibrant for any cover, where a
                 // flat average colour turns rainbow art into mud.
                 if let ambientImage {

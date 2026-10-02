@@ -23,10 +23,11 @@ struct RootView: View {
             }
             .animation(Theme.Motion.standard, value: player.current?.id)
             .animation(Theme.Motion.standard, value: navigation.isMiniPlayer)
+            // The window glass stays on throughout: in mini it simply becomes the platter's own
+            // backdrop, so nothing ever fades out from under the content mid-resize.
             .background {
-                GlassBackground()
+                GlassBackground(cornerRadius: navigation.isMiniPlayer ? Theme.Radius.panel : Theme.Radius.window)
                     .ignoresSafeArea()
-                    .opacity(navigation.isMiniPlayer ? 0 : 1)
             }
             .clipShape(RoundedRectangle(cornerRadius: navigation.isMiniPlayer ? Theme.Radius.panel : Theme.Radius.window, style: .continuous))
     }
