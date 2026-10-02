@@ -23,7 +23,7 @@ final class RecentsStore {
         if let data = UserDefaults.standard.data(forKey: Self.key),
            let saved = try? JSONDecoder().decode(Saved.self, from: data) {
             played = saved.played
-            viewed = saved.viewed
+            viewed = saved.viewed.filter { $0.kind != .library }
         }
     }
 
@@ -35,7 +35,9 @@ final class RecentsStore {
     }
 
     func recordViewed(_ item: BrowseItem) {
-        viewed.removeAll { $0.id == item.id }
+        // The library has its own button; it isn't something you "found" and want to get back to.
+        guard item.kind != .library else { return }
+        viewed.removeAll { $0.id == item.id || $0.kind == .library }
         viewed.insert(item, at: 0)
         viewed = Array(viewed.prefix(Self.limit))
         save()
