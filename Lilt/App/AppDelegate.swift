@@ -3,6 +3,9 @@ import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+    /// For views that need a cache peek before their environment is available (initialisers).
+    static var shared: AppDelegate? { NSApp.delegate as? AppDelegate }
+
     let auth = AuthService()
     private(set) lazy var player = PlayerService(auth: auth)
     private(set) lazy var music = YTMusicClient(auth: auth)

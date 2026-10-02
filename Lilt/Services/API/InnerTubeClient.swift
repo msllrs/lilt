@@ -47,7 +47,9 @@ final class InnerTubeClient {
         session = URLSession(configuration: config)
     }
 
-    func post(_ endpoint: String, body: [String: Any]) async throws -> JSONObject {
+    /// `pageIdOverride`: `.some(nil)` forces the primary account, `.some(id)` a specific channel,
+    /// `nil` uses the selected account.
+    func post(_ endpoint: String, body: [String: Any], pageIdOverride: String?? = nil) async throws -> JSONObject {
         let cookies = await auth.youtubeCookies()
         guard let sapisid = InnerTubeAuth.sapisid(in: cookies) else {
             throw InnerTubeError.notSignedIn
@@ -69,8 +71,9 @@ final class InnerTubeClient {
         request.setValue("67", forHTTPHeaderField: "X-YouTube-Client-Name")
         request.setValue(Self.clientVersion, forHTTPHeaderField: "X-YouTube-Client-Version")
         request.setValue("0", forHTTPHeaderField: "X-Goog-AuthUser")
-        if let pageId, !pageId.isEmpty {
-            request.setValue(pageId, forHTTPHeaderField: "X-Goog-PageId")
+        let effectivePageId = pageIdOverride ?? pageId
+        if let effectivePageId, !effectivePageId.isEmpty {
+            request.setValue(effectivePageId, forHTTPHeaderField: "X-Goog-PageId")
         }
         request.setValue(InnerTubeAuth.cookieHeader(cookies), forHTTPHeaderField: "Cookie")
         request.setValue(InnerTubeAuth.sapisidHash(sapisid: sapisid), forHTTPHeaderField: "Authorization")

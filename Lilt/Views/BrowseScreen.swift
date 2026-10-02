@@ -17,6 +17,15 @@ struct BrowseScreen: View {
 
     @State private var phase: Phase = .loading
     @State private var page: BrowsePage?
+
+    init(item: BrowseItem) {
+        self.item = item
+        // A page we've already fetched renders on the first frame, no spinner.
+        if let cached = MainActor.assumeIsolated({ AppDelegate.shared?.music.cachedPage(for: item) }) {
+            _page = State(initialValue: cached)
+            _phase = State(initialValue: .loaded)
+        }
+    }
     /// How far the hero has scrolled out, 0 (at rest) to 1 (fully gone). Drives its fade.
     @State private var heroFade: CGFloat = 0
     /// Compact header visibility, 0 to 1. Comes in over the second half of the hero's travel.

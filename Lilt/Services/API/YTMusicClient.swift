@@ -31,13 +31,30 @@ final class YTMusicClient {
         return results
     }
 
-    /// The signed-in home feed, cached briefly so returning to the root is instant.
+    /// Synchronous cache reads, so screens can render cached content on their first frame
+    /// instead of flashing a spinner.
+    var cachedHome: [HomeSection]? { homeCache?.sections }
+    var cachedLibrary: LibraryContent? { libraryCache?.content }
+    func cachedPage(for item: BrowseItem) -> BrowsePage? { pageCache[item.id] }
+
+    /// The home feed, cached briefly so returning to the root is instant. Shelves from the other
+    /// channels on this login are appended after the active one's, labelled with the channel.
     func home(forceRefresh: Bool = false) async throws -> [HomeSection] {
         if !forceRefresh, let cached = homeCache, Date.now.timeIntervalSince(cached.fetched) < Self.homeTTL {
             return cached.sections
         }
-        let response = try await client.post("browse", body: ["browseId": "FEmusic_home"])
-        let sections = SearchParser.home(from: response.value)
+        async let active = client.post("browse", body: ["browseId": "FEmusic_home"])
+        async let info = try? account()
+        var sections = SearchParser.home(from: try await active.value)
+        if let others = await info?.alternatives, !others.isEmpty {
+            for other in others {
+                guard let response = try? await client.post("browse", body: ["browseId": "FEmusic_home"], pageIdOverride: .some(other.pageId)) else { continue }
+                let extra = SearchParser.home(from: response.value).map { section in
+                    HomeSection(title: "\(section.title) · \(other.name)", items: section.items)
+                }
+                sections.append(contentsOf: extra)
+            }
+        }
         homeCache = (sections, .now)
         ImageCache.shared.prefetch(sections.prefix(3).flatMap { section in
             section.items.prefix(10).map { item -> URL? in

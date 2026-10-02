@@ -15,6 +15,15 @@ struct HomeScreen: View {
     @State private var sections: [HomeSection] = []
     @Binding var scrollOffset: CGFloat
 
+    init(scrollOffset: Binding<CGFloat>) {
+        _scrollOffset = scrollOffset
+        // Render cached shelves immediately; the task refreshes if the cache is stale.
+        if let cached = MainActor.assumeIsolated({ AppDelegate.shared?.music.cachedHome }) {
+            _sections = State(initialValue: cached)
+            _phase = State(initialValue: .loaded)
+        }
+    }
+
     var body: some View {
         Group {
             switch phase {

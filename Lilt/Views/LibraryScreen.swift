@@ -16,6 +16,14 @@ struct LibraryScreen: View {
     @State private var account: AccountInfo?
     @State private var scrollOffset: CGFloat = 0
 
+    init() {
+        // Render the cached library immediately; the task refreshes if the cache is stale.
+        if let cached = MainActor.assumeIsolated({ AppDelegate.shared?.music.cachedLibrary }) {
+            _content = State(initialValue: cached)
+            _phase = State(initialValue: .loaded)
+        }
+    }
+
     var body: some View {
         body_
             .safeAreaBar(edge: .top, spacing: 0) { header }
