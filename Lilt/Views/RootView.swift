@@ -6,6 +6,9 @@ struct RootView: View {
 
     var body: some View {
         NavigationColumn()
+            // Mini player: the column fades out and the window shrinks to the platter.
+            .opacity(navigation.isMiniPlayer ? 0 : 1)
+            .allowsHitTesting(!navigation.isMiniPlayer)
             .safeAreaBar(edge: .bottom, spacing: 0) {
                 if player.current != nil {
                     NowPlayingBar()
@@ -15,6 +18,7 @@ struct RootView: View {
                 }
             }
             .animation(Theme.Motion.standard, value: player.current?.id)
+            .animation(Theme.Motion.standard, value: navigation.isMiniPlayer)
             .background { GlassBackground().ignoresSafeArea() }
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
     }
@@ -43,8 +47,14 @@ private struct NavigationColumn: View {
                 .parked(path.isEmpty ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path)
             ForEach(Array(path.enumerated()), id: \.element.id) { index, item in
                 let isTop = index == path.count - 1
-                BrowseScreen(item: item)
-                    .parked(isTop ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path)
+                Group {
+                    if item.kind == .library {
+                        LibraryScreen()
+                    } else {
+                        BrowseScreen(item: item)
+                    }
+                }
+                .parked(isTop ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path)
                     .transition(
                         .offset(x: Self.travel)
                             .combined(with: .opacity)

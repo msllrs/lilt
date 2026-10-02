@@ -12,6 +12,7 @@ final class YTMusicClient {
     @ObservationIgnored private let client: InnerTubeClient
     @ObservationIgnored private var pageCache: [String: BrowsePage] = [:]
     @ObservationIgnored private var homeCache: (sections: [HomeSection], fetched: Date)?
+    @ObservationIgnored private var libraryCache: (content: LibraryContent, fetched: Date)?
     private static let homeTTL: TimeInterval = 5 * 60
 
     init(auth: AuthService) {
@@ -47,6 +48,31 @@ final class YTMusicClient {
             }
         })
         return sections
+    }
+
+    /// The signed-in library: playlists (with Liked Music first), saved albums, and artists.
+    func library(forceRefresh: Bool = false) async throws -> LibraryContent {
+        if !forceRefresh, let cached = libraryCache, Date.now.timeIntervalSince(cached.fetched) < Self.homeTTL {
+            return cached.content
+        }
+        async let playlists = client.post("browse", body: ["browseId": "FEmusic_liked_playlists"])
+        async let albums = client.post("browse", body: ["browseId": "FEmusic_liked_albums"])
+        async let artists = client.post("browse", body: ["browseId": "FEmusic_library_corpus_track_artists"])
+        var content = LibraryContent()
+        // The playlists feed includes a "New playlist" tile and the liked-music auto playlist;
+        // drop anything without a real playlist id and make sure Liked Music leads.
+        var lists = SearchParser.libraryItems(from: try await playlists.value).filter { $0.kind == .playlist && $0.id != "VLSE" }
+        if let liked = lists.firstIndex(where: { $0.id == "VLLM" }) {
+            lists.insert(lists.remove(at: liked), at: 0)
+        } else {
+            lists.insert(BrowseItem(id: "VLLM", kind: .playlist, title: "Liked Music", subtitle: "Auto playlist", artworkURL: nil), at: 0)
+        }
+        content.playlists = lists
+        content.albums = SearchParser.libraryItems(from: try await albums.value).filter { $0.kind == .album }
+        content.artists = SearchParser.libraryItems(from: try await artists.value).filter { $0.kind == .artist }
+        libraryCache = (content, .now)
+        ImageCache.shared.prefetch((content.playlists + content.albums + content.artists).prefix(24).map(\.artworkURL))
+        return content
     }
 
     /// Artist/album links for a track that arrived without them (home feed, radio continuation).

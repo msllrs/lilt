@@ -2,6 +2,17 @@ import Foundation
 
 enum BrowseKind: String, Codable, Sendable {
     case artist, album, playlist
+    /// The signed-in library (playlists, albums, artists). Not a YouTube page of its own.
+    case library
+}
+
+/// The signed-in library, gathered from several InnerTube browse endpoints.
+struct LibraryContent: Sendable {
+    var playlists: [BrowseItem] = []
+    var albums: [BrowseItem] = []
+    var artists: [BrowseItem] = []
+
+    var isEmpty: Bool { playlists.isEmpty && albums.isEmpty && artists.isEmpty }
 }
 
 /// Something you can open: an artist, album or playlist page.

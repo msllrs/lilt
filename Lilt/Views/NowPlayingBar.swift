@@ -33,6 +33,15 @@ struct NowPlayingBar: View {
                     ArtistLink(name: player.displayArtist, item: player.current?.artistItem)
                 }
                 Spacer(minLength: 0)
+                // Collapse to a mini player, or expand back. Shown on hover, or always while mini.
+                ModeButton(
+                    symbol: navigation.isMiniPlayer ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left",
+                    isOn: navigation.isMiniPlayer,
+                    revealed: isHoveringPlatter
+                ) {
+                    navigation.isMiniPlayer.toggle()
+                }
+                .alignmentGuide(.top) { $0[.top] }
             }
 
             HStack(spacing: 0) {
@@ -68,6 +77,8 @@ struct NowPlayingBar: View {
         .onHover { hovering in
             withAnimation(Theme.Motion.quick) { isHoveringPlatter = hovering }
         }
+        // The window needs the platter's height to size itself as a mini player.
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { navigation.platterHeight = $0 }
         .background {
             // Glass, tint, edge and shadow only earn their place when rows pass beneath; at the
             // end of a list the platter is bare.

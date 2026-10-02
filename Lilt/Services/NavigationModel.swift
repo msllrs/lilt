@@ -8,14 +8,22 @@ import Observation
 final class NavigationModel {
     private static let key = "navigationState"
 
+    /// The library pseudo-page.
+    static let library = BrowseItem(id: "library", kind: .library, title: "Library", subtitle: "", artworkURL: nil)
+
     var query: String { didSet { save() } }
     var path: [BrowseItem] { didSet { save() } }
+    /// Collapse the column to just the now-playing platter.
+    var isMiniPlayer: Bool { didSet { save() } }
+    /// Measured height of the platter, for sizing the mini-player window.
+    var platterHeight: CGFloat = 140
     /// Receives every page opened, for the recents menu. Wired by the app.
     @ObservationIgnored weak var recents: RecentsStore?
 
     private struct Saved: Codable {
         var query: String
         var path: [BrowseItem]
+        var isMiniPlayer: Bool?
     }
 
     init() {
@@ -25,9 +33,11 @@ final class NavigationModel {
             // Drop any duplicate ids a previous build may have persisted.
             var seen = Set<String>()
             path = saved.path.filter { seen.insert($0.id).inserted }
+            isMiniPlayer = saved.isMiniPlayer ?? false
         } else {
             query = ""
             path = []
+            isMiniPlayer = false
         }
     }
 
@@ -50,7 +60,7 @@ final class NavigationModel {
     }
 
     private func save() {
-        let data = try? JSONEncoder().encode(Saved(query: query, path: path))
+        let data = try? JSONEncoder().encode(Saved(query: query, path: path, isMiniPlayer: isMiniPlayer))
         UserDefaults.standard.set(data, forKey: Self.key)
     }
 }

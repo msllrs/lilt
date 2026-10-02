@@ -26,6 +26,17 @@ struct SearchScreen: View {
                 HStack(spacing: Theme.Space.xs) {
                     SearchField(text: $navigation.query)
                     RecentsMenu()
+                    Button {
+                        navigation.open(NavigationModel.library)
+                    } label: {
+                        Image(systemName: "books.vertical")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 32, height: 32)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.pressable(scale: 0.88))
+                    .help("Library")
                 }
                 .padding(.top, Theme.Space.panelInset)
                 .padding(.horizontal, Theme.Space.panelInset)

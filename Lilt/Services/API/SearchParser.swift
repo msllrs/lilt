@@ -62,6 +62,7 @@ enum SearchParser {
             case .artist: results.artists.append(item)
             case .album: results.albums.append(item)
             case .playlist: results.playlists.append(item)
+            case .library: break
             }
         }
         // YouTube's top-result card gets its own slot above everything else.
@@ -169,6 +170,22 @@ enum SearchParser {
             if !items.isEmpty { page.sections.append(BrowseSection(title: title, items: items)) }
         }
         return page
+    }
+
+    // MARK: Library
+
+    /// Every artist/album/playlist item in a library browse response, whether YouTube laid it
+    /// out as a grid of tiles or a list of rows.
+    static func libraryItems(from response: [String: Any]) -> [BrowseItem] {
+        var seen = Set<String>()
+        var items: [BrowseItem] = []
+        for two in JSON.findAll(key: "musicTwoRowItemRenderer", in: response) {
+            if let item = browseItem(fromTwoRow: two), seen.insert(item.id).inserted { items.append(item) }
+        }
+        for row in JSON.findAll(key: "musicResponsiveListItemRenderer", in: response) {
+            if let item = browseItem(from: row), seen.insert(item.id).inserted { items.append(item) }
+        }
+        return items
     }
 
     // MARK: Track links

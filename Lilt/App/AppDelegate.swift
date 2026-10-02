@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         showPanel()
         observeLoginPresentation()
         observeDockIcon()
+        observeMiniPlayer()
         Task {
             await auth.refresh()
             if !auth.isSignedIn { auth.isPresentingLogin = true }
@@ -33,6 +34,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         player.persistNow()
+    }
+
+    // MARK: Mini player
+
+    /// The column's height before collapsing, restored on expand.
+    private var expandedFrame: NSRect?
+    private var isMiniApplied = false
+
+    private func observeMiniPlayer() {
+        withObservationTracking {
+            _ = navigation.isMiniPlayer
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.applyMiniPlayer()
+                self?.observeMiniPlayer()
+            }
+        }
+        applyMiniPlayer()
+    }
+
+    /// Shrinks the window to the platter (keeping its bottom edge where it is) or restores it.
+    private func applyMiniPlayer() {
+        guard let panel, navigation.isMiniPlayer != isMiniApplied else { return }
+        isMiniApplied = navigation.isMiniPlayer
+        let current = panel.frame
+        if navigation.isMiniPlayer {
+            expandedFrame = current
+            let height = navigation.platterHeight + Theme.Space.panelInset * 2
+            panel.minSize = NSSize(width: Theme.Size.panelMinWidth, height: height)
+            let target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
+            panel.setFrame(target, display: true, animate: true)
+        } else {
+            panel.minSize = NSSize(width: Theme.Size.panelMinWidth, height: Theme.Size.panelMinHeight)
+            let height = expandedFrame?.height ?? Theme.Size.panelMinHeight
+            let target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
+            panel.setFrame(target, display: true, animate: true)
+        }
     }
 
     // MARK: Dock
