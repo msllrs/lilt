@@ -98,15 +98,35 @@ struct BrowseScreen: View {
         return BrowseItem(id: artistId, kind: .artist, title: page.item.subtitle, subtitle: "Artist", artworkURL: nil)
     }
 
-    /// The compact artwork doubles as a play button once the hero's own Play has scrolled away.
+    /// True when the track playing right now came from this page.
+    private func isPlayingFromPage(_ page: BrowsePage) -> Bool {
+        guard let id = player.current?.id else { return false }
+        return page.tracks.contains { $0.id == id }
+    }
+
+    /// The compact artwork doubles as a play button once the hero's own Play has scrolled away,
+    /// and becomes a spinning record while this page is the one playing.
     private func compactArtwork(_ page: BrowsePage) -> some View {
         let isArtist = page.item.kind == .artist
         let radius: CGFloat = isArtist ? 14 : Theme.Radius.artwork(28)
+        let playingHere = isPlayingFromPage(page)
         return Button {
-            player.play(page.tracks, startingAt: 0)
+            if playingHere { player.togglePlayPause() } else { player.play(page.tracks, startingAt: 0) }
         } label: {
-            ArtworkView(url: page.item.artworkURL, size: 28, radius: radius, context: .header)
-                .playOverlay(isVisible: isHoveringCompactArtwork, radius: radius, size: 28)
+            SpinningArtwork(
+                url: page.item.artworkURL,
+                size: 28,
+                restRadius: radius,
+                context: .header,
+                isDisc: playingHere && !isArtist,
+                isSpinning: playingHere && player.isPlaying
+            )
+            .playOverlay(
+                isVisible: isHoveringCompactArtwork,
+                symbol: playingHere && player.isPlaying ? "pause.fill" : "play.fill",
+                radius: playingHere && !isArtist ? 14 : radius,
+                size: 28
+            )
         }
         .buttonStyle(.plain)
         .disabled(page.tracks.isEmpty)

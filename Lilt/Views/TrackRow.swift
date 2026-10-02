@@ -8,12 +8,8 @@ struct TrackRow: View {
 
     @Environment(PlayerService.self) private var player
     @State private var isHovering = false
-    /// Disc rotation bookkeeping: the angle it held when playback last paused, and when it
-    /// resumed, so the spin continues from where it stopped.
-    @State private var baseAngle: Double = 0
-    @State private var resumedAt: Date?
-    /// 0 = ordinary row, 1 = the playing track's disc-in-a-pill. Animated explicitly so the
-    /// artwork corners, row highlight, spindle hole and rotation all move as one.
+    /// 0 = ordinary row, 1 = the playing track's pill highlight. Animated explicitly, on the
+    /// same curve as the artwork's own disc transition.
     @State private var disc: CGFloat
 
     init(track: Track, isCurrent: Bool, isPlaying: Bool, action: @escaping () -> Void) {
@@ -23,9 +19,6 @@ struct TrackRow: View {
         self.action = action
         _disc = State(initialValue: isCurrent ? 1 : 0)
     }
-
-    /// One full turn every eight seconds.
-    private static let degreesPerSecond: Double = 45
 
     private var isSpinning: Bool { isCurrent && isPlaying }
     private var artworkRadius: CGFloat { lerp(Theme.Radius.rowArtwork, Theme.Size.rowArtwork / 2, disc) }
@@ -72,12 +65,13 @@ struct TrackRow: View {
         Button {
             if isCurrent { player.togglePlayPause() } else { action() }
         } label: {
-            TimelineView(.animation(minimumInterval: 1 / 30, paused: !isSpinning)) { context in
-                let elapsed = resumedAt.map { context.date.timeIntervalSince($0) } ?? 0
-                let angle = baseAngle + (isSpinning ? elapsed * Self.degreesPerSecond : 0)
-                ArtworkView(url: track.artworkURL, size: Theme.Size.rowArtwork, radius: artworkRadius, rotation: .degrees(angle))
-                    .overlay { spindleHole.opacity(disc).scaleEffect(disc) }
-            }
+            SpinningArtwork(
+                url: track.artworkURL,
+                size: Theme.Size.rowArtwork,
+                restRadius: Theme.Radius.rowArtwork,
+                isDisc: isCurrent,
+                isSpinning: isSpinning
+            )
             .playOverlay(
                 isVisible: isHovering,
                 symbol: isSpinning ? "pause.fill" : "play.fill",
@@ -93,31 +87,6 @@ struct TrackRow: View {
             }
         }
         .buttonStyle(.plain)
-        .onChange(of: isSpinning) { _, spinning in
-            if spinning {
-                resumedAt = .now
-            } else if let resumedAt {
-                baseAngle = (baseAngle + Date.now.timeIntervalSince(resumedAt) * Self.degreesPerSecond)
-                    .truncatingRemainder(dividingBy: 360)
-                self.resumedAt = nil
-            }
-        }
-        .onChange(of: isCurrent) { _, current in
-            // No longer the playing track: settle back upright by the shorter way round.
-            guard !current else { return }
-            resumedAt = nil
-            withAnimation(Theme.Motion.standard) {
-                baseAngle = baseAngle > 180 ? 360 : 0
-            }
-        }
-    }
-
-    /// The hole in the middle of the record.
-    private var spindleHole: some View {
-        Circle()
-            .fill(.black.opacity(0.75))
-            .overlay(Circle().strokeBorder(.white.opacity(0.35), lineWidth: 0.5))
-            .frame(width: 7, height: 7)
     }
 
     @ViewBuilder
