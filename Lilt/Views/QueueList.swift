@@ -10,15 +10,27 @@ struct QueueList: View {
     /// The horizontal inset a plain List keeps around its rows on macOS.
     static let tableInset: CGFloat = 8
 
+    /// Hairline between the player and the list, plus the gap beneath it.
+    static let dividerHeight: CGFloat = 1 + Theme.Space.sm
+
     /// The list's height for a given number of upcoming tracks (one row's worth when empty, for
     /// the placeholder), so the mini window can be sized before the list has laid out.
     static func height(forCount count: Int) -> CGFloat {
-        CGFloat(max(1, min(count, maxRows))) * rowHeight
+        dividerHeight + CGFloat(max(1, min(count, maxRows))) * rowHeight
     }
 
     var body: some View {
+        VStack(spacing: Theme.Space.sm) {
+            Rectangle()
+                .fill(.primary.opacity(0.08))
+                .frame(height: 1)
+            rows
+        }
+    }
+
+    private var rows: some View {
         let upcoming = player.upcoming
-        Group {
+        return Group {
             if upcoming.isEmpty {
                 Text("Nothing up next")
                     .font(.caption)
@@ -52,7 +64,7 @@ struct QueueList: View {
                 .padding(.horizontal, -Self.tableInset)
             }
         }
-        .frame(height: Self.height(forCount: upcoming.count))
+        .frame(height: Self.height(forCount: upcoming.count) - Self.dividerHeight)
         .animation(Theme.Motion.standard, value: upcoming.count)
     }
 }
