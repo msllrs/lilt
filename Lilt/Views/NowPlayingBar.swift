@@ -188,14 +188,16 @@ struct NowPlayingBar: View {
 
     /// Elapsed on the left, the line in the middle, total on the right.
     private var scrubber: some View {
-        HStack(spacing: Theme.Space.xs + 2) {
-            Text(timeString(isScrubbing ? scrubValue : player.currentTime))
-                .fixedSize()
-            // The line takes on the cover's dominant colour, by the tweakable amount, and that
-            // colour slides to the next song's rather than switching.
-            InterpolatedColor(accent) { accent in
-                let mono = colorScheme == .dark ? Color.white : Color.black
-                let tint = accent.map { mono.mix(with: $0, by: platter.scrubberTint) }
+        // The line takes on the cover's dominant colour by the tweakable amount, the times a
+        // fainter share (like the artist line), and the colour slides to the next song's rather
+        // than switching.
+        InterpolatedColor(accent) { accent in
+            let mono = colorScheme == .dark ? Color.white : Color.black
+            let line = accent.map { mono.mix(with: $0, by: platter.scrubberTint) }
+            let times = accent.map { Color(nsColor: .tertiaryLabelColor).mix(with: $0, by: platter.textTint * 0.5) }
+            HStack(spacing: Theme.Space.xs + 2) {
+                Text(timeString(isScrubbing ? scrubValue : player.currentTime))
+                    .fixedSize()
                 Scrubber(
                     value: .constant(isScrubbing ? scrubValue : player.currentTime),
                     range: 0...max(player.duration, 1),
@@ -208,15 +210,15 @@ struct NowPlayingBar: View {
                             isScrubbing = true
                         }
                     },
-                    tint: tint.map { NSColor($0) }
+                    tint: line.map { NSColor($0) }
                 )
+                .frame(height: 12)
+                Text(timeString(player.duration))
+                    .fixedSize()
             }
-            .frame(height: 12)
-            Text(timeString(player.duration))
-                .fixedSize()
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(times.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.tertiary))
         }
-        .font(.caption2.monospacedDigit())
-        .foregroundStyle(.tertiary)
     }
 
     private func timeString(_ seconds: Double) -> String {
