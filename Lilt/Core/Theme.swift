@@ -44,6 +44,9 @@ enum Theme {
         static let panelMinHeight: CGFloat = 480
         /// Gap between the panel and the screen edges.
         static let screenInset: CGFloat = 12
+        /// One row height for every top header (search field, page titles) so switching screens
+        /// never shifts the title line or where the list starts.
+        static let headerRow: CGFloat = 32
         static let rowArtwork: CGFloat = 40
         static let barArtwork: CGFloat = 48
         static let controlIcon: CGFloat = 16

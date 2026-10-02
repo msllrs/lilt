@@ -65,6 +65,7 @@ struct BrowseScreen: View {
             }
             Spacer()
         }
+        .frame(height: Theme.Size.headerRow)
         .padding(.top, Theme.Space.panelInset)
         .padding(.horizontal, Theme.Space.panelInset)
         .padding(.bottom, Theme.Space.sm)

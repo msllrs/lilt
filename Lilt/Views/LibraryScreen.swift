@@ -37,10 +37,11 @@ struct LibraryScreen: View {
             // Slot for the back button, which the navigation column draws statically on top.
             Color.clear.frame(width: 28, height: 28)
             Text("Library")
-                .font(.callout.weight(.medium))
+                .font(.body)
             Spacer()
             if let account { accountMenu(account) }
         }
+        .frame(height: Theme.Size.headerRow)
         .padding(.top, Theme.Space.panelInset)
         .padding(.horizontal, Theme.Space.panelInset)
         .padding(.bottom, Theme.Space.sm)

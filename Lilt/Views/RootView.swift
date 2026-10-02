@@ -77,6 +77,7 @@ private struct NavigationColumn: View {
         .overlay(alignment: .topLeading) {
             if !path.isEmpty {
                 BackButton()
+                    .frame(height: Theme.Size.headerRow)
                     .padding(.top, Theme.Space.panelInset)
                     .padding(.leading, Theme.Space.panelInset)
                     .transition(.opacity.animation(Self.enter))

@@ -23,7 +23,7 @@ struct SearchField: View {
         }
         .font(.body)
         .padding(.horizontal, Theme.Space.md)
-        .padding(.vertical, Theme.Space.sm)
+        .frame(height: Theme.Size.headerRow)
         .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous))
         .onAppear { isFocused = true }
         // The panel often isn't key when this first appears; re-claim focus when it becomes key
