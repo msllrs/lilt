@@ -141,7 +141,7 @@ struct PageAmbientStyle: Equatable {
 struct DockTileStyle: Equatable {
     /// Wash of the cover's colour over the plate, light at the top and strongest at the bottom
     /// (0 = plain plate).
-    var plateTint: Double = 0.22
+    var plateTint: Double = 0.12
     var plateSaturation: Double = 1.6
     /// Coloured ambient shadow under the disc, as a fraction of the disc size.
     var shadowOpacity: Double = 0.55
