@@ -57,13 +57,18 @@ final class LineSliderCell: NSSliderCell {
     override func drawKnob(_ knobRect: NSRect) {}
 
     override func drawBar(inside rect: NSRect, flipped: Bool) {
+        // The system insets the bar by half a knob at each end; with no knob, run edge to edge
+        // and derive the fill from the value rather than the (inset) knob position.
+        let full = controlView?.bounds ?? rect
         let height: CGFloat = 5
-        let rail = NSRect(x: rect.minX, y: rect.midY - height / 2, width: rect.width, height: height)
+        let rail = NSRect(x: full.minX, y: rect.midY - height / 2, width: full.width, height: height)
         NSColor.labelColor.withAlphaComponent(0.15).setFill()
         NSBezierPath(roundedRect: rail, xRadius: height / 2, yRadius: height / 2).fill()
 
-        let knobX = knobRect(flipped: flipped).midX
-        let elapsed = NSRect(x: rail.minX, y: rail.minY, width: max(knobX - rail.minX, height), height: height)
+        let span = maxValue - minValue
+        let fraction = span > 0 ? CGFloat((doubleValue - minValue) / span) : 0
+        let width = max(rail.width * min(max(fraction, 0), 1), height)
+        let elapsed = NSRect(x: rail.minX, y: rail.minY, width: width, height: height)
         NSColor.labelColor.setFill()
         NSBezierPath(roundedRect: elapsed, xRadius: height / 2, yRadius: height / 2).fill()
     }
