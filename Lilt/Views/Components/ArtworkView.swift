@@ -10,6 +10,8 @@ struct ArtworkView: View {
     let radius: CGFloat
     /// Picks the shadow preset (rows, player, pages).
     var context: ArtworkContext = .row
+    /// Spins the picture inside the sleeve; the lighting, keyline and shadow stay put.
+    var rotation: Angle = .zero
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.displayScale) private var displayScale
@@ -17,11 +19,12 @@ struct ArtworkView: View {
     /// True while `image` is a stand-in rendition at another size.
     @State private var isStandIn = false
 
-    init(url: URL?, size: CGFloat, radius: CGFloat, context: ArtworkContext = .row) {
+    init(url: URL?, size: CGFloat, radius: CGFloat, context: ArtworkContext = .row, rotation: Angle = .zero) {
         self.url = url
         self.size = size
         self.radius = radius
         self.context = context
+        self.rotation = rotation
         // Seed synchronously so a cache hit renders on the first frame.
         let seed = MainActor.assumeIsolated { () -> (NSImage?, Bool) in
             guard let url else { return (nil, false) }
@@ -85,6 +88,7 @@ struct ArtworkView: View {
             // A genuinely undersized stand-in is blurred to hide the resampling until the real
             // one lands; a near-enough one is shown as is.
             .blur(radius: standInBlur)
+            .rotationEffect(rotation)
             .overlay(spotlight)
             .clipShape(shape)
             .overlay(insetKeyline)

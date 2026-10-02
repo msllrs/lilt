@@ -56,9 +56,8 @@ struct TrackRow: View {
             TimelineView(.animation(minimumInterval: 1 / 30, paused: !isSpinning)) { context in
                 let elapsed = resumedAt.map { context.date.timeIntervalSince($0) } ?? 0
                 let angle = baseAngle + (isSpinning ? elapsed * Self.degreesPerSecond : 0)
-                ArtworkView(url: track.artworkURL, size: Theme.Size.rowArtwork, radius: artworkRadius)
+                ArtworkView(url: track.artworkURL, size: Theme.Size.rowArtwork, radius: artworkRadius, rotation: .degrees(angle))
                     .overlay { if isCurrent { spindleHole } }
-                    .rotationEffect(.degrees(angle))
             }
             .playOverlay(
                 isVisible: isHovering,
@@ -68,8 +67,8 @@ struct TrackRow: View {
             )
             .overlay {
                 if isCurrent {
-                    NoteEmitterView(isPlaying: isPlaying, source: CGPoint(x: 40, y: 40 + Theme.Size.rowArtwork / 2))
-                        .frame(width: 80, height: 80)
+                    NoteEmitterView(isPlaying: isPlaying, center: CGPoint(x: 60, y: 60))
+                        .frame(width: 120, height: 120)
                         .allowsHitTesting(false)
                 }
             }

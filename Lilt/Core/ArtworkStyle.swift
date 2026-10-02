@@ -86,6 +86,39 @@ struct PlatterStyle: Equatable {
     static let standard = PlatterStyle()
 }
 
+/// The music notes drifting out of the playing track's disc. Mirrors `CAEmitterCell`'s knobs;
+/// fractions of a second, points per second, radians.
+struct NotesStyle: Equatable {
+    /// Notes per second while playing.
+    var birthRate: Double = 0.9
+    var lifetime: Double = 1.9
+    var lifetimeRange: Double = 0.4
+    var velocity: Double = 16
+    var velocityRange: Double = 6
+    /// Spread either side of straight up, in radians.
+    var spread: Double = .pi / 5
+    /// Upward acceleration (positive rises faster).
+    var gravity: Double = 6
+    /// Sideways acceleration, for a lean.
+    var drift: Double = 0
+    /// Glyph point size before scale.
+    var glyphSize: Double = 11
+    var scale: Double = 0.55
+    var scaleRange: Double = 0.15
+    /// Negative shrinks over life.
+    var scaleSpeed: Double = -0.08
+    /// Negative fades over life.
+    var alphaSpeed: Double = -0.5
+    var opacity: Double = 0.85
+    var spin: Double = 0.4
+    var spinRange: Double = 0.8
+    /// Emission point relative to the disc centre, in points (y up).
+    var sourceX: Double = 0
+    var sourceY: Double = 20
+
+    static let standard = NotesStyle()
+}
+
 /// The artwork finish: a spotlight falling from the top edge, a hairline inset border and a
 /// per-context ambient shadow. Values are tunable live from the debug tweak panel; `reset()`
 /// holds the shipped defaults.
@@ -123,6 +156,7 @@ final class ArtworkStyle {
     var headerShadow: ShadowStyle = .header
 
     var platter: PlatterStyle = .standard
+    var notes: NotesStyle = .standard
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
@@ -160,6 +194,7 @@ final class ArtworkStyle {
         heroShadow = .ambient
         headerShadow = .header
         platter = .standard
+        notes = .standard
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -181,6 +216,7 @@ final class ArtworkStyle {
         heroShadow = \(snippet(heroShadow))
         headerShadow = \(snippet(headerShadow))
         platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)))
+        notes = NotesStyle(birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         """
     }
 

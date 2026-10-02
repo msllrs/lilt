@@ -4,24 +4,26 @@ import SwiftUI
 /// Little music notes drifting up out of the playing track's disc. A `CAEmitterLayer` with
 /// SF Symbol glyphs as particles (the same approach Dia's now-playing tab uses); birth rate
 /// follows playback so notes stop appearing the moment you pause and the last ones fade out.
+/// Every knob comes from `ArtworkStyle.shared.notes` so the tweak panel drives it live.
 struct NoteEmitterView: NSViewRepresentable {
     var isPlaying: Bool
-    /// Where notes come from, in the view's own unflipped coordinates (origin bottom-left).
-    var source: CGPoint
+    /// The disc's centre, in the view's own unflipped coordinates (origin bottom-left).
+    var center: CGPoint
 
     func makeNSView(context: Context) -> NoteEmitterHostView {
         let view = NoteEmitterHostView()
-        view.update(isPlaying: isPlaying, source: source)
+        view.update(isPlaying: isPlaying, center: center, style: ArtworkStyle.shared.notes)
         return view
     }
 
     func updateNSView(_ view: NoteEmitterHostView, context: Context) {
-        view.update(isPlaying: isPlaying, source: source)
+        view.update(isPlaying: isPlaying, center: center, style: ArtworkStyle.shared.notes)
     }
 }
 
 final class NoteEmitterHostView: NSView {
     private let emitter = CAEmitterLayer()
+    private var applied: NotesStyle?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -31,7 +33,6 @@ final class NoteEmitterHostView: NSView {
         emitter.emitterShape = .point
         emitter.renderMode = .unordered
         emitter.birthRate = 0
-        emitter.emitterCells = ["music.note", "music.quarternote.3"].map(Self.cell(symbol:))
         layer?.addSublayer(emitter)
     }
 
@@ -48,44 +49,49 @@ final class NoteEmitterHostView: NSView {
         applyColor()
     }
 
-    func update(isPlaying: Bool, source: CGPoint) {
-        emitter.emitterPosition = source
+    func update(isPlaying: Bool, center: CGPoint, style: NotesStyle) {
+        emitter.emitterPosition = CGPoint(x: center.x + style.sourceX, y: center.y + style.sourceY)
         emitter.birthRate = isPlaying ? 1 : 0
-        applyColor()
+        if style != applied {
+            applied = style
+            emitter.emitterCells = ["music.note", "music.quarternote.3"].map { Self.cell(symbol: $0, style: style) }
+            applyColor()
+        }
     }
 
     private func applyColor() {
+        guard let style = applied else { return }
         effectiveAppearance.performAsCurrentDrawingAppearance {
-            let color = NSColor.labelColor.withAlphaComponent(0.85).cgColor
+            let color = NSColor.labelColor.withAlphaComponent(style.opacity).cgColor
             emitter.emitterCells?.forEach { $0.color = color }
         }
     }
 
     /// A white symbol glyph so the cell's `color` tints it.
-    private static func cell(symbol: String) -> CAEmitterCell {
+    private static func cell(symbol: String, style: NotesStyle) -> CAEmitterCell {
         let cell = CAEmitterCell()
-        let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
+        let config = NSImage.SymbolConfiguration(pointSize: style.glyphSize, weight: .semibold)
             .applying(.init(paletteColors: [.white]))
         if let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(config) {
             var rect = NSRect(origin: .zero, size: image.size)
             cell.contents = image.cgImage(forProposedRect: &rect, context: nil, hints: nil)
             cell.contentsScale = 2
         }
-        cell.birthRate = 0.9
-        cell.lifetime = 1.9
-        cell.lifetimeRange = 0.4
-        cell.velocity = 16
-        cell.velocityRange = 6
-        cell.emissionLongitude = .pi / 2          // up
-        cell.emissionRange = .pi / 5
-        cell.yAcceleration = 6
-        cell.xAcceleration = 0
-        cell.scale = 0.55
-        cell.scaleRange = 0.15
-        cell.scaleSpeed = -0.08
-        cell.alphaSpeed = -0.5
-        cell.spin = 0.4
-        cell.spinRange = 0.8
+        cell.birthRate = Float(style.birthRate)
+        cell.lifetime = Float(style.lifetime)
+        cell.lifetimeRange = Float(style.lifetimeRange)
+        cell.velocity = style.velocity
+        cell.velocityRange = style.velocityRange
+        cell.emissionLongitude = .pi / 2
+        cell.emissionRange = style.spread
+        cell.yAcceleration = style.gravity
+        cell.xAcceleration = style.drift
+        cell.scale = style.scale
+        cell.scaleRange = style.scaleRange
+        cell.scaleSpeed = style.scaleSpeed
+        cell.alphaSpeed = Float(style.alphaSpeed)
+        cell.spin = style.spin
+        cell.spinRange = style.spinRange
         return cell
     }
 }

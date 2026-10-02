@@ -59,6 +59,26 @@ struct TweakPanel: View {
                 slider("Ambient saturation", $style.platter.tintSaturation, 0...8)
                 slider("Ambient blur", $style.platter.tintBlur, 0...300)
             }
+            Section("Music notes") {
+                slider("Rate (per sec)", $style.notes.birthRate, 0...6)
+                slider("Lifetime", $style.notes.lifetime, 0.3...5)
+                slider("Lifetime random", $style.notes.lifetimeRange, 0...3)
+                slider("Speed", $style.notes.velocity, 0...80)
+                slider("Speed random", $style.notes.velocityRange, 0...40)
+                slider("Spread", $style.notes.spread, 0...Double.pi)
+                slider("Rise", $style.notes.gravity, -40...40)
+                slider("Drift", $style.notes.drift, -40...40)
+                slider("Glyph size", $style.notes.glyphSize, 6...24)
+                slider("Scale", $style.notes.scale, 0.1...1.5)
+                slider("Scale random", $style.notes.scaleRange, 0...1)
+                slider("Shrink", $style.notes.scaleSpeed, -0.6...0.4)
+                slider("Fade", $style.notes.alphaSpeed, -2...0)
+                slider("Opacity", $style.notes.opacity, 0...1)
+                slider("Spin", $style.notes.spin, -3...3)
+                slider("Spin random", $style.notes.spinRange, 0...4)
+                slider("Source X", $style.notes.sourceX, -30...30)
+                slider("Source Y", $style.notes.sourceY, -30...40)
+            }
             Section {
                 HStack {
                     Button("Reset") { style.reset() }
@@ -77,7 +97,7 @@ struct TweakPanel: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 360, height: 860)
+        .frame(width: 360, height: 900)
     }
 
     /// A binding into the shadow preset currently selected in the segmented control.
