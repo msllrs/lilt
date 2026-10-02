@@ -42,6 +42,28 @@ struct HeaderBackdrop: ViewModifier {
                     }
                 }
                 .frame(height: geometry.size.height + reach)
+                // The backdrop blurs the window glass's own hairline rim away where it covers
+                // it; draw the rim back on top, just within this region.
+                .overlay(alignment: .top) {
+                    if useBackdrop {
+                        Color.clear
+                            .frame(height: Theme.Radius.window * 4)
+                            .glassEdge(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous).inset(by: 0.5), opacity: style.rimOpacity)
+                            .frame(height: geometry.size.height + reach, alignment: .top)
+                            // Fades out with the blur, so it hands back to the real rim below.
+                            .mask {
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: .black, location: 0),
+                                        .init(color: .black, location: fadeStart),
+                                        .init(color: .clear, location: 1),
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            }
+                    }
+                }
                 .opacity(visibility)
             }
             .ignoresSafeArea(edges: .top)

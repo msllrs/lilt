@@ -83,6 +83,7 @@ struct TweakPanel: View {
                 slider("Saturation", $style.headerBlur.saturation, 0...3)
                 slider("Brightness", $style.headerBlur.brightness, -0.5...0.5)
                 slider("Reach", $style.headerBlur.reach, 0...96)
+                slider("Rim", $style.headerBlur.rimOpacity, 0...1)
             }
             Section("Play capsule cast") {
                 slider("Saturation", $style.playCast.saturation, 0...4)

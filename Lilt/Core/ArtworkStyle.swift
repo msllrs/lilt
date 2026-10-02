@@ -150,6 +150,9 @@ struct HeaderBlurStyle: Equatable {
     var brightness: Double = 0.0
     /// How far below the header the blur reaches before fading to nothing.
     var reach: Double = 32
+    /// Strength of the window rim redrawn over the blur (the backdrop blurs the glass's own
+    /// hairline away); 1 is the full glass-edge highlight.
+    var rimOpacity: Double = 0.45
 
     static let standard = HeaderBlurStyle()
 }
@@ -331,7 +334,7 @@ final class ArtworkStyle {
         platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)), hoverBrightness: \(f(platter.hoverBrightness)), cornerAccentOpacity: \(f(platter.cornerAccentOpacity)), cornerAccentRadius: \(f(platter.cornerAccentRadius)), scrubberTint: \(f(platter.scrubberTint)), scrubberSaturation: \(f(platter.scrubberSaturation)), scrubberLikeControls: \(platter.scrubberLikeControls), controlsTint: \(f(platter.controlsTint)), textTint: \(f(platter.textTint)))
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))
-        headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), radius: \(f(headerBlur.radius)), saturation: \(f(headerBlur.saturation)), brightness: \(f(headerBlur.brightness)), reach: \(f(headerBlur.reach)))
+        headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), radius: \(f(headerBlur.radius)), saturation: \(f(headerBlur.saturation)), brightness: \(f(headerBlur.brightness)), reach: \(f(headerBlur.reach)), rimOpacity: \(f(headerBlur.rimOpacity)))
         pageAmbient = PageAmbientStyle(opacity: \(f(pageAmbient.opacity)), saturation: \(f(pageAmbient.saturation)), blur: \(f(pageAmbient.blur)), reach: \(f(pageAmbient.reach)))
         """
     }
