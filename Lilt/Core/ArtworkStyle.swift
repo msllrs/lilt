@@ -199,8 +199,8 @@ final class ArtworkStyle {
 
     // Dark mode: a dark keyline vanishes against the dark container, so the edge goes light and
     // the separator works harder to lift artwork off the background.
-    var darkKeylineOpacity: Double = 0.25
-    var darkSeparatorOpacity: Double = 0.30
+    var darkKeylineOpacity: Double = 0.32
+    var darkSeparatorOpacity: Double = 0.0
 
     var rowShadow: ShadowStyle = .row
     var playerShadow: ShadowStyle = .ambient
@@ -243,8 +243,8 @@ final class ArtworkStyle {
         keylineLightOpacity = 0.40
         keylineThreshold = 0.0
         separatorOpacity = 0.20
-        darkKeylineOpacity = 0.25
-        darkSeparatorOpacity = 0.30
+        darkKeylineOpacity = 0.32
+        darkSeparatorOpacity = 0.0
         rowShadow = .row
         playerShadow = .ambient
         heroShadow = .ambient
