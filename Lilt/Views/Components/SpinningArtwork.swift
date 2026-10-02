@@ -41,7 +41,9 @@ struct SpinningArtwork: View {
                 // A real hole through the middle, so the background shows like a CD's centre.
                 .mask {
                     ZStack {
-                        Rectangle()
+                        // Oversized so the ambient shadow spilling past the frame isn't clipped
+                        // square; only the hole is punched out.
+                        Rectangle().padding(-size * 2)
                         Circle()
                             .frame(width: holeSize * disc, height: holeSize * disc)
                             .blendMode(.destinationOut)
