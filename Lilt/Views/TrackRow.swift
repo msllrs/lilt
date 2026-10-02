@@ -22,8 +22,26 @@ struct TrackRow: View {
 
     private var isSpinning: Bool { isCurrent && isPlaying }
     private var artworkRadius: CGFloat { lerp(Theme.Radius.rowArtwork, Theme.Size.rowArtwork / 2, disc) }
-    /// Row highlight: the usual concentric radius at rest, a full pill while playing.
-    private var rowRadius: CGFloat { lerp(Theme.Radius.row, (Theme.Size.rowArtwork + (Theme.Space.xs + 2) * 2) / 2, disc) }
+
+    private static let horizontalPadding = Theme.Space.sm
+    private static let verticalPadding = Theme.Space.xs + 2
+    private static let rowHeight = Theme.Size.rowArtwork + verticalPadding * 2
+
+    /// Row highlight corners are concentric with the artwork: its radius plus the padding
+    /// between them. The artwork side rounds to a full pill while the disc is showing; the far
+    /// side keeps the resting radius.
+    private var leadingRadius: CGFloat { min(artworkRadius + Self.horizontalPadding, Self.rowHeight / 2) }
+    private var trailingRadius: CGFloat { Theme.Radius.rowArtwork + Self.horizontalPadding }
+
+    private var rowShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
+            topLeadingRadius: leadingRadius,
+            bottomLeadingRadius: leadingRadius,
+            bottomTrailingRadius: trailingRadius,
+            topTrailingRadius: trailingRadius,
+            style: .continuous
+        )
+    }
 
     private func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat { a + (b - a) * t }
 
@@ -41,11 +59,11 @@ struct TrackRow: View {
                 trailing
                     .padding(.leading, Theme.Space.sm)
             }
-            .padding(.horizontal, Theme.Space.sm)
-            .padding(.vertical, Theme.Space.xs + 2)
-            .contentShape(RoundedRectangle(cornerRadius: rowRadius, style: .continuous))
+            .padding(.horizontal, Self.horizontalPadding)
+            .padding(.vertical, Self.verticalPadding)
+            .contentShape(rowShape)
             .background {
-                RoundedRectangle(cornerRadius: rowRadius, style: .continuous)
+                rowShape
                     .fill(.fill.quaternary)
                     .opacity(isCurrent ? 1 : isHovering ? 0.6 : 0)
             }

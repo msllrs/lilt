@@ -30,9 +30,10 @@ struct BrowseRow: View {
             }
             .padding(.horizontal, Theme.Space.sm)
             .padding(.vertical, Theme.Space.xs + 2)
-            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous))
+            // Concentric with the artwork: its radius plus the padding between them.
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.rowArtwork + Theme.Space.sm, style: .continuous))
             .background {
-                RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.rowArtwork + Theme.Space.sm, style: .continuous)
                     .fill(.fill.quaternary)
                     .opacity(isHovering ? 0.6 : 0)
             }
