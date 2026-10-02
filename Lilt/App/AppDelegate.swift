@@ -79,7 +79,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let shrink = { [weak self] in
                 guard let self, self.navigation.isMiniPlayer else { return }
                 panel.minSize = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: height)
-                panel.setFrame(NSRect(x: current.minX, y: current.minY, width: current.width, height: height), display: true)
+                let target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
+                panel.setFrame(Self.onScreen(target, near: panel.screen ?? NSScreen.main ?? NSScreen.screens[0]), display: true)
             }
             // At launch there's no fade to wait for. Otherwise wait for it: the region being
             // removed is transparent by then, so the shrink is invisible. Bottom edge stays put.
@@ -256,7 +257,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func showPanel() {
-        panel?.makeKeyAndOrderFront(nil)
+        guard let panel else { return }
+        // Never show it somewhere you can't see it.
+        panel.setFrame(Self.onScreen(panel.frame, near: panel.screen ?? NSScreen.main ?? NSScreen.screens[0]), display: false)
+        panel.makeKeyAndOrderFront(nil)
         NSApp.activate()
     }
 
