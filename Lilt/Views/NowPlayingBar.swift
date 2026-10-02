@@ -45,6 +45,9 @@ struct NowPlayingBar: View {
             }
         }
         .padding(Theme.Space.barPadding)
+        // The list slides in from under the scrubber; clipping to the platter keeps that, and the
+        // list itself, inside the glass while the platter grows and shrinks.
+        .clipShape(shape)
         // Double-click anywhere on the platter opens or closes what's up next. The whole
         // rectangle counts, not just the controls and text.
         .contentShape(Rectangle())

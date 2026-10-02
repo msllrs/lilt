@@ -82,7 +82,12 @@ final class PlayerService {
         var isShuffled: Bool?
         var unshuffledQueue: [Track]?
         var repeatMode: RepeatMode?
+        var manualCount: Int?
     }
+
+    /// How many tracks right after the current one were put there by hand ("up next"). They
+    /// play before the rest of whatever list is running, and they're all the queue view shows.
+    private(set) var manualCount = 0
 
     init(auth: AuthService) {
         bridge = PlayerBridge(dataStore: auth.dataStore)
@@ -101,6 +106,7 @@ final class PlayerService {
         guard tracks.indices.contains(index) else { return }
         queue = tracks
         unshuffledQueue = nil
+        manualCount = 0
         if isShuffled { shuffleRemainder(keeping: index) } else { load(index: index) }
     }
 
@@ -112,9 +118,13 @@ final class PlayerService {
             shuffleRemainder(keeping: i, reload: false)
         } else if let original = unshuffledQueue {
             let currentId = queue[i].id
+            let manual = upcoming
             queue = original
             currentIndex = original.firstIndex { $0.id == currentId } ?? i
             unshuffledQueue = nil
+            // The hand-placed tracks stay right behind the current one in the restored order.
+            for track in manual { if let j = queue.lastIndex(where: { $0.id == track.id }) { queue.remove(at: j) } }
+            queue.insert(contentsOf: manual, at: min(currentIndex! + 1, queue.count))
         }
         save()
     }
@@ -124,15 +134,18 @@ final class PlayerService {
         save()
     }
 
-    /// Keeps the chosen track in place and shuffles everything after it.
+    /// Keeps the chosen track (and anything queued by hand behind it) in place and shuffles
+    /// everything after.
     private func shuffleRemainder(keeping index: Int, reload: Bool = true) {
         unshuffledQueue = unshuffledQueue ?? queue
         let current = queue[index]
+        let manualEnd = min(queue.count, index + 1 + manualCount)
+        let manual = Array(queue[(index + 1)..<manualEnd])
         var rest = queue
-        rest.remove(at: index)
+        rest.removeSubrange(index..<manualEnd)
         rest.shuffle()
-        queue = [current] + rest
-        if reload { load(index: 0) } else { currentIndex = 0 }
+        queue = [current] + manual + rest
+        if reload { load(index: 0, keepingManual: true) } else { currentIndex = 0 }
     }
 
     func togglePlayPause() {
@@ -195,46 +208,71 @@ final class PlayerService {
 
     // MARK: Up next
 
-    /// Everything after the current track, in play order.
+    /// The tracks queued by hand, in play order (the rest of the running list isn't shown).
     var upcoming: [Track] {
         guard let i = currentIndex, queue.indices.contains(i) else { return [] }
-        return Array(queue[(i + 1)...])
+        let end = min(queue.count, i + 1 + manualCount)
+        return i + 1 < end ? Array(queue[(i + 1)..<end]) : []
     }
 
-    /// Adds a track to the end of the queue (as many times as you like); with nothing playing,
-    /// it starts a queue of its own.
+    /// Adds a track to the end of what's queued by hand, ahead of the rest of the list (as many
+    /// times as you like); with nothing playing, it starts a queue of its own.
     func enqueue(_ track: Track) {
-        guard current != nil else {
+        guard let i = currentIndex, current != nil else {
             play([track], startingAt: 0)
             return
         }
-        queue.append(track)
-        unshuffledQueue?.append(track)
+        let at = min(queue.count, i + 1 + manualCount)
+        queue.insert(track, at: at)
+        if unshuffledQueue != nil, let j = unshuffledQueue!.firstIndex(where: { $0.id == queue[i].id }) {
+            unshuffledQueue!.insert(track, at: min(unshuffledQueue!.count, j + 1 + manualCount))
+        }
+        manualCount += 1
         save()
     }
 
     /// Removes the track at an offset into `upcoming`.
     func removeUpcoming(at offset: Int) {
-        guard let i = currentIndex, queue.indices.contains(i + 1 + offset) else { return }
+        guard let i = currentIndex, offset < manualCount, queue.indices.contains(i + 1 + offset) else { return }
         let removed = queue.remove(at: i + 1 + offset)
         if let j = unshuffledQueue?.lastIndex(where: { $0.id == removed.id }) { unshuffledQueue?.remove(at: j) }
+        manualCount -= 1
         save()
     }
 
     /// Reorders `upcoming` the way `ForEach.onMove` reports it.
     func moveUpcoming(from source: IndexSet, to destination: Int) {
-        guard let i = currentIndex else { return }
-        var rest = upcoming
-        rest.move(fromOffsets: source, toOffset: destination)
-        queue = Array(queue[...i]) + rest
+        guard let i = currentIndex, manualCount > 0 else { return }
+        var segment = upcoming
+        segment.move(fromOffsets: source, toOffset: destination)
+        queue.replaceSubrange((i + 1)..<(i + 1 + segment.count), with: segment)
         save()
     }
 
-    /// Jumps to a track in `upcoming`.
+    /// Jumps to a track in `upcoming`; the ones skipped over are dropped, as played.
     func playUpcoming(at offset: Int) {
-        guard let i = currentIndex, queue.indices.contains(i + 1 + offset) else { return }
-        load(index: i + 1 + offset)
+        guard let i = currentIndex, offset < manualCount, queue.indices.contains(i + 1 + offset) else { return }
+        queue.removeSubrange((i + 1)..<(i + 1 + offset))
+        manualCount -= offset
+        load(index: i + 1)
     }
+
+    /// Keeps the hand-queued tracks adjacent to whatever is current. Stepping into the segment
+    /// consumes one; jumping anywhere else carries the segment along behind the new track.
+    private func adjustManual(for newIndex: Int) {
+        guard let old = currentIndex, manualCount > 0, queue.indices.contains(old) else { return }
+        if newIndex == old + 1 {
+            manualCount -= 1
+            return
+        }
+        let end = min(queue.count, old + 1 + manualCount)
+        let segment = Array(queue[(old + 1)..<end])
+        queue.removeSubrange((old + 1)..<end)
+        let target = newIndex > old ? newIndex - segment.count : newIndex
+        queue.insert(contentsOf: segment, at: min(queue.count, target + 1))
+        pendingLoadIndex = target
+    }
+    private var pendingLoadIndex: Int?
 
     // MARK: Persistence
 
@@ -242,7 +280,8 @@ final class PlayerService {
         lastSavedTime = currentTime
         let saved = Saved(
             queue: queue, index: currentIndex, time: currentTime,
-            isShuffled: isShuffled, unshuffledQueue: unshuffledQueue, repeatMode: repeatMode
+            isShuffled: isShuffled, unshuffledQueue: unshuffledQueue, repeatMode: repeatMode,
+            manualCount: manualCount
         )
         UserDefaults.standard.set(try? JSONEncoder().encode(saved), forKey: Self.savedKey)
     }
@@ -257,12 +296,18 @@ final class PlayerService {
         isShuffled = saved.isShuffled ?? false
         unshuffledQueue = saved.unshuffledQueue
         repeatMode = saved.repeatMode ?? .off
+        manualCount = min(saved.manualCount ?? 0, max(0, saved.queue.count - index - 1))
         needsLoad = true
     }
 
     // MARK: Internals
 
-    private func load(index: Int) {
+    private func load(index: Int, keepingManual: Bool = false) {
+        var index = index
+        if !keepingManual {
+            adjustManual(for: index)
+            if let moved = pendingLoadIndex { index = moved; pendingLoadIndex = nil }
+        }
         currentIndex = index
         needsLoad = false
         let resumeAt = pendingSeek

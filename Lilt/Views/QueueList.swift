@@ -42,6 +42,8 @@ struct QueueList: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                // No margins of its own: rows line up with the platter's artwork and controls.
+                .contentMargins(0, for: .scrollContent)
                 .environment(\.defaultMinListRowHeight, Self.rowHeight)
                 .scrollIndicators(.never)
             }
@@ -82,7 +84,6 @@ private struct QueueRow: View {
             .opacity(isHovering ? 1 : 0)
             .help("Remove from queue")
         }
-        .padding(.horizontal, Theme.Space.xs)
         .frame(height: QueueList.rowHeight)
         .contentShape(Rectangle())
         .background {
