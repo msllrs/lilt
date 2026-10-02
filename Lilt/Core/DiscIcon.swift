@@ -96,8 +96,9 @@ enum DiscIcon {
         drawHub(in: rect, side: side)
     }
 
-    /// The cover's colour washed over the plate, strongest at the top, inside the system's
-    /// squircle so the rendered rim and shadow stay untouched.
+    /// The cover's colour washed over the plate, light at the top and strongest at the bottom
+    /// (the plate's own gradient runs the same way), inside the system's squircle so the
+    /// rendered rim and shadow stay untouched.
     @MainActor
     private static func drawPlateTint(_ accent: NSColor, in plate: NSRect) {
         let style = ArtworkStyle.shared.dockTile
@@ -109,8 +110,8 @@ enum DiscIcon {
         // Icon plate corners: the system shape, close enough to a continuous curve at 22.37%.
         NSBezierPath(roundedRect: plate, xRadius: plate.width * 0.2237, yRadius: plate.height * 0.2237).addClip()
         NSGradient(colorsAndLocations:
-            (colour.withAlphaComponent(style.plateTint), 0),
-            (colour.withAlphaComponent(style.plateTint * 0.35), 1)
+            (colour.withAlphaComponent(style.plateTint * 0.35), 0),
+            (colour.withAlphaComponent(style.plateTint), 1)
         )?.draw(in: plate, angle: -90)
         NSGraphicsContext.restoreGraphicsState()
     }

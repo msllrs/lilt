@@ -139,7 +139,8 @@ struct PageAmbientStyle: Equatable {
 
 /// The Dock tile while a track plays: the cover's colour on the plate and under the disc.
 struct DockTileStyle: Equatable {
-    /// Wash of the cover's colour over the plate, strongest at the top (0 = plain plate).
+    /// Wash of the cover's colour over the plate, light at the top and strongest at the bottom
+    /// (0 = plain plate).
     var plateTint: Double = 0.22
     var plateSaturation: Double = 1.6
     /// Coloured ambient shadow under the disc, as a fraction of the disc size.
