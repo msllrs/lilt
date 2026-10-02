@@ -111,6 +111,10 @@ struct NowPlayingBar: View {
             // doesn't stop it stealing clicks from the row above. Decoration never takes hits.
             .allowsHitTesting(false)
         }
+        // Glass is composited by the window server, so the app's own pixels here are fully
+        // transparent and macOS would pass clicks straight through to the window behind. A
+        // near-invisible fill makes the platter solid to hit-testing.
+        .background { shape.fill(Color.black.opacity(0.012)) }
         .contentShape(shape)
         // Border slider scales the rim; 0.10 default reads as a subtle glass edge.
         .glassEdge(shape, opacity: min(platter.borderOpacity * 6, 1) * glassVisibility)

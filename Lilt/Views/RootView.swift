@@ -18,7 +18,11 @@ struct RootView: View {
                             Color.clear.frame(height: navigation.platterHeight + Theme.Space.panelInset)
                         }
                     }
-                    .background { GlassBackground(cornerRadius: Theme.Radius.window).ignoresSafeArea() }
+                    .background {
+                        GlassBackground(cornerRadius: Theme.Radius.window).ignoresSafeArea()
+                        // Same reason as the platter: keep the column solid to hit-testing.
+                        Color.black.opacity(0.012).ignoresSafeArea()
+                    }
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
                     .transition(.opacity)
             }
