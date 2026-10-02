@@ -3,37 +3,48 @@ import SwiftUI
 struct RootView: View {
     @Environment(PlayerService.self) private var player
     @Environment(NavigationModel.self) private var navigation
+    /// The panel's full height, so the container animates between two real numbers (a jump to
+    /// "fill" can't interpolate, and the clip would snap open ahead of the glass).
+    @State private var fullHeight: CGFloat = 0
 
     var body: some View {
         let mini = navigation.isMiniPlayer
-        // The window never resizes. In mini only the platter is drawn, bottom-aligned where it
-        // always sits; the rest of the window is fully transparent, and macOS hit-tests
-        // non-opaque windows by their pixels, so clicks there fall through to whatever is behind.
-        // The whole transition is one SwiftUI animation: column fades, glass shrinks to the platter.
+        // Collapsing to the mini player is one bottom-anchored animation: the container (glass,
+        // shadow and the clip on the column) shrinks from the full panel to the platter while the
+        // column fades inside it; expanding is the exact reverse. The window frame itself changes
+        // unanimated around this (see AppDelegate), while the region being added or removed is
+        // transparent. The column stays mounted throughout so nothing reloads on the way back.
         let radius = mini ? Theme.Radius.panel : Theme.Radius.window
+        let containerHeight: CGFloat? = mini ? navigation.platterHeight : (fullHeight > 0 ? fullHeight : nil)
         ZStack(alignment: .bottom) {
             // The window glass lives here, always mounted, so hiding it is explicit and reliable
-            // (see GlassBackground). It fades with the column and is then switched off.
+            // (see GlassBackground). It shrinks and fades with the collapse, then is switched off.
             GlassBackground(cornerRadius: Theme.Radius.window, isHidden: mini)
+                .frame(maxHeight: containerHeight ?? .infinity)
                 .opacity(mini ? 0 : 1)
                 .allowsHitTesting(false)
-            if !mini {
-                NavigationColumn()
-                    .safeAreaBar(edge: .bottom, spacing: 0) {
-                        if player.current != nil {
-                            Color.clear.frame(height: navigation.platterHeight + Theme.Space.panelInset)
-                        }
+            NavigationColumn()
+                .safeAreaBar(edge: .bottom, spacing: 0) {
+                    if player.current != nil {
+                        Color.clear.frame(height: navigation.platterHeight + Theme.Space.panelInset)
                     }
-                    // Keeps the column solid to hit-testing (its glass pixels are transparent).
-                    // Inset by a point so its antialiased edge never shows beyond the glass.
-                    .background {
-                        RoundedRectangle(cornerRadius: Theme.Radius.window - 1, style: .continuous)
-                            .fill(Color.black.opacity(0.012))
-                            .padding(1)
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
-                    .transition(.opacity)
-            }
+                }
+                // Keeps the column solid to hit-testing (its glass pixels are transparent).
+                // Inset by a point so its antialiased edge never shows beyond the glass.
+                .background {
+                    RoundedRectangle(cornerRadius: Theme.Radius.window - 1, style: .continuous)
+                        .fill(Color.black.opacity(0.012))
+                        .padding(1)
+                }
+                // Clipped to the container, so a shrinking container cuts the content off rather
+                // than leaving it hanging in the air. Fully transparent in mini: nothing to see,
+                // and transparent pixels pass clicks through to the window behind.
+                .mask(alignment: .bottom) {
+                    RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                        .frame(maxHeight: containerHeight ?? .infinity)
+                }
+                .opacity(mini ? 0 : 1)
+                .allowsHitTesting(!mini)
             if player.current != nil {
                 NowPlayingBar()
                     .padding(.horizontal, mini ? 0 : Theme.Space.panelInset)
@@ -57,16 +68,14 @@ struct RootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
         // Our own window shadow, drawn in the transparent margin around the visible shape.
         .background(alignment: .bottom) {
-            PanelShadow(radius: radius, height: mini ? navigation.platterHeight : nil)
+            PanelShadow(radius: radius, height: containerHeight)
         }
         .padding(Theme.Size.shadowMargin)
         .animation(Theme.Motion.standard, value: player.current?.id)
-        // Collapsing animates (column fades, glass contracts). Expanding doesn't: the window has
-        // just grown and SwiftUI would interpolate the platter from its position in the old frame,
-        // which reads as the controls dropping in from the top.
-        .animation(mini ? Theme.Motion.standard : nil, value: mini)
+        .animation(Theme.Motion.standard, value: mini)
     }
 }
 
