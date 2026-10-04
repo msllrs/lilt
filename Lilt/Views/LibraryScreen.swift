@@ -104,8 +104,7 @@ struct LibraryScreen: View {
                 }
             }
         } label: {
-            ArtworkView(url: account.photoURL, size: 24, radius: 12, context: .header)
-                .glassControl()
+            ArtworkView(url: account.photoURL, size: 28, radius: 14, context: .header)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)

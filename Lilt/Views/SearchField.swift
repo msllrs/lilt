@@ -29,7 +29,7 @@ struct SearchField: View {
         .font(.body)
         .padding(.horizontal, Theme.Space.md)
         .frame(height: Theme.Size.headerRow)
-        .glassControl(Capsule())
+        .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous))
         .onAppear { isFocused = isOnTop }
         // Give focus up when a page opens over the search root, take it back when you return.
         .onChange(of: isOnTop) { _, onTop in isFocused = onTop }
