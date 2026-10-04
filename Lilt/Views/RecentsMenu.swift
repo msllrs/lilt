@@ -46,8 +46,7 @@ struct RecentsMenu: View {
             Image(systemName: "clock")
                 .font(.body)
                 .foregroundStyle(.secondary)
-                .frame(width: 32, height: 32)
-                .contentShape(Circle())
+                .glassControl()
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
