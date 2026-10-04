@@ -81,6 +81,25 @@ struct TweakPanel: View {
                 slider("Blur", $style.pageAmbient.blur, 0...300)
                 slider("Reach", $style.pageAmbient.reach, 80...800)
             }
+            Section("Header controls") {
+                Picker("Surface", selection: $style.headerControls.mode) {
+                    ForEach(HeaderControlMode.allCases) { Text($0.label).tag($0) }
+                }
+                Toggle("Search field too", isOn: $style.headerControls.appliesToSearch)
+                Toggle("Interactive (SwiftUI glass)", isOn: $style.headerControls.interactive)
+                Toggle("Our lit rim", isOn: $style.headerControls.rim)
+                slider("Rim opacity", $style.headerControls.rimOpacity, 0...1)
+                slider("Cover tint", $style.headerControls.tintOpacity, 0...0.6)
+                Toggle("AppKit: clear base", isOn: $style.headerControls.clearBase)
+                intSlider("AppKit: variant", $style.headerControls.variant, 0...20)
+                intSlider("AppKit: subvariant", $style.headerControls.subvariant, -1...8)
+                Toggle("AppKit: content lensing", isOn: $style.headerControls.contentLensing)
+                intSlider("AppKit: scrim", $style.headerControls.scrim, 0...3)
+                intSlider("AppKit: subdued", $style.headerControls.subdued, 0...3)
+                intSlider("AppKit: interaction", $style.headerControls.interaction, 0...3)
+                intSlider("AppKit: adaptive", $style.headerControls.adaptiveAppearance, 0...3)
+                Toggle("AppKit: reduced shadow", isOn: $style.headerControls.reducedShadow)
+            }
             Section("Dock tile") {
                 slider("Plate tint", $style.dockTile.plateTint, 0...0.8)
                 slider("Plate saturation", $style.dockTile.plateSaturation, 0...4)
@@ -169,6 +188,14 @@ struct TweakPanel: View {
                 style.setShadow(shadow, for: shadowContext)
             }
         )
+    }
+
+    private func intSlider(_ label: String, _ value: Binding<Int>, _ range: ClosedRange<Int>) -> some View {
+        LabeledContent(label) {
+            HStack(spacing: Theme.Space.sm) {
+                Stepper(value: value, in: range) { Text("\(value.wrappedValue)").monospacedDigit().frame(width: 28, alignment: .trailing) }
+            }
+        }
     }
 
     private func slider(_ label: String, _ value: Binding<Double>, _ range: ClosedRange<Double>) -> some View {

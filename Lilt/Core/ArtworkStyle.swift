@@ -166,6 +166,43 @@ struct DockTileStyle: Equatable {
     static let standard = DockTileStyle()
 }
 
+/// The header controls' surface (see `HeaderControlMode`), with AppKit's private glass dials.
+struct HeaderControlStyle: Equatable {
+    var mode: HeaderControlMode = .flat
+    /// Also draw the search field in this mode (otherwise it keeps the flat fill).
+    var appliesToSearch: Bool = true
+    /// Our lit hairline over the system's own edge treatment.
+    var rim: Bool = false
+    var rimOpacity: Double = 0.5
+    /// SwiftUI glass responds under the pointer.
+    var interactive: Bool = true
+    /// Tint the glass with the cover's colour (0 = none).
+    var tintOpacity: Double = 0
+    var tint: Color? = nil
+
+    // NSGlassEffectView private knobs (AppKit mode only).
+    /// `.clear` base style instead of `.regular`.
+    var clearBase: Bool = false
+    /// `_variant`: the glass recipe; 0 is the default.
+    var variant: Int = 0
+    /// `_subvariant`; -1 leaves it unset.
+    var subvariant: Int = -1
+    /// `_contentLensing`: refracts content behind the edge.
+    var contentLensing: Bool = false
+    /// `_scrimState`.
+    var scrim: Int = 0
+    /// `_subduedState`.
+    var subdued: Int = 0
+    /// `_interactionState`.
+    var interaction: Int = 0
+    /// `_adaptiveAppearance` (2 is the default).
+    var adaptiveAppearance: Int = 2
+    /// `_useReducedShadowRadius`.
+    var reducedShadow: Bool = false
+
+    static let standard = HeaderControlStyle()
+}
+
 /// The blur behind floating headers.
 struct HeaderBlurStyle: Equatable {
     /// Use a Core Animation backdrop with a variable blur ramp (private API, guarded), rather
@@ -296,6 +333,7 @@ final class ArtworkStyle {
     var headerBlur: HeaderBlurStyle = .standard
     var pageAmbient: PageAmbientStyle = .standard
     var dockTile: DockTileStyle = .standard
+    var headerControls: HeaderControlStyle = .standard
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
@@ -340,6 +378,7 @@ final class ArtworkStyle {
         headerBlur = .standard
         pageAmbient = .standard
         dockTile = .standard
+        headerControls = .standard
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -368,6 +407,7 @@ final class ArtworkStyle {
         headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), radius: \(f(headerBlur.radius)), saturation: \(f(headerBlur.saturation)), brightness: \(f(headerBlur.brightness)), reach: \(f(headerBlur.reach)), rimOpacity: \(f(headerBlur.rimOpacity)))
         pageAmbient = PageAmbientStyle(opacity: \(f(pageAmbient.opacity)), saturation: \(f(pageAmbient.saturation)), blur: \(f(pageAmbient.blur)), reach: \(f(pageAmbient.reach)))
         dockTile = DockTileStyle(plateTint: \(f(dockTile.plateTint)), plateSaturation: \(f(dockTile.plateSaturation)), shadowOpacity: \(f(dockTile.shadowOpacity)), shadowBlur: \(f(dockTile.shadowBlur)), shadowOffsetY: \(f(dockTile.shadowOffsetY)))
+        headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), rim: \(headerControls.rim), rimOpacity: \(f(headerControls.rimOpacity)), interactive: \(headerControls.interactive), tintOpacity: \(f(headerControls.tintOpacity)), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: \(headerControls.subvariant), contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
         """
     }
 

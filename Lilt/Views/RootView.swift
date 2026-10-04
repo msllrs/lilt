@@ -209,8 +209,7 @@ private struct LeadingButton: View {
                     .transition(.blurScale)
             }
             .animation(.snappy(duration: 0.22), value: symbol)
-            .frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
-            .contentShape(Circle())
+            .headerControl()
         }
         .buttonStyle(.pressable(scale: 0.88))
         .help(isBack ? "Back" : "Library")

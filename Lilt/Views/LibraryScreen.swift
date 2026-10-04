@@ -104,7 +104,8 @@ struct LibraryScreen: View {
                 }
             }
         } label: {
-            ArtworkView(url: account.photoURL, size: 28, radius: 14, context: .header)
+            ArtworkView(url: account.photoURL, size: ArtworkStyle.shared.headerControls.mode == .flat ? 28 : 24, radius: ArtworkStyle.shared.headerControls.mode == .flat ? 14 : 12, context: .header)
+                .headerControl()
         }
         .menuStyle(.button)
         .buttonStyle(.plain)

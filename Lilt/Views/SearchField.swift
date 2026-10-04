@@ -29,7 +29,12 @@ struct SearchField: View {
         .font(.body)
         .padding(.horizontal, Theme.Space.md)
         .frame(height: Theme.Size.headerRow)
-        .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous))
+        .background {
+            if ArtworkStyle.shared.headerControls.mode == .flat || !ArtworkStyle.shared.headerControls.appliesToSearch {
+                RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous).fill(.fill.quaternary)
+            }
+        }
+        .modifier(SearchSurface())
         .onAppear { isFocused = isOnTop }
         // Give focus up when a page opens over the search root, take it back when you return.
         .onChange(of: isOnTop) { _, onTop in isFocused = onTop }
@@ -41,6 +46,18 @@ struct SearchField: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
             guard (note.object as? NSWindow) is PanelWindow, isOnTop, !isFocused else { return }
             isFocused = true
+        }
+    }
+}
+
+/// The search field's glass surface, only when the header-control mode applies to it.
+private struct SearchSurface: ViewModifier {
+    func body(content: Content) -> some View {
+        let style = ArtworkStyle.shared.headerControls
+        if style.mode != .flat, style.appliesToSearch {
+            content.headerSurface()
+        } else {
+            content
         }
     }
 }
