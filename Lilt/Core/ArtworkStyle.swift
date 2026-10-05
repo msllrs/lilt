@@ -169,14 +169,15 @@ struct DockTileStyle: Equatable {
 /// The artwork colour the back button catches from the compact now-playing header beside it.
 struct LeadingCastStyle: Equatable {
     /// The lit rim on the edge facing the artwork.
-    var rimOpacity: Double = 1.0
+    // Tuned by Matt in the tweak panel on 2026-10-05.
+    var rimOpacity: Double = 0.24
     var rimWidth: Double = 1.0
     /// Where across the button the rim starts to show (0 = leading edge, 1 = trailing edge).
     var rimStart: Double = 0.4
     /// The wash falling off from that edge across the button, and how far across it reaches
     /// (fraction of the button's width).
-    var washOpacity: Double = 0.3
-    var washReach: Double = 0.7
+    var washOpacity: Double = 0.2
+    var washReach: Double = 0.4
     /// Saturation boost on the sampled colour.
     var saturation: Double = 1.6
     static let standard = LeadingCastStyle()
@@ -465,7 +466,7 @@ final class ArtworkStyle {
         pageAmbient = PageAmbientStyle(opacity: \(f(pageAmbient.opacity)), saturation: \(f(pageAmbient.saturation)), blur: \(f(pageAmbient.blur)), reach: \(f(pageAmbient.reach)))
         dockTile = DockTileStyle(plateTint: \(f(dockTile.plateTint)), plateSaturation: \(f(dockTile.plateSaturation)), shadowOpacity: \(f(dockTile.shadowOpacity)), shadowBlur: \(f(dockTile.shadowBlur)), shadowOffsetY: \(f(dockTile.shadowOffsetY)))
         headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), rim: \(headerControls.rim), rimOpacity: \(f(headerControls.rimOpacity)), interactive: \(headerControls.interactive), tintOpacity: \(f(headerControls.tintOpacity)), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
-        panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent))
+        panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent), systemShadow: \(panel.systemShadow))
         leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)))
         """
     }
