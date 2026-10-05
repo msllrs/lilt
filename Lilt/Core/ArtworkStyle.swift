@@ -183,22 +183,30 @@ struct HeaderControlStyle: Equatable {
     // NSGlassEffectView private knobs (AppKit mode only).
     /// `.clear` base style instead of `.regular`.
     var clearBase: Bool = false
-    /// `_variant`: the glass recipe; 0 is the default.
+    /// `_variant`: the glass recipe; 0 leaves whichever one the base style chose.
     var variant: Int = 0
-    /// `_subvariant`; -1 leaves it unset.
-    var subvariant: Int = -1
+    /// `_subvariant`: a named recipe (a string); empty leaves it unset.
+    var subvariant: String = ""
     /// `_contentLensing`: refracts content behind the edge.
     var contentLensing: Bool = false
     /// `_scrimState`.
     var scrim: Int = 0
     /// `_subduedState`.
     var subdued: Int = 0
-    /// `_interactionState`.
+    /// `_interactionState`; only `interactionRange` is accepted.
     var interaction: Int = 0
-    /// `_adaptiveAppearance` (2 is the default).
+    /// `_adaptiveAppearance` (2 is the default); only `adaptiveAppearanceRange` is accepted.
     var adaptiveAppearance: Int = 2
     /// `_useReducedShadowRadius`.
     var reducedShadow: Bool = false
+
+    // Values AppKit's Swift enums behind these dials accept; anything else is a fatal error, so
+    // the tweak panel offers these and `GlassSurface` clamps to them.
+    static let variantRange = 0...20
+    static let scrimRange = 0...3
+    static let subduedRange = 0...3
+    static let interactionRange = 0...2
+    static let adaptiveAppearanceRange = 0...2
 
     static let standard = HeaderControlStyle()
 }
@@ -407,7 +415,7 @@ final class ArtworkStyle {
         headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), radius: \(f(headerBlur.radius)), saturation: \(f(headerBlur.saturation)), brightness: \(f(headerBlur.brightness)), reach: \(f(headerBlur.reach)), rimOpacity: \(f(headerBlur.rimOpacity)))
         pageAmbient = PageAmbientStyle(opacity: \(f(pageAmbient.opacity)), saturation: \(f(pageAmbient.saturation)), blur: \(f(pageAmbient.blur)), reach: \(f(pageAmbient.reach)))
         dockTile = DockTileStyle(plateTint: \(f(dockTile.plateTint)), plateSaturation: \(f(dockTile.plateSaturation)), shadowOpacity: \(f(dockTile.shadowOpacity)), shadowBlur: \(f(dockTile.shadowBlur)), shadowOffsetY: \(f(dockTile.shadowOffsetY)))
-        headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), rim: \(headerControls.rim), rimOpacity: \(f(headerControls.rimOpacity)), interactive: \(headerControls.interactive), tintOpacity: \(f(headerControls.tintOpacity)), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: \(headerControls.subvariant), contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
+        headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), rim: \(headerControls.rim), rimOpacity: \(f(headerControls.rimOpacity)), interactive: \(headerControls.interactive), tintOpacity: \(f(headerControls.tintOpacity)), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
         """
     }
 
