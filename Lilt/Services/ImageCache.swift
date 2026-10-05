@@ -60,18 +60,40 @@ final class ImageCache {
     /// How bright the artwork is overall. Any measured size of the same cover will do, so the
     /// value is stable from the first frame instead of jumping when this exact URL lands.
     func luminance(for url: URL) -> CGFloat {
-        let key = url.absoluteString
-        let sample = averages[key] ?? (variants[Self.baseKey(url)] ?? []).lazy.compactMap { self.averages[$0.absoluteString] }.first
-        guard let c = sample else { return 0.5 }
+        guard let c = averageColour(for: url) else { return 0.5 }
         return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+    }
+
+    // MARK: Colour lookups
+
+    /// Average colour: this exact URL, any cached size of the same cover, or what was measured
+    /// in an earlier session.
+    private func averageColour(for url: URL) -> (r: CGFloat, g: CGFloat, b: CGFloat)? {
+        if let c = averages[url.absoluteString] { return c }
+        let base = Self.baseKey(url)
+        if let c = (variants[base] ?? []).lazy.compactMap({ self.averages[$0.absoluteString] }).first { return c }
+        return remembered[base]?.average
+    }
+
+    private func edgeValue(for url: URL) -> CGFloat? {
+        if let e = edges[url.absoluteString] { return e }
+        let base = Self.baseKey(url)
+        return (variants[base] ?? []).lazy.compactMap { self.edges[$0.absoluteString] }.first ?? remembered[base].map { CGFloat($0.edge) }
+    }
+
+    /// Dominant colour entry: `.some(nil)` is a measured grey cover, `nil` is not measured yet.
+    private func dominantEntry(for url: URL) -> (r: CGFloat, g: CGFloat, b: CGFloat)?? {
+        if let e = dominants[url.absoluteString] { return e }
+        let base = Self.baseKey(url)
+        if let e = (variants[base] ?? []).lazy.compactMap({ self.dominants[$0.absoluteString] }).first { return e }
+        if let r = remembered[base] { return .some(r.dominant) }
+        return nil
     }
 
     /// How bright the artwork is along its edges (0 dark … 1 white), which is what a keyline
     /// actually sits against. Falls back to any measured size of the same cover, then mid-grey.
     func edgeLuminance(for url: URL) -> CGFloat {
-        edges[url.absoluteString]
-            ?? (variants[Self.baseKey(url)] ?? []).lazy.compactMap { self.edges[$0.absoluteString] }.first
-            ?? 0.5
+        edgeValue(for: url) ?? 0.5
     }
 
     private var thumbnails: [String: NSImage] = [:]
@@ -102,7 +124,7 @@ final class ImageCache {
     /// The artwork's average colour with its saturation pushed, for tinting surfaces. Brightness
     /// is kept in a middle band so the tint reads on both light and dark glass.
     func tint(for url: URL, saturationBoost: CGFloat) -> Color? {
-        guard let c = averages[url.absoluteString] else { return nil }
+        guard let c = averageColour(for: url) else { return nil }
         let color = NSColor(red: c.r, green: c.g, blue: c.b, alpha: 1)
         var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         color.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
@@ -114,8 +136,7 @@ final class ImageCache {
     /// both light and dark glass. Nil for covers with no colour to speak of, so callers fall
     /// back to the label colour rather than tinting grey.
     func accent(for url: URL, saturationBoost: CGFloat) -> Color? {
-        guard let entry = dominants[url.absoluteString] ?? variants[Self.baseKey(url)]?.lazy.compactMap({ self.dominants[$0.absoluteString] }).first,
-              let c = entry else { return nil }
+        guard let entry = dominantEntry(for: url), let c = entry else { return nil }
         let color = NSColor(red: c.r, green: c.g, blue: c.b, alpha: 1)
         var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         color.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
@@ -150,13 +171,56 @@ final class ImageCache {
         let pixels = image.representations.first.map { $0.pixelsWide * $0.pixelsHigh } ?? Int(image.size.width * image.size.height)
         images.setObject(image, forKey: url.absoluteString as NSString, cost: pixels * 4)
         variants[Self.baseKey(url), default: []].append(url)
-        if let average = Self.averageColor(of: image) {
-            averages[url.absoluteString] = average
+        let average = Self.averageColor(of: image)
+        if let average { averages[url.absoluteString] = average }
+        let edge = Self.edgeLuminance(of: image)
+        if let edge { edges[url.absoluteString] = edge }
+        let dominant = Self.dominantColor(of: image)
+        dominants[url.absoluteString] = dominant
+        if let average, let edge { remember(ColourRecord(average: average, edge: edge, dominant: dominant), for: Self.baseKey(url)) }
+    }
+
+    // MARK: Remembered colours
+
+    /// What was measured from a cover, kept across launches so a tint can answer before the
+    /// image has loaded: the platter, the Play capsule and the page ambient are coloured on
+    /// their first frame instead of when the picture lands.
+    private struct ColourRecord: Codable {
+        var r: Double, g: Double, b: Double, edge: Double
+        var dr: Double?, dg: Double?, db: Double?
+        init(average: (r: CGFloat, g: CGFloat, b: CGFloat), edge: CGFloat, dominant: (r: CGFloat, g: CGFloat, b: CGFloat)?) {
+            r = average.r; g = average.g; b = average.b; self.edge = edge
+            dr = dominant.map { Double($0.r) }; dg = dominant.map { Double($0.g) }; db = dominant.map { Double($0.b) }
         }
-        if let edge = Self.edgeLuminance(of: image) {
-            edges[url.absoluteString] = edge
+        var average: (r: CGFloat, g: CGFloat, b: CGFloat) { (CGFloat(r), CGFloat(g), CGFloat(b)) }
+        var dominant: (r: CGFloat, g: CGFloat, b: CGFloat)? {
+            guard let dr, let dg, let db else { return nil }
+            return (CGFloat(dr), CGFloat(dg), CGFloat(db))
         }
-        dominants[url.absoluteString] = Self.dominantColor(of: image)
+    }
+
+    private static let coloursFile = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("artwork-colours.json")
+    private static let rememberedLimit = 600
+    /// Keyed by the size-stripped URL; insertion order is kept so the oldest can be dropped.
+    private lazy var remembered: [String: ColourRecord] = Self.loadRemembered()
+    private lazy var rememberedOrder: [String] = Array(remembered.keys)
+    private var saveTask: Task<Void, Never>?
+
+    private static func loadRemembered() -> [String: ColourRecord] {
+        guard let data = try? Data(contentsOf: coloursFile), let decoded = try? JSONDecoder().decode([String: ColourRecord].self, from: data) else { return [:] }
+        return decoded
+    }
+
+    private func remember(_ record: ColourRecord, for key: String) {
+        if remembered[key] == nil { rememberedOrder.append(key) }
+        remembered[key] = record
+        while rememberedOrder.count > Self.rememberedLimit { remembered[rememberedOrder.removeFirst()] = nil }
+        saveTask?.cancel()
+        saveTask = Task { @MainActor [remembered] in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, let data = try? JSONEncoder().encode(remembered) else { return }
+            try? data.write(to: Self.coloursFile, options: .atomic)
+        }
     }
 
     /// Histogram over a small downsample: pixels are binned by hue, saturation and brightness,
