@@ -47,7 +47,7 @@ struct BrowseScreen: View {
 
     /// Back button, plus a compact artwork/title/artist that fades in as the hero scrolls out.
     private var navigationHeader: some View {
-        HStack(spacing: Theme.Space.md) {
+        HStack(spacing: Theme.Space.sm) {
             // Slot for the back button, which the navigation column draws statically on top.
             Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
 
