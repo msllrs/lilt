@@ -281,6 +281,7 @@ private struct NavigationColumn: View {
 
 private struct LeadingButton: View {
     @Environment(NavigationModel.self) private var navigation
+    @Environment(\.colorScheme) private var colorScheme
     let isBack: Bool
 
     private var symbol: String { isBack ? "chevron.left" : "books.vertical" }
@@ -306,13 +307,18 @@ private struct LeadingButton: View {
             .overlay {
                 let style = ArtworkStyle.shared.leadingCast
                 let amount = navigation.leadingCastAmount
-                InterpolatedColor(navigation.leadingCast) { cast in
-                    if let cast {
+                InterpolatedColor(navigation.leadingCast) { sampled in
+                    if let sampled {
+                        // Dark glass has no tonal range for a dim colour to sit on, so there the
+                        // cast is lifted towards white and added as light rather than laid over.
+                        let dark = colorScheme == .dark
+                        let cast = dark ? sampled.mix(with: .white, by: style.darkLighten) : sampled
+                        let washOpacity = style.washOpacity * (dark ? style.darkWashScale : 1)
                         ZStack {
                             // The wash: light from the side falling off across the button, not from
                             // a point. It simply fades in with the header (a wipe cut it in half).
                             Circle().fill(LinearGradient(
-                                stops: [.init(color: cast.opacity(style.washOpacity), location: 0), .init(color: .clear, location: style.washReach)],
+                                stops: [.init(color: cast.opacity(washOpacity), location: 0), .init(color: .clear, location: style.washReach)],
                                 startPoint: .trailing, endPoint: .leading
                             ))
                             .opacity(amount)
@@ -339,6 +345,7 @@ private struct LeadingButton: View {
                                     .opacity(amount > 0 ? 1 : 0)
                                 }
                         }
+                        .blendMode(dark ? .plusLighter : .normal)
                         .clipShape(Circle())
                     }
                 }

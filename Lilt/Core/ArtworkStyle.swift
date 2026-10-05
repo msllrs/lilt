@@ -189,6 +189,11 @@ struct LeadingCastStyle: Equatable {
     var washReach: Double = 0.8
     /// Saturation boost on the sampled colour.
     var saturation: Double = 2.0
+    /// Dark mode: how far the cast is lifted towards white before being added as light (a dim
+    /// colour at low opacity over dark glass reads as a flat stain, not a lit edge), and how
+    /// much of the light-mode wash opacity to use.
+    var darkLighten: Double = 0.35
+    var darkWashScale: Double = 0.7
     static let standard = LeadingCastStyle()
 }
 
@@ -502,7 +507,7 @@ final class ArtworkStyle {
         panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent), systemShadow: \(panel.systemShadow))
         centredLibraryTitle = \(centredLibraryTitle)
         heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), minFlick: \(f(heroSnap.minFlick)), deadZone: \(f(heroSnap.deadZone)))
-        leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)))
+        leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)), darkLighten: \(f(leadingCast.darkLighten)), darkWashScale: \(f(leadingCast.darkWashScale)))
         """
     }
 
