@@ -336,7 +336,10 @@ private struct LeadingButton: View {
                         .clipShape(Circle())
                     }
                 }
-                .opacity(isBack ? 1 : 0)
+                // Only while a browse page is on top: the library page (or any page without a
+                // now-playing header) gets a clean button, even though the amount a page beneath
+                // published is kept for when you return to it.
+                .opacity(isBack && navigation.path.last?.kind != .library ? 1 : 0)
                 .allowsHitTesting(false)
             }
         }
