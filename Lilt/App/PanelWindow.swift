@@ -10,13 +10,23 @@ final class PanelWindow: NSPanel {
     static let autosaveName = "LiltPanel"
 
     init(contentRect: NSRect) {
-        super.init(
-            contentRect: contentRect,
-            styleMask: [.borderless, .resizable, .utilityWindow, .nonactivatingPanel],
-            backing: .buffered,
-            defer: false
-        )
+        #if NATIVE_FRAME
+        // The experiment: a real titled window, so the system supplies the shape (27.5pt corners
+        // on macOS 26, a hair under ours), the shadow, the border and resizing. Not a utility
+        // panel, whose corners are only 15pt. Still non-activating, so play doesn't steal focus.
+        let styleMask: NSWindow.StyleMask = [.titled, .fullSizeContentView, .resizable, .nonactivatingPanel]
+        #else
+        let styleMask: NSWindow.StyleMask = [.borderless, .resizable, .utilityWindow, .nonactivatingPanel]
+        #endif
+        super.init(contentRect: contentRect, styleMask: styleMask, backing: .buffered, defer: false)
         title = "Lilt"
+        #if NATIVE_FRAME
+        titlebarAppearsTransparent = true
+        titleVisibility = .hidden
+        for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+            standardWindowButton(button)?.isHidden = true
+        }
+        #endif
         isMovableByWindowBackground = true
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
@@ -26,7 +36,11 @@ final class PanelWindow: NSPanel {
         becomesKeyOnlyIfNeeded = false
         backgroundColor = .clear
         isOpaque = false
+        #if NATIVE_FRAME
+        hasShadow = true
+        #else
         hasShadow = false
+        #endif
         animationBehavior = .utilityWindow
         collectionBehavior = [.managed, .fullScreenAuxiliary]
         let margin = Theme.Size.shadowMargin * 2

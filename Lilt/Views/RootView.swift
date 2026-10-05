@@ -72,6 +72,7 @@ struct RootView: View {
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+            #if !NATIVE_FRAME
             if !mini {
                 // The window's real edges are out in the shadow margin, so resizing happens here.
                 ResizeEdges()
@@ -81,6 +82,7 @@ struct RootView: View {
             PanelEdge(cornerRadius: Theme.Radius.window)
                 .frame(maxHeight: containerHeight ?? .infinity)
                 .opacity(mini ? 0 : 1)
+            #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
@@ -89,7 +91,9 @@ struct RootView: View {
         }
         // Our own window shadow, drawn in the transparent margin around the visible shape.
         .background(alignment: .bottom) {
+            #if !NATIVE_FRAME
             PanelShadow(radius: radius, height: mini ? navigation.platterHeight : containerHeight, bottomInset: mini ? inset : 0)
+            #endif
         }
         .padding(Theme.Size.shadowMargin)
         .animation(Theme.Motion.standard, value: player.current?.id)

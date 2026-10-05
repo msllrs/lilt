@@ -47,7 +47,12 @@ enum Theme {
         /// Transparent margin inside the window frame where the panel's own shadow is drawn.
         /// (The system window shadow is off: it traces every non-transparent pixel and came out
         /// square, so the shadow is drawn in SwiftUI instead.)
+        #if NATIVE_FRAME
+        /// Native frame: the system draws the shadow, so there is no margin.
+        static let shadowMargin: CGFloat = 0
+        #else
         static let shadowMargin: CGFloat = 36
+        #endif
         /// One row height for every top header (search field, page titles) so switching screens
         /// never shifts the title line or where the list starts.
         static let headerRow: CGFloat = 32
