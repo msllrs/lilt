@@ -77,6 +77,8 @@ final class PanelWindow: NSPanel {
         guard responds(to: selector), let imp = method(for: selector) else { return }
         nativeCornerRadius = radius
         unsafeBitCast(imp, to: Setter.self)(self, selector, radius)
+        AppDelegate.shared?.navigation.frameCornerRadius = radius
+        SidebarBackground.applyLiveCornerRadius(radius)
     }
 
     /// Eases the corner from its current radius to `radius` over `duration`, in step with the

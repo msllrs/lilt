@@ -14,8 +14,10 @@ struct RootView: View {
     private static let clipRadius: CGFloat = Theme.Radius.window
     #if NATIVE_FRAME
     private static let miniAnimation: Animation = Theme.Motion.frame
+    private static let surfaceHidesInMini = false
     #else
     private static let miniAnimation: Animation = Theme.Motion.standard
+    private static let surfaceHidesInMini = true
     #endif
 
     var body: some View {
@@ -43,9 +45,14 @@ struct RootView: View {
         ZStack(alignment: .bottom) {
             // The panel's surface lives here, always mounted, so hiding it is explicit and reliable
             // (see PanelBackground). It shrinks and fades with the collapse, then is switched off.
-            PanelBackground(cornerRadius: Theme.Radius.window, isHidden: mini)
+            // Under the native frame the surface never fades or resizes: it stays at the expanded
+            // height, bottom-anchored like the column, and the window's own frame reveals or hides
+            // it. Sized by SwiftUI it would lag the window by a layout pass, leaving rows hanging
+            // above its top edge for a frame; in mini the platter sits on it as when expanded.
+            PanelBackground(cornerRadius: Theme.Radius.window, isHidden: Self.surfaceHidesInMini && mini)
                 .frame(maxHeight: containerHeight ?? .infinity)
-                .opacity(mini ? 0 : 1)
+                .frame(height: Self.surfaceHidesInMini || columnHeight <= 0 ? nil : columnHeight)
+                .opacity(Self.surfaceHidesInMini && mini ? 0 : 1)
                 .allowsHitTesting(false)
             NavigationColumn()
                 .safeAreaBar(edge: .bottom, spacing: 0) {

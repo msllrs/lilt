@@ -9,13 +9,21 @@ struct PanelBackground: View {
     var isHidden: Bool = false
 
     private var style: PanelStyle { ArtworkStyle.shared.panel }
+    @Environment(NavigationModel.self) private var navigation
 
     var body: some View {
+        // Behind-window surfaces aren't clipped by the native frame, so under it they follow the
+        // window's live corner radius as it eases between the panel's and the platter's.
+        #if NATIVE_FRAME
+        let radius = navigation.frameCornerRadius
+        #else
+        let radius = cornerRadius
+        #endif
         switch style.surface {
         case .glass:
-            GlassBackground(cornerRadius: cornerRadius, isHidden: isHidden)
+            GlassBackground(cornerRadius: radius, isHidden: isHidden)
         case .sidebar:
-            SidebarBackground(cornerRadius: cornerRadius, translucent: style.translucent, isHidden: isHidden)
+            SidebarBackground(cornerRadius: radius, translucent: style.translucent, isHidden: isHidden)
         }
     }
 }
@@ -52,7 +60,17 @@ struct SidebarBackground: NSViewRepresentable {
         view.blendingMode = .behindWindow
         view.maskImage = cornerRadius > 0 ? Self.mask(cornerRadius: cornerRadius) : nil
         view.isHidden = isHidden
+        Self.live.add(view)
         return view
+    }
+
+    /// Every mounted sidebar surface, so the native frame can re-mask them in the same display
+    /// link tick that moves the window's corner; going through SwiftUI state lands a frame late,
+    /// and for that frame rows show past the material's corner.
+    nonisolated(unsafe) private static let live = NSHashTable<NSVisualEffectView>.weakObjects()
+
+    @MainActor static func applyLiveCornerRadius(_ radius: CGFloat) {
+        for view in live.allObjects { view.maskImage = radius > 0 ? mask(cornerRadius: radius) : nil }
     }
 
     func updateNSView(_ view: NSVisualEffectView, context: Context) {
