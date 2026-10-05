@@ -152,6 +152,7 @@ struct BrowseScreen: View {
         } label: {
             Image(systemName: "ellipsis")
                 .font(.body.weight(.semibold))
+                .rotationEffect(.degrees(90))
                 .foregroundStyle(.primary)
                 .headerControl()
         }
