@@ -51,9 +51,9 @@ enum Theme {
         /// One row height for every top header (search field, page titles) so switching screens
         /// never shifts the title line or where the list starts.
         static let headerRow: CGFloat = 32
-        /// Pictures in a header (account avatar, a page's compact artwork): a clear step below the
-        /// 32pt controls they sit beside, so they read as content rather than another button.
-        static let headerArtwork: CGFloat = 24
+        /// Pictures in a header (account avatar, a page's compact artwork) match the controls they
+        /// sit beside, so the header row reads as one line of equal circles.
+        static let headerArtwork: CGFloat = headerRow
         static let rowArtwork: CGFloat = 40
         static let barArtwork: CGFloat = 48
         static let controlIcon: CGFloat = 16

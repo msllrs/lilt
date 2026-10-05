@@ -119,7 +119,7 @@ struct BrowseScreen: View {
     /// The compact artwork doubles as a play button once the hero's own Play has scrolled away,
     /// and becomes a spinning record while this page is the one playing.
     private func compactArtwork(_ page: BrowsePage) -> some View {
-        // A clear step below the 32pt controls beside it: a picture, not another button.
+        // The same size as the controls beside it (see Theme.Size.headerArtwork).
         let size = Theme.Size.headerArtwork
         let isArtist = page.item.kind == .artist
         let radius: CGFloat = isArtist ? size / 2 : Theme.Radius.artwork(size)
