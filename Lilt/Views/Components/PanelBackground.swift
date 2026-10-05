@@ -11,11 +11,18 @@ struct PanelBackground: View {
     private var style: PanelStyle { ArtworkStyle.shared.panel }
 
     var body: some View {
+        // Under the native frame the window clips to its own corner curve, which is not quite
+        // SwiftUI's continuous curve; any shape of ours would leave slivers along the arc.
+        #if NATIVE_FRAME
+        let radius: CGFloat = 0
+        #else
+        let radius = cornerRadius
+        #endif
         switch style.surface {
         case .glass:
-            GlassBackground(cornerRadius: cornerRadius, isHidden: isHidden)
+            GlassBackground(cornerRadius: radius, isHidden: isHidden)
         case .sidebar:
-            SidebarBackground(cornerRadius: cornerRadius, translucent: style.translucent, isHidden: isHidden)
+            SidebarBackground(cornerRadius: radius, translucent: style.translucent, isHidden: isHidden)
         }
     }
 }
@@ -50,7 +57,7 @@ struct SidebarBackground: NSViewRepresentable {
         let view = NSVisualEffectView()
         view.material = .sidebar
         view.blendingMode = .behindWindow
-        view.maskImage = Self.mask(cornerRadius: cornerRadius)
+        view.maskImage = cornerRadius > 0 ? Self.mask(cornerRadius: cornerRadius) : nil
         view.isHidden = isHidden
         return view
     }
@@ -58,8 +65,10 @@ struct SidebarBackground: NSViewRepresentable {
     func updateNSView(_ view: NSVisualEffectView, context: Context) {
         // Inactive is the material's flat, opaque rendering: the look Reduce Transparency gives.
         view.state = translucent ? .active : .inactive
-        if view.maskImage?.size.width != cornerRadius * 2 + 1 {
+        if cornerRadius > 0, view.maskImage?.size.width != cornerRadius * 2 + 1 {
             view.maskImage = Self.mask(cornerRadius: cornerRadius)
+        } else if cornerRadius == 0, view.maskImage != nil {
+            view.maskImage = nil
         }
         if isHidden {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak view] in

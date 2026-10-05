@@ -14,6 +14,12 @@ struct HeaderBackdrop: ViewModifier {
     var visibility: CGFloat = 1
 
     private var style: HeaderBlurStyle { ArtworkStyle.shared.headerBlur }
+    /// The panel corner the backdrop is clipped to; under the native frame the window clips.
+    #if NATIVE_FRAME
+    static let clipRadius: CGFloat = 0
+    #else
+    static let clipRadius: CGFloat = Theme.Radius.window
+    #endif
 
     func body(content: Content) -> some View {
         let useBackdrop = style.useBackdrop && ProgressiveBlurBackdrop.isAvailable
@@ -24,7 +30,7 @@ struct HeaderBackdrop: ViewModifier {
                 Group {
                     if useBackdrop {
                         // A true blur ramp: strongest under the header, gone by `reach`.
-                        ProgressiveBlurBackdrop(radius: style.radius, saturation: style.saturation, brightness: style.brightness, fadeStart: fadeStart)
+                        ProgressiveBlurBackdrop(radius: style.radius, saturation: style.saturation, brightness: style.brightness, fadeStart: fadeStart, cornerRadius: Self.clipRadius)
                     } else {
                         Rectangle()
                             .fill(.thinMaterial)

@@ -34,11 +34,15 @@ final class PanelWindow: NSPanel {
         // Any click makes the panel key (still without activating the app), so shortcuts and
         // typing work right after tapping a row or play, not only after clicking the field.
         becomesKeyOnlyIfNeeded = false
-        backgroundColor = .clear
-        isOpaque = false
         #if NATIVE_FRAME
+        // A titled window only gets its rounded frame (and clips content to it) when it has an
+        // opaque background; clear made it a square sheet with a square shadow.
+        backgroundColor = .windowBackgroundColor
+        isOpaque = true
         hasShadow = true
         #else
+        backgroundColor = .clear
+        isOpaque = false
         hasShadow = false
         #endif
         animationBehavior = .utilityWindow

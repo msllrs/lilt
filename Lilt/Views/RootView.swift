@@ -10,6 +10,14 @@ struct RootView: View {
     /// the (invisible) column keeps this size instead of reflowing, and reports none of it.
     @State private var columnHeight: CGFloat = 0
 
+    /// Our clips follow the panel shape, except under the native frame, where the window clips
+    /// to its own corner curve and any shape of ours would leave slivers along the arc.
+    #if NATIVE_FRAME
+    private static let clipRadius: CGFloat = 0
+    #else
+    private static let clipRadius: CGFloat = Theme.Radius.window
+    #endif
+
     var body: some View {
         let mini = navigation.isMiniPlayer
         // Collapsing to the mini player is one bottom-anchored animation: the container (glass,
@@ -46,7 +54,7 @@ struct RootView: View {
                 // than leaving it hanging in the air. Fully transparent in mini: nothing to see,
                 // and transparent pixels pass clicks through to the window behind.
                 .mask(alignment: .bottom) {
-                    RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                    RoundedRectangle(cornerRadius: Self.clipRadius, style: .continuous)
                         .frame(maxHeight: containerHeight ?? .infinity)
                 }
                 .opacity(mini ? 0 : 1)
@@ -65,7 +73,7 @@ struct RootView: View {
                         if mini {
                             Rectangle().padding(-Theme.Size.shadowMargin)
                         } else {
-                            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                            RoundedRectangle(cornerRadius: Self.clipRadius, style: .continuous)
                                 .frame(maxHeight: .infinity)
                                 .padding(.top, -2000)
                         }

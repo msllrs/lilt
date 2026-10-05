@@ -405,6 +405,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .environment(collapsedSections)
         let hosting = NSHostingView(rootView: root)
         hosting.sizingOptions = []
+        #if NATIVE_FRAME
+        // The hidden title bar still counts as a safe area; the column fills the whole window.
+        hosting.safeAreaRegions = []
+        #endif
 
         let container = NSView(frame: window.contentLayoutRect)
         container.autoresizingMask = [.width, .height]

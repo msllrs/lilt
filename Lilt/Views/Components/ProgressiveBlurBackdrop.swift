@@ -103,12 +103,17 @@ final class BackdropHostView: NSView {
         // effect sits against (layer coordinates: y up, so the top corners are the max-y ones).
         let viewRect = CGRect(x: Self.bleed, y: rampFlipped ? Self.bleed : 0, width: bounds.width, height: bounds.height)
         let r = cornerRadius
-        let shape = UnevenRoundedRectangle(
-            topLeadingRadius: rampFlipped ? r : 0, bottomLeadingRadius: rampFlipped ? 0 : r,
-            bottomTrailingRadius: rampFlipped ? 0 : r, topTrailingRadius: rampFlipped ? r : 0,
-            style: .continuous
-        )
-        clip.path = shape.path(in: viewRect).cgPath
+        if r > 0 {
+            let shape = UnevenRoundedRectangle(
+                topLeadingRadius: rampFlipped ? r : 0, bottomLeadingRadius: rampFlipped ? 0 : r,
+                bottomTrailingRadius: rampFlipped ? 0 : r, topTrailingRadius: rampFlipped ? r : 0,
+                style: .continuous
+            )
+            clip.path = shape.path(in: viewRect).cgPath
+        } else {
+            // No shape of ours: the whole bled layer stays and the window clips it.
+            clip.path = CGPath(rect: container.bounds, transform: nil)
+        }
         fade.startPoint = CGPoint(x: 0.5, y: rampFlipped ? 0 : 1)
         fade.endPoint = CGPoint(x: 0.5, y: rampFlipped ? 1 : 0)
         applyFade()
