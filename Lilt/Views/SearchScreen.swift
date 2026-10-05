@@ -27,7 +27,7 @@ struct SearchScreen: View {
             // A safe-area *bar* (not inset): results scroll beneath it and the system draws its
             // progressive scroll-edge blur under the field.
             .safeAreaBar(edge: .top, spacing: 0) {
-                HStack(spacing: Theme.Space.xs) {
+                HStack(spacing: Theme.Space.sm) {
                     // The library button itself is drawn by the column, static above the pages
                     // (it becomes the back chevron); this just keeps its room.
                     Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)

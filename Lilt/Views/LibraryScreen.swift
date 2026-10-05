@@ -33,9 +33,9 @@ struct LibraryScreen: View {
     }
 
     private var header: some View {
-        HStack(spacing: Theme.Space.sm) {
+        HStack(spacing: Theme.Space.md) {
             // Slot for the back button, which the navigation column draws statically on top.
-            Color.clear.frame(width: 28, height: 28)
+            Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
             Text("Library")
                 .font(.body)
             Spacer()
@@ -104,8 +104,8 @@ struct LibraryScreen: View {
                 }
             }
         } label: {
-            ArtworkView(url: account.photoURL, size: ArtworkStyle.shared.headerControls.mode == .flat ? 28 : 24, radius: ArtworkStyle.shared.headerControls.mode == .flat ? 14 : 12, context: .header)
-                .headerControl()
+            ArtworkView(url: account.photoURL, size: 28, radius: 14, context: .header)
+                .frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
