@@ -177,9 +177,9 @@ struct LeadingCastStyle: Equatable {
     /// The wash falling off from that edge across the button, and how far across it reaches
     /// (fraction of the button's width).
     var washOpacity: Double = 0.2
-    var washReach: Double = 0.4
+    var washReach: Double = 0.8
     /// Saturation boost on the sampled colour.
-    var saturation: Double = 1.6
+    var saturation: Double = 2.0
     static let standard = LeadingCastStyle()
 }
 
