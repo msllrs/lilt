@@ -125,8 +125,8 @@ struct TrackRow: View {
     /// Fades the text out under the hover button; full width otherwise. When a duration is
     /// shown, the text already stops short of the button's spot, so no fade is needed.
     private var textFade: some View {
-        // One mask whose cut-out eases in and out with the hover (a swap between two masks
-        // would snap): fully clear across the button, with the fade run-up before it.
+        // Fully clear across the button, with the fade run-up before it. Switches with the
+        // button, instantly: the eased hover fade is for the row highlight only.
         ZStack(alignment: .trailing) {
             Color.black
             HStack(spacing: 0) {
@@ -137,6 +137,7 @@ struct TrackRow: View {
             }
             .blendMode(.destinationOut)
             .opacity(isHovering && track.durationText == nil ? 1 : 0)
+            .transaction { $0.animation = nil }
         }
         .compositingGroup()
     }
