@@ -212,12 +212,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             panel.animateNativeFrame(to: target, cornerRadius: cornerRadius, spring: spring) { [weak self] in
                 guard let self else { return }
                 panel.minSize = mini ? NSSize(width: miniMin.width, height: target.height) : fullMin
+                lockNativeHeight(mini ? target.height : nil)
                 if !mini { unpinHosting() }
                 navigation.isFrameAnimating = false
             }
             return
         }
         panel.applyNativeCornerRadius(cornerRadius)
+        lockNativeHeight(mini ? height : nil)
         if !mini { unpinHosting() }
         #endif
         if mini {
@@ -244,6 +246,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let hosting = panelHosting, let container = hosting.superview else { return }
         hosting.autoresizingMask = [.width, .maxYMargin]
         hosting.frame = NSRect(x: 0, y: 0, width: container.bounds.width, height: height)
+    }
+
+    /// In mini the window is the platter: the system resize must not be able to make it taller
+    /// (that only shows empty material above the platter). Expanded, the height is free again.
+    private func lockNativeHeight(_ height: CGFloat?) {
+        guard let panel else { return }
+        panel.maxSize = NSSize(width: Theme.Size.panelMaxWidth, height: height ?? .greatestFiniteMagnitude)
     }
 
     private func unpinHosting() {

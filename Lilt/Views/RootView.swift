@@ -36,11 +36,12 @@ struct RootView: View {
         // surfaces and clips just fill it. A column that has never been laid out expanded
         // (launched in mini) holds the height the window is heading for.
         let containerHeight: CGFloat? = nil
-        let holdsExpandedLayout = true
-        // Never taller than the hosting view itself: an overflowing stack is centred, which cuts
-        // the column at both ends and pushes the platter below the window.
-        let heldCandidate = columnHeight > 0 ? columnHeight : navigation.expandedFrameHeight
-        let heldHeight = fullHeight > 0 ? min(heldCandidate, fullHeight) : heldCandidate
+        // Held only while the frame animates or in mini, when the hosting view is pinned at the
+        // expanded height. While expanded and idle the column just fills the view: a fixed height
+        // fed back from the view's own measurement runs a frame behind a live resize, overflows,
+        // and an overflowing stack is centred, cutting the header and the platter.
+        let holdsExpandedLayout = mini || navigation.isFrameAnimating
+        let heldHeight = columnHeight > 0 ? columnHeight : navigation.expandedFrameHeight
         let platterBottomInset: CGFloat = mini ? 0 : inset
         #else
         let containerHeight: CGFloat? = mini ? navigation.platterHeight + inset : (fullHeight > 0 ? fullHeight : nil)

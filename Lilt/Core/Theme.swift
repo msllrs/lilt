@@ -77,10 +77,10 @@ enum Theme {
         /// Colour drawn from one cover handing over to the next: slow enough to read as a change
         /// of light, not a cut.
         static let cast: Animation = .easeInOut(duration: 0.8)
-        /// The native frame growing or shrinking between the column and the platter: quick, with
-        /// a touch of bounce. The window itself steps along this same spring, so the content and
-        /// the frame land together, overshoot included.
-        static let frameSpring = Spring(duration: 0.3, bounce: 0.15)
+        /// The native frame growing or shrinking between the column and the platter: quick, no
+        /// bounce. The window itself steps along this same spring, so the content and the frame
+        /// land together.
+        static let frameSpring = Spring(duration: 0.2, bounce: 0)
         static let frame: Animation = .spring(frameSpring)
         /// The platter revealing the queue, as a spring the window can follow (see `bounce`).
         static let bounceSpring = Spring(duration: 0.42, bounce: 0.22)
