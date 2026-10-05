@@ -64,6 +64,7 @@ struct ShadowStyle: Equatable {
     static let ambient = ShadowStyle(opacity: 0.88, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 3.0, lightCompensation: 0.4, baseOpacity: 0.12)
     static let row = ShadowStyle(opacity: 0.40, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 4.0, lightCompensation: 0.4, baseOpacity: 0.08)
     static let header = ShadowStyle(opacity: 0.64, blur: 0.16, offsetY: 0.08, spread: 0.92, saturation: 4.0, lightCompensation: 0.4, baseOpacity: 0.08)
+    static let avatar = ShadowStyle(opacity: 0.64, blur: 0.16, offsetY: 0.08, spread: 0.64, saturation: 4.0, lightCompensation: 0.4, baseOpacity: 0.08)
 
     var isVisible: Bool { opacity > 0 || baseOpacity > 0 }
 }
@@ -381,8 +382,9 @@ final class ArtworkStyle {
     var heroShadow: ShadowStyle = .ambient
     /// The small artwork in a page's collapsed header.
     var headerShadow: ShadowStyle = .header
-    /// The account avatar in the library header: a round picture beside glass controls.
-    var avatarShadow: ShadowStyle = .header
+    /// The account avatar in the library header: a round picture beside glass controls. Tuned by
+    /// Matt in the tweak panel on 2026-10-05: tighter spread than the header artwork.
+    var avatarShadow: ShadowStyle = .avatar
 
     var platter: PlatterStyle = .standard
     var notes: NotesStyle = .standard
@@ -433,7 +435,7 @@ final class ArtworkStyle {
         playerShadow = .ambient
         heroShadow = .ambient
         headerShadow = .header
-        avatarShadow = .header
+        avatarShadow = .avatar
         platter = .standard
         notes = .standard
         playCast = .standard
