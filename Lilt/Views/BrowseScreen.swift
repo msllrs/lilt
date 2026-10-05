@@ -312,6 +312,11 @@ struct BrowseScreen: View {
                 if !page.item.subtitle.isEmpty {
                     ArtistLink(name: page.item.subtitle, item: pageArtist(page), font: .caption)
                 }
+                if let detail = page.detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
             if phase == .loading, page.tracks.isEmpty {
                 Skeleton.PlayCapsule()

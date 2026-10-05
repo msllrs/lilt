@@ -121,10 +121,16 @@ enum SearchParser {
             if let title = runsText(JSON.value(at: ["title", "runs"], in: header)), !title.isEmpty {
                 page.item.title = title
             }
-            let subtitle = runsText(JSON.value(at: ["straplineTextOne", "runs"], in: header))
-                ?? runsText(JSON.value(at: ["subtitle", "runs"], in: header))
+            let strapline = runsText(JSON.value(at: ["straplineTextOne", "runs"], in: header))
+            let headerSubtitle = runsText(JSON.value(at: ["subtitle", "runs"], in: header))
+            let subtitle = strapline ?? headerSubtitle
             if let subtitle, !subtitle.isEmpty, item.kind != .artist {
                 page.item.subtitle = subtitle
+            }
+            // Albums put the artist in the strapline and "Album • 2013" in the subtitle; keep the
+            // latter as the detail line, the way a playlist's subtitle already carries its year.
+            if strapline != nil, let headerSubtitle, !headerSubtitle.isEmpty, item.kind == .album {
+                page.detail = headerSubtitle
             }
             if let art = firstThumbnail(in: header, size: 480) {
                 page.item.artworkURL = art

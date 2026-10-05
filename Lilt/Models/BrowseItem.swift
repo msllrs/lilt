@@ -100,5 +100,8 @@ struct BrowsePage: Sendable {
     /// The playlist behind this page (a playlist's own id, or an album's audio playlist), which
     /// is what the library save call takes.
     var playlistId: String?
+    /// For albums: the kind and year line ("Album • 2013") that the header shows under the
+    /// artist, as playlists show theirs.
+    var detail: String?
     var sections: [BrowseSection] = []
 }
