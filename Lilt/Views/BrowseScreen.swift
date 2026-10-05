@@ -161,6 +161,15 @@ struct BrowseScreen: View {
                 radius: playingHere && !isArtist ? size / 2 : radius,
                 size: size
             )
+            // The same notes a playing row's disc gives off, scaled to this smaller disc.
+            .overlay {
+                if playingHere && !isArtist {
+                    let scale = size / Theme.Size.rowArtwork
+                    NoteEmitterView(isPlaying: player.isPlaying, center: CGPoint(x: 60 * scale, y: 60 * scale), artworkURL: page.item.artworkURL, scale: scale)
+                        .frame(width: 120 * scale, height: 120 * scale)
+                        .allowsHitTesting(false)
+                }
+            }
         }
         .buttonStyle(.plain)
         .disabled(page.tracks.isEmpty)

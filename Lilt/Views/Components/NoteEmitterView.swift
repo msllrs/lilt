@@ -11,15 +11,30 @@ struct NoteEmitterView: NSViewRepresentable {
     var center: CGPoint
     /// For the artwork colour mode.
     var artworkURL: URL?
+    /// Scales the notes to the disc they rise from (1 is the row's 40pt disc): glyph size, speed,
+    /// drift and the source offset all scale together.
+    var scale: CGFloat = 1
 
     func makeNSView(context: Context) -> NoteEmitterHostView {
         let view = NoteEmitterHostView()
-        view.update(isPlaying: isPlaying, center: center, artworkURL: artworkURL, style: ArtworkStyle.shared.notes)
+        view.update(isPlaying: isPlaying, center: center, artworkURL: artworkURL, style: ArtworkStyle.shared.notes.scaled(scale))
         return view
     }
 
     func updateNSView(_ view: NoteEmitterHostView, context: Context) {
-        view.update(isPlaying: isPlaying, center: center, artworkURL: artworkURL, style: ArtworkStyle.shared.notes)
+        view.update(isPlaying: isPlaying, center: center, artworkURL: artworkURL, style: ArtworkStyle.shared.notes.scaled(scale))
+    }
+}
+
+extension NotesStyle {
+    /// The same notes for a disc `factor` times the row's size.
+    func scaled(_ factor: CGFloat) -> NotesStyle {
+        guard factor != 1 else { return self }
+        var s = self
+        let f = Double(factor)
+        s.velocity *= f; s.velocityRange *= f; s.gravity *= f; s.drift *= f; s.driftRange *= f
+        s.glyphSize *= f; s.sourceX *= f; s.sourceY *= f
+        return s
     }
 }
 
