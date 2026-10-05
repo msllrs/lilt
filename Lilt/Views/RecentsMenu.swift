@@ -45,7 +45,7 @@ struct RecentsMenu: View {
         } label: {
             Image(systemName: "clock")
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
                 .headerControl()
         }
         .menuStyle(.button)

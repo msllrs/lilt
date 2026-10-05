@@ -293,7 +293,7 @@ private struct LeadingButton: View {
                 // Keyed by symbol so library ↔ back swaps through scale, blur and fade in place.
                 Image(systemName: symbol)
                     .font(isBack ? .body.weight(.semibold) : .body)
-                    .foregroundStyle(isBack ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(.primary)
                     .id(symbol)
                     .transition(.blurScale)
             }
