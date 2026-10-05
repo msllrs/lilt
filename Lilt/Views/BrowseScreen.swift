@@ -103,7 +103,7 @@ struct BrowseScreen: View {
     static func isLikedMusic(_ item: BrowseItem) -> Bool { item.id == "VLLM" || item.id == "LM" }
 
     /// Play, save and shuffle all share this height so the row reads as one set of controls.
-    private static let heroControlHeight: CGFloat = 38
+    static let heroControlHeight: CGFloat = 38
     @State private var isSaving = false
     private var isSaved: Bool { music.isSaved(item) }
 
@@ -432,8 +432,9 @@ private struct HeroSnapBehavior: ScrollTargetBehavior {
     }
 }
 
-/// The hero controls' glass: the cover above casts its colour onto the glass, a wash along the
-/// top edge, and the lit rim. Lives on the label so the press scale moves the whole control.
+/// The hero controls' glass: the same surface as the header controls (so the tweak panel's
+/// glass settings apply to both), with the cover above casting its colour onto it as a wash
+/// along the top edge and a lit rim. Lives on the label so the press scale moves the whole control.
 private struct HeroGlass<S: InsettableShape>: ViewModifier {
     let shape: S
     let cast: Color?
@@ -441,7 +442,7 @@ private struct HeroGlass<S: InsettableShape>: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .glassEffect(.regular.tint(cast?.opacity(playCast.tintOpacity)).interactive(), in: shape)
+            .modifier(HeaderControlSurface(shape: shape, cornerRadius: BrowseScreen.heroControlHeight / 2, tint: nil))
             .overlay { glow }
             .glassEdge(shape, cast: cast, castMix: playCast.rimMix, blur: playCast.rimBlur, blend: playCast.rimBlend.blendMode)
             .contentShape(shape)
