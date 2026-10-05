@@ -32,8 +32,6 @@ struct BrowseScreen: View {
     @State private var collapse: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0
     @State private var heroHeight: CGFloat = 280
-    /// The scroll view's top inset (the header bar), to read the scroll target in content terms.
-    @State private var scrollInsetTop: CGFloat = 0
     /// Extra bottom padding that guarantees enough scroll range for the hero to hand off fully.
     @State private var extraBottom: CGFloat = 0
     @State private var isHoveringCompactArtwork = false
@@ -211,8 +209,7 @@ struct BrowseScreen: View {
         // A scroll that would end part-way through the hero's travel is steered to the nearer
         // end as the fingers lift, in the same motion, so the page never rests with a half-faded
         // hero and a half-visible compact header.
-        .scrollTargetBehavior(HeroSnapBehavior(heroHeight: heroHeight, insetTop: scrollInsetTop, snap: ArtworkStyle.shared.heroSnap))
-        .onScrollGeometryChange(for: CGFloat.self) { $0.contentInsets.top } action: { _, inset in scrollInsetTop = inset }
+        .scrollTargetBehavior(HeroSnapBehavior(heroHeight: heroHeight, snap: ArtworkStyle.shared.heroSnap))
         .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
             ScrollMetrics(
                 offset: geometry.contentOffset.y + geometry.contentInsets.top,
@@ -354,7 +351,6 @@ struct BrowseScreen: View {
 /// deceleration rather than a second animation after it stops.
 private struct HeroSnapBehavior: ScrollTargetBehavior {
     let heroHeight: CGFloat
-    let insetTop: CGFloat
     let snap: HeroSnapStyle
 
     func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
@@ -364,9 +360,9 @@ private struct HeroSnapBehavior: ScrollTargetBehavior {
         // pulled back to where it came from).
         let velocity = context.velocity.dy
         guard abs(velocity) >= snap.minFlick else { return }
-        // The target's origin is the content offset, which sits at -inset when scrolled to the top.
-        let travel = (target.rect.minY + insetTop) / heroHeight
+        // The target's origin is in content coordinates: 0 at the top, past the header bar.
+        let travel = target.rect.minY / heroHeight
         guard travel > snap.deadZone, travel < 1 - snap.deadZone else { return }
-        target.rect.origin.y = (velocity > 0 ? heroHeight : 0) - insetTop
+        target.rect.origin.y = velocity > 0 ? heroHeight : 0
     }
 }
