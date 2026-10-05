@@ -15,7 +15,7 @@ struct RecentsMenu: View {
                         Button {
                             player.play([track], startingAt: 0)
                         } label: {
-                            label(title: track.title, subtitle: track.artist, artwork: track.artworkURL, fallback: "music.note")
+                            label(id: track.id, title: track.title, subtitle: track.artist, artwork: track.artworkURL, fallback: "music.note")
                         }
                     }
                 }
@@ -27,6 +27,7 @@ struct RecentsMenu: View {
                             navigation.open(item)
                         } label: {
                             label(
+                                id: item.id,
                                 title: item.title,
                                 subtitle: item.subtitle,
                                 artwork: item.artworkURL,
@@ -62,12 +63,13 @@ struct RecentsMenu: View {
 
     /// Menus render the label's image as the item icon, so use cached artwork when we have it.
     @ViewBuilder
-    private func label(title: String, subtitle: String, artwork: URL?, fallback: String) -> some View {
+    private func label(id: String, title: String, subtitle: String, artwork: URL?, fallback: String) -> some View {
         let text = subtitle.isEmpty ? title : "\(title) — \(subtitle)"
-        if let artwork, let thumb = ImageCache.shared.thumbnail(for: artwork) {
+        if let thumb = recents.thumbnail(for: id) ?? artwork.flatMap({ ImageCache.shared.thumbnail(for: $0) }) {
             Label { Text(text) } icon: { Image(nsImage: thumb) }
         } else {
             Label(text, systemImage: fallback)
+                .onAppear { recents.captureThumbnail(id: id, url: artwork) }
         }
     }
 }

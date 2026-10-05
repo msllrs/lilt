@@ -344,7 +344,7 @@ final class PlayerService {
         isLoading = true
         wantsAutoplayNudge = true
         bridge.load(videoId: queue[index].id)
-        recents?.recordPlayed(queue[index])
+        recents?.recordPlayed(queue[index], artwork: liveArtworkURL)
         save()
     }
 
@@ -412,6 +412,7 @@ final class PlayerService {
         liveTitle = s.title
         liveArtist = s.artist
         liveArtworkURL = s.artworkURL ?? liveArtworkURL
+        if let current { recents?.updateArtwork(forPlayed: current.id, url: liveArtworkURL) }
         fillLinks(from: s)
         resolveLinksIfNeeded()
 
