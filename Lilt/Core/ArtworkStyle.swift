@@ -395,6 +395,8 @@ final class ArtworkStyle {
     var headerControls: HeaderControlStyle = .standard
     var panel: PanelStyle = .standard
     var leadingCast: LeadingCastStyle = .standard
+    /// Library title centred between the back button and the avatar, rather than leading.
+    var centredLibraryTitle: Bool = true
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
@@ -445,6 +447,7 @@ final class ArtworkStyle {
         headerControls = .standard
         panel = .standard
         leadingCast = .standard
+        centredLibraryTitle = true
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -476,6 +479,7 @@ final class ArtworkStyle {
         dockTile = DockTileStyle(plateTint: \(f(dockTile.plateTint)), plateSaturation: \(f(dockTile.plateSaturation)), shadowOpacity: \(f(dockTile.shadowOpacity)), shadowBlur: \(f(dockTile.shadowBlur)), shadowOffsetY: \(f(dockTile.shadowOffsetY)))
         headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), rim: \(headerControls.rim), rimOpacity: \(f(headerControls.rimOpacity)), interactive: \(headerControls.interactive), tintOpacity: \(f(headerControls.tintOpacity)), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
         panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent), systemShadow: \(panel.systemShadow))
+        centredLibraryTitle = \(centredLibraryTitle)
         leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)))
         """
     }

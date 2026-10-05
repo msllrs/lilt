@@ -88,6 +88,9 @@ struct TweakPanel: View {
                 Toggle("Translucent (sidebar)", isOn: $style.panel.translucent)
                 Toggle("System shadow", isOn: $style.panel.systemShadow)
             }
+            Section("Library header") {
+                Toggle("Centred title", isOn: $style.centredLibraryTitle)
+            }
             Section("Back button cast") {
                 slider("Rim opacity", $style.leadingCast.rimOpacity, 0...1)
                 slider("Rim width", $style.leadingCast.rimWidth, 0.5...3)

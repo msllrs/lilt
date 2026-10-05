@@ -33,13 +33,16 @@ struct LibraryScreen: View {
     }
 
     private var header: some View {
-        HStack(spacing: Theme.Space.sm) {
+        let centred = ArtworkStyle.shared.centredLibraryTitle
+        return HStack(spacing: Theme.Space.sm) {
             // Slot for the back button, which the navigation column draws statically on top.
             Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
+            if centred { Spacer(minLength: 0) }
             Text("Library")
-                .font(.body)
-            Spacer()
-            if let account { accountMenu(account) }
+                .font(centred ? .body.weight(.medium) : .body)
+            Spacer(minLength: 0)
+            // Centred: the avatar's slot is always there, so the title sits between equal weights.
+            if let account { accountMenu(account) } else if centred { Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow) }
         }
         .frame(height: Theme.Size.headerRow)
         .padding(.top, Theme.Space.panelInset)
