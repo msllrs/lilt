@@ -186,6 +186,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         #if NATIVE_FRAME
         let cornerRadius = mini ? Theme.Radius.panel : Theme.Radius.window
         navigation.expandedFrameHeight = expandedHeight
+        // The layout the window reveals: the expanded one, hanging from the bottom.
+        pinHosting(height: max(current.height, target.height, expandedHeight))
         if animated {
             // Loosen the minimum first (setting a larger one would snap the frame), and tighten it
             // once the frame has arrived. The corner eases between the two radii on the same curve.
@@ -194,11 +196,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             panel.animateNativeFrame(to: target, cornerRadius: cornerRadius, duration: Theme.Motion.frameDuration) { [weak self] in
                 guard let self else { return }
                 panel.minSize = mini ? NSSize(width: miniMin.width, height: target.height) : fullMin
+                if !mini { unpinHosting() }
                 navigation.isFrameAnimating = false
             }
             return
         }
         panel.applyNativeCornerRadius(cornerRadius)
+        if !mini { unpinHosting() }
         #endif
         if mini {
             panel.minSize = NSSize(width: miniMin.width, height: height)
@@ -213,6 +217,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: Manual resize (edge strips drawn inside the visible panel)
 
     var panelFrame: NSRect { panel?.frame ?? .zero }
+    private var panelHosting: NSView?
+
+    #if NATIVE_FRAME
+    /// Native frame: while the window animates between the column and the platter (and all
+    /// through mini), the hosting view keeps the expanded height and hangs from the window's
+    /// bottom edge, so the window reveals or hides a layout that never changes. Resizing it with
+    /// the window laid the content out a frame late and the bottom-anchored platter twitched.
+    private func pinHosting(height: CGFloat) {
+        guard let hosting = panelHosting, let container = hosting.superview else { return }
+        hosting.autoresizingMask = [.width, .maxYMargin]
+        hosting.frame = NSRect(x: 0, y: 0, width: container.bounds.width, height: height)
+    }
+
+    private func unpinHosting() {
+        guard let hosting = panelHosting, let container = hosting.superview else { return }
+        hosting.autoresizingMask = [.width, .height]
+        hosting.frame = container.bounds
+    }
+    #endif
 
     /// The window server's shadow, shaped from the content's alpha (see PanelStyle.systemShadow).
     func setSystemShadow(_ on: Bool) {
@@ -443,6 +466,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .environment(collapsedSections)
         let hosting = NSHostingView(rootView: root)
         hosting.sizingOptions = []
+        panelHosting = hosting
         #if NATIVE_FRAME
         // The hidden title bar still counts as a safe area; the column fills the whole window.
         hosting.safeAreaRegions = []
