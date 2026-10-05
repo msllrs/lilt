@@ -82,7 +82,9 @@ enum Theme {
         /// land together.
         static let frameSpring = Spring(duration: 0.2, bounce: 0)
         static let frame: Animation = .spring(frameSpring)
-        /// The platter revealing the queue, as a spring the window can follow (see `bounce`).
-        static let bounceSpring = Spring(duration: 0.42, bounce: 0.22)
+        /// The platter revealing the queue under the native frame: the window is the platter
+        /// and steps along this same spring, so no bounce, or the two overshoot out of phase and
+        /// a strip of bare material opens between them.
+        static let queueSpring = Spring(duration: 0.3, bounce: 0)
     }
 }

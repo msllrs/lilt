@@ -106,9 +106,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func setQueueVisible(_ visible: Bool) {
         guard visible != navigation.isQueueVisible else { return }
         #if NATIVE_FRAME
-        // The window is the platter: it rides the same spring as the list, either way.
-        if navigation.isMiniPlayer { resizeWindow(mini: true, queueVisible: visible, animated: true, spring: Theme.Motion.bounceSpring) }
-        withAnimation(Theme.Motion.bounce) { navigation.isQueueVisible = visible }
+        // The window is the platter: it and the list ride one spring, either way.
+        if navigation.isMiniPlayer { resizeWindow(mini: true, queueVisible: visible, animated: true, spring: Theme.Motion.queueSpring) }
+        withAnimation(.spring(Theme.Motion.queueSpring)) { navigation.isQueueVisible = visible }
         autoHideQueueIfEmpty()
         return
         #endif
@@ -156,7 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard navigation.isMiniPlayer, navigation.isQueueVisible, let panel else { return }
         let target = miniHeight(queueVisible: true)
         #if NATIVE_FRAME
-        if target != panel.frame.height { resizeWindow(mini: true, queueVisible: true, animated: true, spring: Theme.Motion.bounceSpring) }
+        if target != panel.frame.height { resizeWindow(mini: true, queueVisible: true, animated: true, spring: Theme.Motion.queueSpring) }
         return
         #endif
         if target > panel.frame.height {
