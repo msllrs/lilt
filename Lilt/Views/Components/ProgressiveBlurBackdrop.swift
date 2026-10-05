@@ -17,6 +17,9 @@ struct ProgressiveBlurBackdrop: NSViewRepresentable {
     var fadeStart: Double
     /// Upside down: full blur at the bottom edge, fading upward (for the bottom of a list).
     var flipped: Bool = false
+    /// Radius of the panel corners on the edge the effect sits against, so the layer is clipped
+    /// to the panel shape itself rather than trusting a clip further up the view tree.
+    var cornerRadius: CGFloat = Theme.Radius.window
 
     /// True when the private classes exist and accept the filter we need.
     static let isAvailable: Bool = {
@@ -28,6 +31,7 @@ struct ProgressiveBlurBackdrop: NSViewRepresentable {
 
     func updateNSView(_ view: BackdropHostView, context: Context) {
         view.rampFlipped = flipped
+        view.cornerRadius = cornerRadius
         view.configure(radius: radius, saturation: saturation, brightness: brightness, fadeStart: fadeStart)
     }
 
@@ -43,6 +47,10 @@ struct ProgressiveBlurBackdrop: NSViewRepresentable {
 final class BackdropHostView: NSView {
     private var backdrop: CALayer?
     private var fade = CAGradientLayer()
+    /// Holds the backdrop so the panel-shaped clip and the fade can both apply (a mask can't
+    /// carry a mask of its own).
+    private let container = CALayer()
+    private let clip = CAShapeLayer()
     private var blur: NSObject?
     private var radius = 0.0, saturation = 1.0, brightness = 0.0
     private var maskSize = CGSize.zero
@@ -57,7 +65,9 @@ final class BackdropHostView: NSView {
         fade.startPoint = CGPoint(x: 0.5, y: 1)
         fade.endPoint = CGPoint(x: 0.5, y: 0)
         layer.mask = fade
-        self.layer?.addSublayer(layer)
+        container.mask = clip
+        container.addSublayer(layer)
+        self.layer?.addSublayer(container)
         backdrop = layer
     }
 
@@ -68,9 +78,13 @@ final class BackdropHostView: NSView {
 
     /// The layer runs past the view on the top and sides. Its outermost pixels are never fully
     /// blurred (the half-resolution pass and edge normalisation both leave a sliver), and the
-    /// column's rounded clip hides anything beyond the panel, so the visible edge is the clip,
-    /// not the layer.
+    /// clip below cuts the layer back to the view at the panel's own corners, so the visible
+    /// edge is the clip, not the layer. Backdrops sample other windows too, so without the clip
+    /// the bleed paints a blurred square of the desktop outside each rounded corner.
     private static let bleed: CGFloat = 12
+    var cornerRadius: CGFloat = Theme.Radius.window {
+        didSet { if cornerRadius != oldValue { needsLayout = true } }
+    }
     private var fadeStart: CGFloat = 1
     /// Full blur at the bottom edge instead of the top (NSView already has `isFlipped`).
     var rampFlipped = false {
@@ -81,8 +95,20 @@ final class BackdropHostView: NSView {
         super.layout()
         // Bleed past the edge the effect is strongest at (top normally, bottom when flipped).
         let frame = NSRect(x: -Self.bleed, y: rampFlipped ? -Self.bleed : 0, width: bounds.width + Self.bleed * 2, height: bounds.height + Self.bleed)
-        backdrop?.frame = frame
-        fade.frame = backdrop?.bounds ?? frame
+        container.frame = frame
+        backdrop?.frame = container.bounds
+        fade.frame = container.bounds
+        clip.frame = container.bounds
+        // The view's own rect inside the bled layer, with the panel's corners on the edge the
+        // effect sits against (layer coordinates: y up, so the top corners are the max-y ones).
+        let viewRect = CGRect(x: Self.bleed, y: rampFlipped ? Self.bleed : 0, width: bounds.width, height: bounds.height)
+        let r = cornerRadius
+        let shape = UnevenRoundedRectangle(
+            topLeadingRadius: rampFlipped ? r : 0, bottomLeadingRadius: rampFlipped ? 0 : r,
+            bottomTrailingRadius: rampFlipped ? 0 : r, topTrailingRadius: rampFlipped ? r : 0,
+            style: .continuous
+        )
+        clip.path = shape.path(in: viewRect).cgPath
         fade.startPoint = CGPoint(x: 0.5, y: rampFlipped ? 0 : 1)
         fade.endPoint = CGPoint(x: 0.5, y: rampFlipped ? 1 : 0)
         applyFade()
