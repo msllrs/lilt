@@ -185,17 +185,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let target = Self.onScreen(NSRect(x: current.minX, y: current.minY, width: current.width, height: height), near: screen)
         #if NATIVE_FRAME
         let cornerRadius = mini ? Theme.Radius.panel : Theme.Radius.window
+        navigation.expandedFrameHeight = expandedHeight
         if animated {
             // Loosen the minimum first (setting a larger one would snap the frame), and tighten it
             // once the frame has arrived. The corner eases between the two radii on the same curve.
             panel.minSize = miniMin
             navigation.isFrameAnimating = true
-            panel.animateNativeCornerRadius(to: cornerRadius, duration: Theme.Motion.frameDuration)
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = Theme.Motion.frameDuration
-                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                panel.animator().setFrame(target, display: true)
-            } completionHandler: { [weak self] in
+            panel.animateNativeFrame(to: target, cornerRadius: cornerRadius, duration: Theme.Motion.frameDuration) { [weak self] in
                 guard let self else { return }
                 panel.minSize = mini ? NSSize(width: miniMin.width, height: target.height) : fullMin
                 navigation.isFrameAnimating = false
@@ -217,6 +213,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: Manual resize (edge strips drawn inside the visible panel)
 
     var panelFrame: NSRect { panel?.frame ?? .zero }
+
+    /// The window server's shadow, shaped from the content's alpha (see PanelStyle.systemShadow).
+    func setSystemShadow(_ on: Bool) {
+        #if !NATIVE_FRAME
+        guard let panel, panel.hasShadow != on else { return }
+        panel.hasShadow = on
+        panel.invalidateShadow()
+        #endif
+    }
 
     /// Applies a frame from the edge strips, honouring the window's min/max sizes and keeping the
     /// anchored edge fixed when a size is clamped.

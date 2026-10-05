@@ -33,13 +33,16 @@ struct RootView: View {
         // it never moves vertically, while it widens to the full panel as before.
         #if NATIVE_FRAME
         // The window itself is the container (its frame animates, see AppDelegate), so our
-        // surfaces and clips just fill it.
+        // surfaces and clips just fill it. A column that has never been laid out expanded
+        // (launched in mini) holds the height the window is heading for.
         let containerHeight: CGFloat? = nil
         let holdsExpandedLayout = mini || navigation.isFrameAnimating
+        let heldHeight = columnHeight > 0 ? columnHeight : navigation.expandedFrameHeight
         let platterBottomInset: CGFloat = mini ? 0 : inset
         #else
         let containerHeight: CGFloat? = mini ? navigation.platterHeight + inset : (fullHeight > 0 ? fullHeight : nil)
         let holdsExpandedLayout = mini
+        let heldHeight = columnHeight
         let platterBottomInset = inset
         #endif
         ZStack(alignment: .bottom) {
@@ -55,7 +58,7 @@ struct RootView: View {
                 .overlay(alignment: .bottom) {
                     PanelBackground(cornerRadius: Theme.Radius.window, isHidden: Self.surfaceHidesInMini && mini)
                         .frame(maxHeight: containerHeight ?? .infinity)
-                        .frame(height: Self.surfaceHidesInMini || columnHeight <= 0 ? nil : columnHeight)
+                        .frame(height: Self.surfaceHidesInMini || heldHeight <= 0 ? nil : heldHeight)
                         .opacity(Self.surfaceHidesInMini && mini ? 0 : 1)
                 }
                 .allowsHitTesting(false)
@@ -83,7 +86,7 @@ struct RootView: View {
                 .allowsHitTesting(!mini)
                 // In mini the window is shorter than the column's minimum; laid out at its
                 // expanded size but reporting zero height, it can't push the platter down.
-                .frame(height: holdsExpandedLayout && columnHeight > 0 ? columnHeight : nil)
+                .frame(height: holdsExpandedLayout && heldHeight > 0 ? heldHeight : nil)
                 .frame(height: mini ? 0 : nil, alignment: .bottom)
             if player.current != nil {
                 // The bottom inset is constant so the platter never shifts vertically.
@@ -117,13 +120,20 @@ struct RootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
             fullHeight = height
-            if !navigation.isMiniPlayer { columnHeight = height }
+            // Held while the native frame animates: following the window frame by frame would
+            // relayout the whole column every frame of the expand.
+            if !navigation.isMiniPlayer, !navigation.isFrameAnimating { columnHeight = height }
         }
         // Our own window shadow, drawn in the transparent margin around the visible shape.
         .background(alignment: .bottom) {
             #if !NATIVE_FRAME
-            PanelShadow(radius: radius, height: mini ? navigation.platterHeight : containerHeight, bottomInset: mini ? inset : 0)
+            if !ArtworkStyle.shared.panel.systemShadow {
+                PanelShadow(radius: radius, height: mini ? navigation.platterHeight : containerHeight, bottomInset: mini ? inset : 0)
+            }
             #endif
+        }
+        .onChange(of: ArtworkStyle.shared.panel.systemShadow, initial: true) { _, on in
+            AppDelegate.shared?.setSystemShadow(on)
         }
         .padding(Theme.Size.shadowMargin)
         .animation(Theme.Motion.standard, value: player.current?.id)

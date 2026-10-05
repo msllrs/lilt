@@ -81,24 +81,43 @@ final class PanelWindow: NSPanel {
         SidebarBackground.applyLiveCornerRadius(radius)
     }
 
-    /// Eases the corner from its current radius to `radius` over `duration`, in step with the
-    /// frame animation (same ease in-out), so the corner never pops between the two sizes. The
-    /// platter's inset shrinks by the same amount the radius does, so the corners stay concentric.
-    func animateNativeCornerRadius(to radius: CGFloat, duration: TimeInterval) {
+    private var frameFrom = NSRect.zero, frameTo = NSRect.zero
+    private var frameCompletion: (() -> Void)?
+
+    /// Eases the frame and the corner together from their current values over `duration`, one
+    /// display link driving both, so every refresh gets exactly one step of each. (NSWindow's own
+    /// animator ticks on a timer that isn't locked to the display, which showed as uneven steps.)
+    /// The platter's inset shrinks by the same amount the radius does, so corners stay concentric.
+    func animateNativeFrame(to frame: NSRect, cornerRadius radius: CGFloat, duration: TimeInterval, completion: @escaping () -> Void) {
         radiusLink?.invalidate()
+        frameFrom = self.frame; frameTo = frame
         radiusFrom = nativeCornerRadius; radiusTo = radius
         radiusStart = CACurrentMediaTime(); radiusDuration = duration
-        let link = displayLink(target: self, selector: #selector(stepCornerRadius(_:)))
+        frameCompletion = completion
+        let link = displayLink(target: self, selector: #selector(stepFrame(_:)))
         link.add(to: .main, forMode: .common)
         radiusLink = link
     }
 
-    @objc private func stepCornerRadius(_ link: CADisplayLink) {
-        let t = min(max((CACurrentMediaTime() - radiusStart) / radiusDuration, 0), 1)
+    @objc private func stepFrame(_ link: CADisplayLink) {
+        // Aim at the moment this step will be shown, not the moment it's computed.
+        let t = min(max((link.targetTimestamp - radiusStart) / radiusDuration, 0), 1)
         // CAMediaTimingFunction's ease in-out, close enough: a half cosine.
         let eased = (1 - cos(.pi * t)) / 2
+        let f = NSRect(
+            x: frameFrom.minX + (frameTo.minX - frameFrom.minX) * eased,
+            y: frameFrom.minY + (frameTo.minY - frameFrom.minY) * eased,
+            width: frameFrom.width + (frameTo.width - frameFrom.width) * eased,
+            height: frameFrom.height + (frameTo.height - frameFrom.height) * eased
+        )
         setNativeCornerRadius(radiusFrom + (radiusTo - radiusFrom) * eased)
-        if t >= 1 { link.invalidate(); radiusLink = nil }
+        // Just move the frame; the display cycle draws it once per refresh. Forcing a synchronous
+        // display here cost 8-15ms a tick and skipped refreshes unevenly.
+        setFrame(t >= 1 ? frameTo : f, display: false)
+        if t >= 1 {
+            link.invalidate(); radiusLink = nil
+            let done = frameCompletion; frameCompletion = nil; done?()
+        }
     }
     #endif
 

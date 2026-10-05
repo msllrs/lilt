@@ -20,6 +20,9 @@ final class NavigationModel {
     /// platter's. Behind-window surfaces mask themselves to it, since the frame's own clip
     /// doesn't reach them. Not persisted.
     var frameCornerRadius: CGFloat = Theme.Radius.window
+    /// The expanded window height the native frame animates to, for a column that has never
+    /// been laid out expanded (launched in mini). Not persisted.
+    var expandedFrameHeight: CGFloat = 0
     /// Collapse the column to just the now-playing platter.
     var isMiniPlayer: Bool {
         didSet {

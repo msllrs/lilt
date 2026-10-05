@@ -19,7 +19,9 @@ struct NowPlayingBar: View {
     /// 0 when nothing scrolls beneath the platter, 1 once rows are passing under it. As a mini
     /// player the platter is the whole window, so it always wears its glass.
     private var glassVisibility: CGFloat {
-        navigation.isMiniPlayer ? 1 : min(max(scrollTracker.activeRemainingBelow / 24, 0), 1)
+        // Held at full while the native frame animates: the tracker reports nothing mid-move, and
+        // a platter going bare with rows passing beneath it reads as a flash.
+        navigation.isMiniPlayer || navigation.isFrameAnimating ? 1 : min(max(scrollTracker.activeRemainingBelow / 24, 0), 1)
     }
 
     /// The current artwork, for the ambient fill (any cached size will do once blurred).
@@ -37,6 +39,17 @@ struct NowPlayingBar: View {
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
     @State private var isHoveringPlatter = false
+    /// The platter in the window's coordinate space, to settle hover after the frame animates.
+    @State private var platterFrame: CGRect = .zero
+
+    /// Hover as the pointer actually stands once the window has stopped moving under it.
+    private func settleHover() {
+        guard let window = AppDelegate.shared?.panelFrame, window.width > 0 else { return }
+        let mouse = NSEvent.mouseLocation
+        let local = CGPoint(x: mouse.x - window.minX, y: window.maxY - mouse.y)
+        let hovering = platterFrame.contains(local)
+        if hovering != isHoveringPlatter { withAnimation(Theme.Motion.quick) { isHoveringPlatter = hovering } }
+    }
 
     var body: some View {
         VStack(spacing: Theme.Space.sm) {
@@ -76,10 +89,17 @@ struct NowPlayingBar: View {
             .padding(Theme.Space.xs)
         }
         .onHover { hovering in
+            // While the native frame animates, the platter moves under a still pointer and AppKit
+            // reports exits and enters that mean nothing; hover is settled once it stops.
+            guard !navigation.isFrameAnimating else { return }
             withAnimation(Theme.Motion.quick) { isHoveringPlatter = hovering }
+        }
+        .onChange(of: navigation.isFrameAnimating) { _, animating in
+            if !animating { settleHover() }
         }
         // The window needs the platter's height to size itself as a mini player.
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { navigation.platterHeight = $0 }
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { platterFrame = $0 }
         .background {
             // Glass, tint, edge and shadow only earn their place when rows pass beneath; at the
             // end of a list the platter is bare.
