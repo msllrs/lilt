@@ -78,6 +78,13 @@ struct BrowseScreen: View {
         .onChange(of: collapse, initial: true) { _, _ in publishLeadingCast() }
         .onChange(of: page?.item.artworkURL) { _, _ in publishLeadingCast() }
         .onChange(of: navigation.path.last?.id) { _, _ in publishLeadingCast() }
+        // The cover's colours may not be measured yet when the header arrives; publish again once
+        // the image is in (also when the page loads and brings a cover the row didn't have).
+        .task(id: page?.item.artworkURL ?? item.artworkURL) {
+            guard let url = page?.item.artworkURL ?? item.artworkURL else { return }
+            _ = await ImageCache.shared.load(url)
+            publishLeadingCast()
+        }
         .onDisappear { if navigation.path.last?.id == item.id || navigation.path.isEmpty { navigation.leadingCastAmount = 0 } }
     }
 
