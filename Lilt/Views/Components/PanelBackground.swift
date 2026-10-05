@@ -8,8 +8,6 @@ struct PanelBackground: View {
     var cornerRadius: CGFloat = Theme.Radius.window
     var isHidden: Bool = false
 
-    @Environment(\.colorScheme) private var colorScheme
-
     private var style: PanelStyle { ArtworkStyle.shared.panel }
 
     var body: some View {
@@ -18,12 +16,24 @@ struct PanelBackground: View {
             GlassBackground(cornerRadius: cornerRadius, isHidden: isHidden)
         case .sidebar:
             SidebarBackground(cornerRadius: cornerRadius, translucent: style.translucent, isHidden: isHidden)
-                // A window's frame gives a sidebar its edge; this panel has none, so draw the one
-                // line a window has: dark on a light desktop, light on a dark one.
-                .overlay {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.12), lineWidth: 1)
-                }
+        }
+    }
+}
+
+/// The one line a window frame gives a sidebar: dark on a light desktop, light on a dark one.
+/// Drawn above the content (see RootView), not under it, so the header blur can't erase it and
+/// it covers the seam where rows pass the material's edge. Nothing for the glass surface, which
+/// has a rim of its own.
+struct PanelEdge: View {
+    var cornerRadius: CGFloat = Theme.Radius.window
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        if ArtworkStyle.shared.panel.surface == .sidebar {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.12), lineWidth: 1)
+                .allowsHitTesting(false)
         }
     }
 }

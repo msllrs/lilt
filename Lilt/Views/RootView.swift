@@ -77,6 +77,10 @@ struct RootView: View {
                 ResizeEdges()
                     .transition(.opacity)
             }
+            // The panel's edge line, over everything, following the container as it collapses.
+            PanelEdge(cornerRadius: Theme.Radius.window)
+                .frame(maxHeight: containerHeight ?? .infinity)
+                .opacity(mini ? 0 : 1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
