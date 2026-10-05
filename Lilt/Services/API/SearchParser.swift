@@ -110,6 +110,7 @@ enum SearchParser {
 
     static func browsePage(from response: [String: Any], for item: BrowseItem) -> BrowsePage {
         var page = BrowsePage(item: item)
+        if item.id.hasPrefix("VL") { page.playlistId = String(item.id.dropFirst(2)) }
 
         // Header: whichever header renderer YouTube used for this page type.
         let headerKeys = [
@@ -127,6 +128,12 @@ enum SearchParser {
             }
             if let art = firstThumbnail(in: header, size: 480) {
                 page.item.artworkURL = art
+            }
+            // The playlist to save: the header's play button carries it for albums (their audio
+            // playlist) and playlists alike; a playlist's browse id is also just "VL" + the id.
+            if let endpoint = JSON.findAll(key: "watchPlaylistEndpoint", in: header).first,
+               let id = JSON.string(endpoint["playlistId"]) {
+                page.playlistId = id
             }
             // Album headers link the artist in the strapline (or subtitle on older layouts).
             let artistRuns = (JSON.array(JSON.value(at: ["straplineTextOne", "runs"], in: header)) ?? [])

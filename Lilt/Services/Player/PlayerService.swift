@@ -122,6 +122,13 @@ final class PlayerService {
         if isShuffled { shuffleRemainder(keeping: index) } else { load(index: index) }
     }
 
+    /// Starts `tracks` in a random order with shuffle on.
+    func playShuffled(_ tracks: [Track]) {
+        guard !tracks.isEmpty else { return }
+        isShuffled = true
+        play(tracks, startingAt: Int.random(in: tracks.indices))
+    }
+
     /// Shuffle what's left after the current track; off restores the original order.
     func toggleShuffle() {
         isShuffled.toggle()

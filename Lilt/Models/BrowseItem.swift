@@ -97,5 +97,8 @@ struct BrowsePage: Sendable {
     var allSongsId: String?
     /// For albums: the primary artist, used to fill the page out with related content.
     var artistId: String?
+    /// The playlist behind this page (a playlist's own id, or an album's audio playlist), which
+    /// is what the library save call takes.
+    var playlistId: String?
     var sections: [BrowseSection] = []
 }

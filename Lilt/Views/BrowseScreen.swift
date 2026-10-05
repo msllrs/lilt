@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// An artist, album or playlist page.
@@ -66,6 +67,7 @@ struct BrowseScreen: View {
                 .allowsHitTesting(collapse > 0.5)
             }
             Spacer()
+            pageMenu(page ?? BrowsePage(item: item))
         }
         .frame(height: Theme.Size.headerRow)
         .padding(.top, Theme.Space.panelInset)
@@ -97,31 +99,67 @@ struct BrowseScreen: View {
 
     private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
 
+    /// Play, save and shuffle all share this height so the row reads as one set of controls.
+    private static let heroControlHeight: CGFloat = 38
+    @State private var isSaving = false
+    private var isSaved: Bool { music.isSaved(item) }
+
+    /// A round glass button beside Play, with the same cast.
+    private func heroRoundButton(symbol: String, help: String, cast: Color?, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.callout.weight(.semibold))
+                .frame(width: Self.heroControlHeight, height: Self.heroControlHeight)
+                .modifier(HeroGlass(shape: Circle(), cast: cast, playCast: playCast))
+        }
+        .buttonStyle(.pressable)
+        .help(help)
+    }
+
+    private func toggleSaved(_ page: BrowsePage) {
+        let target = !isSaved
+        isSaving = true
+        Task {
+            defer { isSaving = false }
+            try? await music.setSaved(target, page: page)
+        }
+    }
+
     /// The hero artwork's dominant colour, for casting onto the controls beneath it.
     private func artworkCast(_ page: BrowsePage) -> Color? {
         guard let url = page.item.artworkURL else { return nil }
         return ImageCache.shared.tint(for: url, saturationBoost: playCast.saturation)
     }
 
-    /// A soft wash of the artwork colour inside the capsule, strongest at the top edge.
-    @ViewBuilder
-    private func castGlow(_ cast: Color?) -> some View {
-        if let cast, playCast.glowOpacity > 0 {
-            Capsule()
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: cast.opacity(playCast.glowOpacity), location: 0),
-                            .init(color: .clear, location: playCast.glowHeight),
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .blur(radius: playCast.glowBlur)
-                .clipShape(Capsule())
-                .allowsHitTesting(false)
+    /// The page's web address on YouTube Music.
+    private func webURL(for page: BrowsePage) -> URL? {
+        switch page.item.kind {
+        case .artist: URL(string: "https://music.youtube.com/channel/\(page.item.id)")
+        case .album: URL(string: "https://music.youtube.com/browse/\(page.item.id)")
+        default: page.playlistId.flatMap { URL(string: "https://music.youtube.com/playlist?list=\($0)") }
         }
+    }
+
+    /// Opposite the back button: a place for page actions as they arrive.
+    private func pageMenu(_ page: BrowsePage) -> some View {
+        Menu {
+            Button("Open in YouTube Music") { if let url = webURL(for: page) { NSWorkspace.shared.open(url) } }
+            Button("Copy Link") {
+                guard let url = webURL(for: page) else { return }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(url.absoluteString, forType: .string)
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.primary)
+                .headerControl()
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("More")
     }
 
     /// On album pages the subtitle is the artist; link it.
@@ -279,26 +317,32 @@ struct BrowseScreen: View {
                 Skeleton.PlayCapsule()
                     .transition(.opacity)
             } else if !page.tracks.isEmpty {
-                Button {
-                    player.play(page.tracks, startingAt: 0)
-                } label: {
-                    // The cast is interpolated, so a new cover's colour arrives as a change of
-                    // light over the capsule rather than a cut.
-                    InterpolatedColor(artworkCast(page)) { cast in
-                        Label("Play", systemImage: "play.fill")
-                            .font(.callout.weight(.semibold))
-                            .padding(.horizontal, Theme.Space.lg + Theme.Space.xs)
-                            .padding(.vertical, Theme.Space.sm + Theme.Space.xs)
-                            // Glass and rim live on the label so the press scale moves the whole capsule.
-                            // The cover above casts its colour onto the glass, a wash along the top
-                            // edge, and the lit rim.
-                            .glassEffect(.regular.tint(cast?.opacity(playCast.tintOpacity)).interactive(), in: .capsule)
-                            .overlay { castGlow(cast) }
-                            .glassEdge(Capsule(), cast: cast, castMix: playCast.rimMix, blur: playCast.rimBlur, blend: playCast.rimBlend.blendMode)
-                            .contentShape(Capsule())
+                // The cast is interpolated, so a new cover's colour arrives as a change of light
+                // over the controls rather than a cut. Save on the left, shuffle on the right,
+                // Play between; artists have no library membership, so no save.
+                InterpolatedColor(artworkCast(page)) { cast in
+                    HStack(spacing: Theme.Space.sm) {
+                        if page.item.kind != .artist {
+                            heroRoundButton(symbol: isSaved ? "bookmark.fill" : "bookmark", help: isSaved ? "Remove from Library" : "Save to Library", cast: cast) {
+                                toggleSaved(page)
+                            }
+                            .disabled(page.playlistId == nil || isSaving)
+                        }
+                        Button {
+                            player.play(page.tracks, startingAt: 0)
+                        } label: {
+                            Label("Play", systemImage: "play.fill")
+                                .font(.callout.weight(.semibold))
+                                .padding(.horizontal, Theme.Space.lg + Theme.Space.xs)
+                                .frame(height: Self.heroControlHeight)
+                                .modifier(HeroGlass(shape: Capsule(), cast: cast, playCast: playCast))
+                        }
+                        .buttonStyle(.pressable)
+                        heroRoundButton(symbol: "shuffle", help: "Shuffle", cast: cast) {
+                            player.playShuffled(page.tracks)
+                        }
                     }
                 }
-                .buttonStyle(.pressable)
             }
         }
         .frame(maxWidth: .infinity)
@@ -375,5 +419,36 @@ private struct HeroSnapBehavior: ScrollTargetBehavior {
         let travel = target.rect.minY / heroHeight
         guard travel > snap.deadZone, travel < 1 - snap.deadZone else { return }
         target.rect.origin.y = velocity > 0 ? heroHeight : 0
+    }
+}
+
+/// The hero controls' glass: the cover above casts its colour onto the glass, a wash along the
+/// top edge, and the lit rim. Lives on the label so the press scale moves the whole control.
+private struct HeroGlass<S: InsettableShape>: ViewModifier {
+    let shape: S
+    let cast: Color?
+    let playCast: PlayCastStyle
+
+    func body(content: Content) -> some View {
+        content
+            .glassEffect(.regular.tint(cast?.opacity(playCast.tintOpacity)).interactive(), in: shape)
+            .overlay { glow }
+            .glassEdge(shape, cast: cast, castMix: playCast.rimMix, blur: playCast.rimBlur, blend: playCast.rimBlend.blendMode)
+            .contentShape(shape)
+    }
+
+    /// A soft wash of the artwork colour inside the shape, strongest at the top edge.
+    @ViewBuilder
+    private var glow: some View {
+        if let cast, playCast.glowOpacity > 0 {
+            shape
+                .fill(LinearGradient(
+                    stops: [.init(color: cast.opacity(playCast.glowOpacity), location: 0), .init(color: .clear, location: playCast.glowHeight)],
+                    startPoint: .top, endPoint: .bottom
+                ))
+                .blur(radius: playCast.glowBlur)
+                .clipShape(shape)
+                .allowsHitTesting(false)
+        }
     }
 }

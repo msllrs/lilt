@@ -169,6 +169,29 @@ final class YTMusicClient {
         return SearchParser.links(from: response.value, videoId: videoId)
     }
 
+    /// Whether an album or playlist is in the library, as far as the cached library knows.
+    func isSaved(_ item: BrowseItem) -> Bool {
+        guard let library = libraryCache?.content else { return false }
+        return (library.albums + library.playlists).contains { $0.id == item.id }
+    }
+
+    /// Adds the page's album or playlist to the library, or removes it. YouTube Music's library
+    /// membership for both is the playlist "like", keyed by the playlist id (an album's audio
+    /// playlist). The cached library is updated at once so the button and the library page agree
+    /// without a refetch.
+    func setSaved(_ saved: Bool, page: BrowsePage) async throws {
+        guard let playlistId = page.playlistId else { throw URLError(.badURL) }
+        _ = try await client.post(saved ? "like/like" : "like/removelike", body: ["target": ["playlistId": playlistId]])
+        var content = libraryCache?.content ?? LibraryContent()
+        let remove: (inout [BrowseItem]) -> Void = { $0.removeAll { $0.id == page.item.id } }
+        remove(&content.albums); remove(&content.playlists)
+        if saved {
+            if page.item.kind == .album { content.albums.insert(page.item, at: 0) } else { content.playlists.insert(page.item, at: 0) }
+        }
+        libraryCache = (content, libraryCache?.fetched ?? .now)
+        persist()
+    }
+
     func page(for item: BrowseItem) async throws -> BrowsePage {
         if let cached = pageCache[item.id] { return cached }
         let response = try await client.post("browse", body: ["browseId": item.id])
