@@ -280,14 +280,6 @@ private struct NavigationColumn: View {
 }
 
 private struct LeadingButton: View {
-    /// The colour with its saturation multiplied (clamped), brightness untouched.
-    static func saturated(_ color: Color, by factor: Double) -> Color {
-        guard let c = NSColor(color).usingColorSpace(.sRGB) else { return color }
-        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        c.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
-        return Color(nsColor: NSColor(hue: h, saturation: min(1, s * factor), brightness: b, alpha: a))
-    }
-
     @Environment(NavigationModel.self) private var navigation
     @Environment(\.colorScheme) private var colorScheme
     let isBack: Bool
@@ -320,8 +312,8 @@ private struct LeadingButton: View {
                         // Dark glass has no tonal range for a dim colour to sit on, so there the
                         // cast is lifted towards white and added as light rather than laid over.
                         let dark = colorScheme == .dark
-                        let cast = dark ? Self.saturated(sampled, by: style.darkSaturation).mix(with: .white, by: style.darkLighten) : sampled
-                        let washOpacity = style.washOpacity * (dark ? style.darkWashScale : 1)
+                        let cast = style.drawn(sampled, dark: dark)
+                        let washOpacity = style.washOpacity(dark: dark)
                         ZStack {
                             // The wash: light from the side falling off across the button, not from
                             // a point. It simply fades in with the header (a wipe cut it in half).
@@ -353,7 +345,7 @@ private struct LeadingButton: View {
                                     .opacity(amount > 0 ? 1 : 0)
                                 }
                         }
-                        .blendMode(dark ? .plusLighter : .normal)
+                        .blendMode(style.blend(dark: dark))
                         .clipShape(Circle())
                     }
                 }

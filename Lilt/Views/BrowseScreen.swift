@@ -433,33 +433,39 @@ private struct HeroSnapBehavior: ScrollTargetBehavior {
 }
 
 /// The hero controls' glass: the same surface as the header controls (so the tweak panel's
-/// glass settings apply to both), with the cover above casting its colour onto it as a wash
-/// along the top edge and a lit rim. Lives on the label so the press scale moves the whole control.
+/// glass settings apply to both), with the cover above casting its colour onto it the way the
+/// compact header casts onto the back button: the same rim and wash dials, lit from the top
+/// here since the cover sits above. Lives on the label so the press scale moves the whole control.
 private struct HeroGlass<S: InsettableShape>: ViewModifier {
     let shape: S
     let cast: Color?
     let playCast: PlayCastStyle
+    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
+        let style = ArtworkStyle.shared.leadingCast
+        let dark = colorScheme == .dark
         content
             .modifier(HeaderControlSurface(shape: shape, cornerRadius: BrowseScreen.heroControlHeight / 2, tint: nil))
-            .overlay { glow }
-            .glassEdge(shape, cast: cast, castMix: playCast.rimMix, blur: playCast.rimBlur, blend: playCast.rimBlend.blendMode)
+            .overlay {
+                if let cast = cast.map({ style.drawn($0, dark: dark) }) {
+                    ZStack {
+                        // The wash falls from the top edge, as far as the reach dial says.
+                        shape.fill(LinearGradient(
+                            stops: [.init(color: cast.opacity(style.washOpacity(dark: dark)), location: 0), .init(color: .clear, location: style.washReach)],
+                            startPoint: .top, endPoint: .bottom
+                        ))
+                        // The rim catches the light along the top, fading out below the start.
+                        shape.inset(by: 0.5).strokeBorder(
+                            LinearGradient(stops: [.init(color: cast.opacity(style.rimOpacity), location: 0), .init(color: .clear, location: 1 - style.rimStart)], startPoint: .top, endPoint: .bottom),
+                            lineWidth: style.rimWidth
+                        )
+                    }
+                    .blendMode(style.blend(dark: dark))
+                    .clipShape(shape)
+                    .allowsHitTesting(false)
+                }
+            }
             .contentShape(shape)
-    }
-
-    /// A soft wash of the artwork colour inside the shape, strongest at the top edge.
-    @ViewBuilder
-    private var glow: some View {
-        if let cast, playCast.glowOpacity > 0 {
-            shape
-                .fill(LinearGradient(
-                    stops: [.init(color: cast.opacity(playCast.glowOpacity), location: 0), .init(color: .clear, location: playCast.glowHeight)],
-                    startPoint: .top, endPoint: .bottom
-                ))
-                .blur(radius: playCast.glowBlur)
-                .clipShape(shape)
-                .allowsHitTesting(false)
-        }
     }
 }

@@ -403,9 +403,15 @@ final class PlayerService {
     private func apply(_ s: PlaybackSnapshot) {
         guard let videoId = s.videoId else { return }
         if videoId != current?.id {
-            // Stale state from the previous document while a load is in flight, or YouTube's own
-            // restored player while we still hold a restored queue of our own.
-            if isLoading || needsLoad { return }
+            // Stale state from the previous document while a load is in flight.
+            if isLoading { return }
+            // YouTube's own restored player while we still hold a restored queue of our own: a
+            // paused one is ignored (ours wins when you press play), but one that is actually
+            // playing is what you're hearing, so the platter follows it from then on.
+            if needsLoad {
+                guard s.isPlaying else { return }
+                needsLoad = false
+            }
             adopt(videoId: videoId, from: s)
         }
         isLoading = false
