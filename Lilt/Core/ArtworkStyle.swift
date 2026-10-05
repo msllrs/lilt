@@ -156,19 +156,19 @@ struct PageAmbientStyle: Equatable {
 struct DockTileStyle: Equatable {
     /// Wash of the cover's colour over the plate, light at the top and strongest at the bottom
     /// (0 = plain plate).
-    var plateTint: Double = 0.12
-    var plateSaturation: Double = 1.6
+    var plateTint: Double = 0.04
+    var plateSaturation: Double = 1.2
     /// Coloured ambient shadow under the disc, as a fraction of the disc size.
-    var shadowOpacity: Double = 0.55
-    var shadowBlur: Double = 0.14
-    var shadowOffsetY: Double = 0.06
+    var shadowOpacity: Double = 0.40
+    var shadowBlur: Double = 0.08
+    var shadowOffsetY: Double = 0.04
 
     static let standard = DockTileStyle()
 }
 
 /// The header controls' surface (see `HeaderControlMode`), with AppKit's private glass dials.
 struct HeaderControlStyle: Equatable {
-    var mode: HeaderControlMode = .flat
+    var mode: HeaderControlMode = .clear
     /// Also draw the search field in this mode (otherwise it keeps the flat fill).
     var appliesToSearch: Bool = true
     /// Our lit hairline over the system's own edge treatment.
@@ -177,26 +177,27 @@ struct HeaderControlStyle: Equatable {
     /// SwiftUI glass responds under the pointer.
     var interactive: Bool = true
     /// Tint the glass with the cover's colour (0 = none).
-    var tintOpacity: Double = 0
+    var tintOpacity: Double = 0.6
     var tint: Color? = nil
 
-    // NSGlassEffectView private knobs (AppKit mode only).
+    // NSGlassEffectView private knobs (AppKit mode only). Tuned by Matt in the tweak panel on
+    // 2026-10-04 so flipping to AppKit lands on this look.
     /// `.clear` base style instead of `.regular`.
-    var clearBase: Bool = false
+    var clearBase: Bool = true
     /// `_variant`: the glass recipe; 0 leaves whichever one the base style chose.
-    var variant: Int = 0
+    var variant: Int = 3
     /// `_subvariant`: a named recipe (a string); empty leaves it unset.
     var subvariant: String = ""
     /// `_contentLensing`: refracts content behind the edge.
-    var contentLensing: Bool = false
+    var contentLensing: Bool = true
     /// `_scrimState`.
-    var scrim: Int = 0
+    var scrim: Int = 2
     /// `_subduedState`.
     var subdued: Int = 0
     /// `_interactionState`; only `interactionRange` is accepted.
     var interaction: Int = 0
     /// `_adaptiveAppearance` (2 is the default); only `adaptiveAppearanceRange` is accepted.
-    var adaptiveAppearance: Int = 2
+    var adaptiveAppearance: Int = 1
     /// `_useReducedShadowRadius`.
     var reducedShadow: Bool = false
 
