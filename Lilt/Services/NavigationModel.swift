@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 
 /// Where you are in the column: the search text and the stack of opened pages. Persisted so a
 /// relaunch brings you back to the same view.
@@ -23,6 +24,10 @@ final class NavigationModel {
     /// The expanded window height the native frame animates to, for a column that has never
     /// been laid out expanded (launched in mini). Not persisted.
     var expandedFrameHeight: CGFloat = 0
+    /// The compact now-playing header's artwork colour and how far that header has arrived, so
+    /// the back button beside it can catch its light on the facing edge. Not persisted.
+    var leadingCast: Color? = nil
+    var leadingCastAmount: Double = 0
     /// Collapse the column to just the now-playing platter.
     var isMiniPlayer: Bool {
         didSet {

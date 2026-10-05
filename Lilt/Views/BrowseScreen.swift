@@ -73,6 +73,18 @@ struct BrowseScreen: View {
         .padding(.bottom, Theme.Space.sm)
         .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
         .onHover { isHoveringHeader = $0 }
+        // The back button sits beside this header; let it catch the artwork's colour as the
+        // header arrives. Only the page on top speaks for it, and it lets go when it leaves.
+        .onChange(of: collapse, initial: true) { _, _ in publishLeadingCast() }
+        .onChange(of: page?.item.artworkURL) { _, _ in publishLeadingCast() }
+        .onChange(of: navigation.path.last?.id) { _, _ in publishLeadingCast() }
+        .onDisappear { if navigation.path.last?.id == item.id || navigation.path.isEmpty { navigation.leadingCastAmount = 0 } }
+    }
+
+    private func publishLeadingCast() {
+        guard navigation.path.last?.id == item.id else { return }
+        navigation.leadingCast = artworkCast(page ?? BrowsePage(item: item))
+        navigation.leadingCastAmount = Double(collapse)
     }
 
     private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
