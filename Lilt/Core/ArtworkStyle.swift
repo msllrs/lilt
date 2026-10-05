@@ -30,7 +30,7 @@ enum KeylineMode: String, CaseIterable, Identifiable {
 
 /// Where a piece of artwork is shown; each context gets its own shadow preset.
 enum ArtworkContext: String, CaseIterable, Identifiable {
-    case row, player, hero, header
+    case row, player, hero, header, avatar
 
     var id: String { rawValue }
 
@@ -40,6 +40,7 @@ enum ArtworkContext: String, CaseIterable, Identifiable {
         case .player: "Player"
         case .hero: "Pages"
         case .header: "Header"
+        case .avatar: "Avatar"
         }
     }
 }
@@ -380,6 +381,8 @@ final class ArtworkStyle {
     var heroShadow: ShadowStyle = .ambient
     /// The small artwork in a page's collapsed header.
     var headerShadow: ShadowStyle = .header
+    /// The account avatar in the library header: a round picture beside glass controls.
+    var avatarShadow: ShadowStyle = .header
 
     var platter: PlatterStyle = .standard
     var notes: NotesStyle = .standard
@@ -397,6 +400,7 @@ final class ArtworkStyle {
         case .player: playerShadow
         case .hero: heroShadow
         case .header: headerShadow
+        case .avatar: avatarShadow
         }
     }
 
@@ -406,6 +410,7 @@ final class ArtworkStyle {
         case .player: playerShadow = shadow
         case .hero: heroShadow = shadow
         case .header: headerShadow = shadow
+        case .avatar: avatarShadow = shadow
         }
     }
 
@@ -428,6 +433,7 @@ final class ArtworkStyle {
         playerShadow = .ambient
         heroShadow = .ambient
         headerShadow = .header
+        avatarShadow = .header
         platter = .standard
         notes = .standard
         playCast = .standard
@@ -459,6 +465,7 @@ final class ArtworkStyle {
         playerShadow = \(snippet(playerShadow))
         heroShadow = \(snippet(heroShadow))
         headerShadow = \(snippet(headerShadow))
+        avatarShadow = \(snippet(avatarShadow))
         platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)), hoverBrightness: \(f(platter.hoverBrightness)), cornerAccentOpacity: \(f(platter.cornerAccentOpacity)), cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberSaturation: \(f(platter.scrubberSaturation)), scrubberLikeControls: \(platter.scrubberLikeControls), controlsTint: \(f(platter.controlsTint)), textTint: \(f(platter.textTint)), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow))
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))

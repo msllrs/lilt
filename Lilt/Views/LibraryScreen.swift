@@ -103,7 +103,7 @@ struct LibraryScreen: View {
                 }
             }
         } label: {
-            ArtworkView(url: account.photoURL, size: Theme.Size.headerArtwork, radius: Theme.Size.headerArtwork / 2, context: .header)
+            ArtworkView(url: account.photoURL, size: Theme.Size.headerArtwork, radius: Theme.Size.headerArtwork / 2, context: .avatar)
                 .frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
         }
         .menuStyle(.button)
