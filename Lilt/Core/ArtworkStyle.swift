@@ -166,6 +166,30 @@ struct DockTileStyle: Equatable {
     static let standard = DockTileStyle()
 }
 
+/// What the panel itself is made of.
+enum PanelSurface: String, CaseIterable, Identifiable {
+    /// One sheet of Liquid Glass over the desktop; content and controls sit on the glass.
+    case glass
+    /// The sidebar material a Finder window uses: a content layer, so header controls can be the
+    /// only glass and float over it, the way the system's own toolbars do.
+    case sidebar
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .glass: "Window glass"
+        case .sidebar: "Sidebar material"
+        }
+    }
+}
+
+struct PanelStyle: Equatable {
+    var surface: PanelSurface = .sidebar
+    /// Sidebar only: the desktop shows through, as it does behind a Finder sidebar. Off gives the
+    /// flat look of an inactive window (the same choice Reduce Transparency makes).
+    var translucent: Bool = true
+    static let standard = PanelStyle()
+}
+
 /// The header controls' surface (see `HeaderControlMode`), with AppKit's private glass dials.
 struct HeaderControlStyle: Equatable {
     var mode: HeaderControlMode = .clear
@@ -343,6 +367,7 @@ final class ArtworkStyle {
     var pageAmbient: PageAmbientStyle = .standard
     var dockTile: DockTileStyle = .standard
     var headerControls: HeaderControlStyle = .standard
+    var panel: PanelStyle = .standard
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
@@ -388,6 +413,7 @@ final class ArtworkStyle {
         pageAmbient = .standard
         dockTile = .standard
         headerControls = .standard
+        panel = .standard
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -417,6 +443,7 @@ final class ArtworkStyle {
         pageAmbient = PageAmbientStyle(opacity: \(f(pageAmbient.opacity)), saturation: \(f(pageAmbient.saturation)), blur: \(f(pageAmbient.blur)), reach: \(f(pageAmbient.reach)))
         dockTile = DockTileStyle(plateTint: \(f(dockTile.plateTint)), plateSaturation: \(f(dockTile.plateSaturation)), shadowOpacity: \(f(dockTile.shadowOpacity)), shadowBlur: \(f(dockTile.shadowBlur)), shadowOffsetY: \(f(dockTile.shadowOffsetY)))
         headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), rim: \(headerControls.rim), rimOpacity: \(f(headerControls.rimOpacity)), interactive: \(headerControls.interactive), tintOpacity: \(f(headerControls.tintOpacity)), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
+        panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent))
         """
     }
 

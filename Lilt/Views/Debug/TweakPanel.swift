@@ -81,6 +81,12 @@ struct TweakPanel: View {
                 slider("Blur", $style.pageAmbient.blur, 0...300)
                 slider("Reach", $style.pageAmbient.reach, 80...800)
             }
+            Section("Panel") {
+                Picker("Surface", selection: $style.panel.surface) {
+                    ForEach(PanelSurface.allCases) { Text($0.label).tag($0) }
+                }
+                Toggle("Translucent (sidebar)", isOn: $style.panel.translucent)
+            }
             Section("Header controls") {
                 Picker("Surface", selection: $style.headerControls.mode) {
                     ForEach(HeaderControlMode.allCases) { Text($0.label).tag($0) }

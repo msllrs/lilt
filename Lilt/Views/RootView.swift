@@ -23,9 +23,9 @@ struct RootView: View {
         // it never moves vertically, while it widens to the full panel as before.
         let containerHeight: CGFloat? = mini ? navigation.platterHeight + inset : (fullHeight > 0 ? fullHeight : nil)
         ZStack(alignment: .bottom) {
-            // The window glass lives here, always mounted, so hiding it is explicit and reliable
-            // (see GlassBackground). It shrinks and fades with the collapse, then is switched off.
-            GlassBackground(cornerRadius: Theme.Radius.window, isHidden: mini)
+            // The panel's surface lives here, always mounted, so hiding it is explicit and reliable
+            // (see PanelBackground). It shrinks and fades with the collapse, then is switched off.
+            PanelBackground(cornerRadius: Theme.Radius.window, isHidden: mini)
                 .frame(maxHeight: containerHeight ?? .infinity)
                 .opacity(mini ? 0 : 1)
                 .allowsHitTesting(false)
