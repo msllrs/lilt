@@ -185,6 +185,19 @@ struct LeadingCastStyle: Equatable {
     static let standard = LeadingCastStyle()
 }
 
+/// Settling the hero hand-off on a browse page: when a scroll ends part-way through the hero's
+/// travel, the page glides to whichever end is nearer, so it never rests half-collapsed.
+struct HeroSnapStyle: Equatable {
+    var enabled: Bool = true
+    /// Travel fraction (0 hero at rest … 1 header fully in) above which the page settles to the
+    /// header; below it, back to the top.
+    var threshold: Double = 0.5
+    /// Travel within this much of either end is left alone (already effectively settled).
+    var deadZone: Double = 0.04
+    var duration: Double = 0.32
+    static let standard = HeroSnapStyle()
+}
+
 /// What the panel itself is made of.
 enum PanelSurface: String, CaseIterable, Identifiable {
     /// One sheet of Liquid Glass over the desktop; content and controls sit on the glass.
@@ -397,6 +410,7 @@ final class ArtworkStyle {
     var leadingCast: LeadingCastStyle = .standard
     /// Library title centred between the back button and the avatar, rather than leading.
     var centredLibraryTitle: Bool = true
+    var heroSnap: HeroSnapStyle = .standard
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
@@ -448,6 +462,7 @@ final class ArtworkStyle {
         panel = .standard
         leadingCast = .standard
         centredLibraryTitle = true
+        heroSnap = .standard
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -480,6 +495,7 @@ final class ArtworkStyle {
         headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), rim: \(headerControls.rim), rimOpacity: \(f(headerControls.rimOpacity)), interactive: \(headerControls.interactive), tintOpacity: \(f(headerControls.tintOpacity)), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
         panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent), systemShadow: \(panel.systemShadow))
         centredLibraryTitle = \(centredLibraryTitle)
+        heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), threshold: \(f(heroSnap.threshold)), deadZone: \(f(heroSnap.deadZone)), duration: \(f(heroSnap.duration)))
         leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)))
         """
     }

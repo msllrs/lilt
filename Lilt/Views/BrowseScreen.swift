@@ -32,6 +32,9 @@ struct BrowseScreen: View {
     @State private var collapse: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0
     @State private var heroHeight: CGFloat = 280
+    @State private var scrollPosition = ScrollPosition()
+    /// The hero's travel fraction at the last report, for settling when a scroll ends.
+    @State private var heroTravel: CGFloat = 0
     /// Extra bottom padding that guarantees enough scroll range for the hero to hand off fully.
     @State private var extraBottom: CGFloat = 0
     @State private var isHoveringCompactArtwork = false
@@ -206,6 +209,16 @@ struct BrowseScreen: View {
         }
         .scrollIndicators(.never)
         .scrollEdgeEffectStyle(.soft, for: .all)
+        .scrollPosition($scrollPosition)
+        // A scroll that ends part-way through the hero's travel settles to the nearer end, so the
+        // page never rests with a half-faded hero and a half-visible compact header.
+        .onScrollPhaseChange { _, phase in
+            guard phase == .idle else { return }
+            let snap = ArtworkStyle.shared.heroSnap
+            guard snap.enabled, heroTravel > snap.deadZone, heroTravel < 1 - snap.deadZone else { return }
+            let target: CGFloat = heroTravel >= snap.threshold ? heroHeight : 0
+            withAnimation(.easeOut(duration: snap.duration)) { scrollPosition.scrollTo(y: target) }
+        }
         .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
             ScrollMetrics(
                 offset: geometry.contentOffset.y + geometry.contentInsets.top,
@@ -232,6 +245,7 @@ struct BrowseScreen: View {
             // The hero fades across its own height, so it is gone exactly when it has scrolled
             // under the header and never leaves a blank gap above the tracks.
             let travel = min(max(metrics.offset / max(heroHeight, 1), 0), 1)
+            heroTravel = travel
             heroFade = Self.smoothstep(travel)
             collapse = Self.smoothstep(min(max((travel - 0.45) / 0.55, 0), 1))
         }
