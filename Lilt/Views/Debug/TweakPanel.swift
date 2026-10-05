@@ -106,6 +106,7 @@ struct TweakPanel: View {
                 slider("Saturation", $style.leadingCast.saturation, 0.5...4)
                 slider("Dark: lighten", $style.leadingCast.darkLighten, 0...0.8)
                 slider("Dark: wash scale", $style.leadingCast.darkWashScale, 0...1.5)
+                slider("Dark: saturation", $style.leadingCast.darkSaturation, 0.5...3)
             }
             Section("Header controls") {
                 Picker("Surface", selection: $style.headerControls.mode) {
