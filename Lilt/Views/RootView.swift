@@ -311,7 +311,11 @@ private struct LeadingButton: View {
                                 lineWidth: style.rimWidth
                             )
                             .background {
-                                Circle().fill(RadialGradient(colors: [cast.opacity(style.washOpacity), .clear], center: UnitPoint(x: 1.1, y: 0.5), startRadius: 0, endRadius: Theme.Size.headerRow * style.washReach))
+                                // Light from the side falls off across the button, not from a point.
+                                Circle().fill(LinearGradient(
+                                    stops: [.init(color: cast.opacity(style.washOpacity), location: 0), .init(color: .clear, location: style.washReach)],
+                                    startPoint: .trailing, endPoint: .leading
+                                ))
                             }
                             .clipShape(Circle())
                     }

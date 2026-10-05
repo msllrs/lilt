@@ -173,7 +173,8 @@ struct LeadingCastStyle: Equatable {
     var rimWidth: Double = 1.0
     /// Where across the button the rim starts to show (0 = leading edge, 1 = trailing edge).
     var rimStart: Double = 0.4
-    /// The wash just inside that edge, and how far in it reaches as a fraction of the button.
+    /// The wash falling off from that edge across the button, and how far across it reaches
+    /// (fraction of the button's width).
     var washOpacity: Double = 0.3
     var washReach: Double = 0.7
     /// Saturation boost on the sampled colour.

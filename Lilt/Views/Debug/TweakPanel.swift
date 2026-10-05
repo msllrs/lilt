@@ -93,7 +93,7 @@ struct TweakPanel: View {
                 slider("Rim width", $style.leadingCast.rimWidth, 0.5...3)
                 slider("Rim start", $style.leadingCast.rimStart, 0...0.9)
                 slider("Wash opacity", $style.leadingCast.washOpacity, 0...0.8)
-                slider("Wash reach", $style.leadingCast.washReach, 0.2...1.5)
+                slider("Wash reach", $style.leadingCast.washReach, 0.1...1)
                 slider("Saturation", $style.leadingCast.saturation, 0.5...4)
             }
             Section("Header controls") {
