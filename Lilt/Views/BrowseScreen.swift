@@ -119,15 +119,17 @@ struct BrowseScreen: View {
     /// The compact artwork doubles as a play button once the hero's own Play has scrolled away,
     /// and becomes a spinning record while this page is the one playing.
     private func compactArtwork(_ page: BrowsePage) -> some View {
+        // A clear step below the 32pt controls beside it: a picture, not another button.
+        let size = Theme.Size.headerArtwork
         let isArtist = page.item.kind == .artist
-        let radius: CGFloat = isArtist ? 14 : Theme.Radius.artwork(28)
+        let radius: CGFloat = isArtist ? size / 2 : Theme.Radius.artwork(size)
         let playingHere = isPlayingFromPage(page)
         return Button {
             if playingHere { player.togglePlayPause() } else { player.play(page.tracks, startingAt: 0) }
         } label: {
             SpinningArtwork(
                 url: page.item.artworkURL,
-                size: 28,
+                size: size,
                 restRadius: radius,
                 context: .header,
                 isDisc: playingHere && !isArtist,
@@ -136,8 +138,8 @@ struct BrowseScreen: View {
             .playOverlay(
                 isVisible: isHoveringCompactArtwork,
                 symbol: playingHere && player.isPlaying ? "pause.fill" : "play.fill",
-                radius: playingHere && !isArtist ? 14 : radius,
-                size: 28
+                radius: playingHere && !isArtist ? size / 2 : radius,
+                size: size
             )
         }
         .buttonStyle(.plain)
