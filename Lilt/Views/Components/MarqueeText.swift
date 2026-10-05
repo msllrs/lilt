@@ -30,26 +30,30 @@ struct MarqueeText: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 60, paused: !scrolling)) { context in
-            // A disabled horizontal scroll view is the one container that is flexible in layout
-            // (so it never widens its row), clips its content, and shows text without an ellipsis.
-            ScrollView(.horizontal) {
-                HStack(spacing: gap) {
-                    Text(text).font(font).fixedSize()
-                    if scrolling { Text(text).font(font).fixedSize() }
+            // Laid out as a plain one-line box that takes whatever width it is offered; the text
+            // is drawn over it at its natural width and clipped to it. The box never widens its
+            // row, and a change of width (the platter growing or shrinking) can't scroll or
+            // shift the text the way a scroll view's content offset did.
+            Color.clear
+                .overlay(alignment: .leading) {
+                    HStack(spacing: gap) {
+                        Text(text).font(font).fixedSize()
+                        if scrolling { Text(text).font(font).fixedSize() }
+                    }
+                    .offset(x: offset(at: context.date))
+                    .frame(width: max(availableWidth, 1), alignment: .leading)
+                    .clipped()
                 }
-                .offset(x: offset(at: context.date))
-            }
-            .scrollDisabled(true)
-            .scrollIndicators(.hidden)
-            // The leading fade arrives with the motion, after the delay, not the moment the
-            // hover begins.
-            .mask { edgeFade(moving: isMoving(at: context.date)) }
+                // The leading fade arrives with the motion, after the delay, not the moment the
+                // hover begins.
+                .mask { edgeFade(moving: isMoving(at: context.date)) }
         }
         .foregroundStyle(color)
-        // Exactly one line tall. A scroll view would happily shrink to nothing when its
-        // container is squeezed, taking the title with it.
+        // Exactly one line tall.
         .frame(height: textHeight > 0 ? textHeight : nil)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // The edge fade's bounds and the text move together through a size change.
+        .geometryGroup()
         .background {
             // Measures the natural size without taking part in layout.
             Text(text).font(font).fixedSize().hidden()

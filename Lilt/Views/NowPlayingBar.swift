@@ -39,6 +39,7 @@ struct NowPlayingBar: View {
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
     @State private var isHoveringPlatter = false
+    @State private var titleWidth: CGFloat = 0
     /// True from a mini change until the transition has settled (see `holdGlass`). Starts true,
     /// so the first frame after launch already wears the glass rather than fading it in once the
     /// scroll tracker reports.
@@ -240,14 +241,23 @@ struct NowPlayingBar: View {
                     ArtistLink(name: player.displayArtist, item: player.current?.artistItem, color: artist ?? .secondary)
                 }
                 // Like, at the right of the title on hover. The text fades out beneath it
-                // rather than making room, so nothing shifts when the pointer arrives.
+                // rather than making room, so nothing shifts when the pointer arrives. The fade
+                // is a gradient in unit space from the measured width: fixed-width pieces in
+                // a stack blanked the whole title whenever the row was momentarily narrow.
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { titleWidth = $0 }
                 .mask {
-                    HStack(spacing: 0) {
-                        Color.black
-                        LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
-                            .frame(width: Theme.Space.xl)
-                        Color.black.frame(width: 26).opacity(isHoveringPlatter ? 0 : 1)
-                    }
+                    let w = max(titleWidth, 1)
+                    let clear = isHoveringPlatter ? 26.0 : 0
+                    let fade = isHoveringPlatter ? Double(Theme.Space.xl) : 0
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black, location: 0),
+                            .init(color: .black, location: max(0, 1 - (clear + fade) / w)),
+                            .init(color: .clear, location: max(0, 1 - clear / w)),
+                            .init(color: .clear, location: 1),
+                        ],
+                        startPoint: .leading, endPoint: .trailing
+                    )
                     .transaction { $0.animation = nil }
                 }
                 .overlay(alignment: .trailing) {
@@ -263,6 +273,10 @@ struct NowPlayingBar: View {
                     .opacity(isHoveringPlatter || player.isLiked ? 1 : 0)
                     .transaction { $0.animation = nil }
                 }
+                // The mask and the text it masks move as one while the platter changes size;
+                // without this the mask's bounds animated apart from the text, clipping the
+                // title's leading edge and hiding the artist line for a few frames.
+                .geometryGroup()
             }
             Spacer(minLength: 0)
         }

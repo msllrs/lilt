@@ -44,6 +44,14 @@ struct QueueList: View {
         }
     }
 
+    private static func keyed(_ tracks: [Track]) -> [(key: String, track: Track)] {
+        var seen: [String: Int] = [:]
+        return tracks.map { track in
+            let n = seen[track.id, default: 0]; seen[track.id] = n + 1
+            return (key: n == 0 ? track.id : "\(track.id)#\(n)", track: track)
+        }
+    }
+
     private var rows: some View {
         let entries = player.upcomingEntries
         let automatic = player.automaticUpcoming
@@ -81,10 +89,10 @@ struct QueueList: View {
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
-                // Keyed by position: the group is a window onto the running list, not entries
-                // with identities of their own.
-                ForEach(Array(automatic.enumerated()), id: \.offset) { offset, track in
-                    QueueRow(track: track, play: {
+                // Keyed by track (a repeat gets a numbered key), so when the group shifts the
+                // rows move rather than crossfading their text in place.
+                ForEach(Array(Self.keyed(automatic).enumerated()), id: \.element.key) { offset, entry in
+                    QueueRow(track: entry.track, play: {
                         withAnimation(Theme.Motion.settle) { player.playAutomatic(at: offset) }
                     }, remove: nil)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
