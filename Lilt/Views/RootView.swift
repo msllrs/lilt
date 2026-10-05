@@ -368,5 +368,13 @@ private extension View {
             .animation(animation, value: value)
             .allowsHitTesting(!parked)
             .accessibilityHidden(parked)
+            // Discs, notes and marquees stop while a screen sits unseen beneath another; left
+            // running, every parked page redrew its spinning artwork thirty times a second.
+            .environment(\.screenIsParked, parked)
     }
+}
+
+extension EnvironmentValues {
+    /// True inside a navigation screen that is mounted but hidden under another.
+    @Entry var screenIsParked: Bool = false
 }

@@ -13,6 +13,7 @@ struct SpinningArtwork: View {
     let isSpinning: Bool
 
     /// 0 = ordinary artwork, 1 = disc. Animated explicitly.
+    @Environment(\.screenIsParked) private var parked
     @State private var disc: CGFloat
     /// Angle held when the spin last stopped, and when it resumed.
     @State private var baseAngle: Double = 0
@@ -34,7 +35,7 @@ struct SpinningArtwork: View {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: !isSpinning)) { context in
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: !isSpinning || parked)) { context in
             let elapsed = resumedAt.map { context.date.timeIntervalSince($0) } ?? 0
             let angle = baseAngle + (isSpinning ? elapsed * Self.degreesPerSecond : 0)
             ArtworkView(url: url, size: size, radius: radius, context: self.context, rotation: .degrees(angle))

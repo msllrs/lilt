@@ -24,7 +24,8 @@ struct MarqueeText: View {
     @State private var scrollStart: Date?
 
     private var overflows: Bool { textWidth > availableWidth + 0.5 }
-    private var shouldScroll: Bool { isActive && overflows }
+    @Environment(\.screenIsParked) private var parked
+    private var shouldScroll: Bool { isActive && overflows && !parked }
     private var scrolling: Bool { scrollStart != nil }
 
     var body: some View {

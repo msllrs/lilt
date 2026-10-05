@@ -87,6 +87,7 @@ final class PlayerService {
         var unshuffledQueue: [Track]?
         var repeatMode: RepeatMode?
         var manualCount: Int?
+        var sourceId: String?
     }
 
     /// One token per track put right after the current one by hand ("up next"). They play
@@ -114,8 +115,14 @@ final class PlayerService {
         bridge.warmUp()
     }
 
-    func play(_ tracks: [Track], startingAt index: Int) {
+    /// The browse id of the album or playlist the queue was started from, so only that page
+    /// (and its row) shows as playing; a track played from anywhere else has no source, even
+    /// if some playlist happens to contain it.
+    private(set) var sourceId: String?
+
+    func play(_ tracks: [Track], startingAt index: Int, source: String? = nil) {
         guard tracks.indices.contains(index) else { return }
+        sourceId = source
         queue = tracks
         unshuffledQueue = nil
         manualTokens = []
@@ -123,10 +130,10 @@ final class PlayerService {
     }
 
     /// Starts `tracks` in a random order with shuffle on.
-    func playShuffled(_ tracks: [Track]) {
+    func playShuffled(_ tracks: [Track], source: String? = nil) {
         guard !tracks.isEmpty else { return }
         isShuffled = true
-        play(tracks, startingAt: Int.random(in: tracks.indices))
+        play(tracks, startingAt: Int.random(in: tracks.indices), source: source)
     }
 
     /// Shuffle what's left after the current track; off restores the original order.
@@ -309,7 +316,7 @@ final class PlayerService {
         let saved = Saved(
             queue: queue, index: currentIndex, time: currentTime,
             isShuffled: isShuffled, unshuffledQueue: unshuffledQueue, repeatMode: repeatMode,
-            manualCount: manualCount
+            manualCount: manualCount, sourceId: sourceId
         )
         UserDefaults.standard.set(try? JSONEncoder().encode(saved), forKey: Self.savedKey)
     }
@@ -324,6 +331,7 @@ final class PlayerService {
         isShuffled = saved.isShuffled ?? false
         unshuffledQueue = saved.unshuffledQueue
         repeatMode = saved.repeatMode ?? .off
+        sourceId = saved.sourceId
         let manual = min(saved.manualCount ?? 0, max(0, saved.queue.count - index - 1))
         manualTokens = (0..<manual).map { _ in UUID() }
         needsLoad = true

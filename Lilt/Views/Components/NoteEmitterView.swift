@@ -14,15 +14,16 @@ struct NoteEmitterView: NSViewRepresentable {
     /// Scales the notes to the disc they rise from (1 is the row's 40pt disc): glyph size, speed,
     /// drift and the source offset all scale together.
     var scale: CGFloat = 1
+    @Environment(\.screenIsParked) private var parked
 
     func makeNSView(context: Context) -> NoteEmitterHostView {
         let view = NoteEmitterHostView()
-        view.update(isPlaying: isPlaying, center: center, artworkURL: artworkURL, style: ArtworkStyle.shared.notes.scaled(scale))
+        view.update(isPlaying: isPlaying && !parked, center: center, artworkURL: artworkURL, style: ArtworkStyle.shared.notes.scaled(scale))
         return view
     }
 
     func updateNSView(_ view: NoteEmitterHostView, context: Context) {
-        view.update(isPlaying: isPlaying, center: center, artworkURL: artworkURL, style: ArtworkStyle.shared.notes.scaled(scale))
+        view.update(isPlaying: isPlaying && !parked, center: center, artworkURL: artworkURL, style: ArtworkStyle.shared.notes.scaled(scale))
     }
 }
 

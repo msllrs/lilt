@@ -99,6 +99,9 @@ struct BrowseScreen: View {
 
     private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
 
+    /// Liked Music is YouTube's automatic playlist: always in the library, never saved or removed.
+    static func isLikedMusic(_ item: BrowseItem) -> Bool { item.id == "VLLM" || item.id == "LM" }
+
     /// Play, save and shuffle all share this height so the row reads as one set of controls.
     private static let heroControlHeight: CGFloat = 38
     @State private var isSaving = false
@@ -170,9 +173,10 @@ struct BrowseScreen: View {
     }
 
     /// True when the track playing right now came from this page.
+    /// Only when the queue was started from this page: a track that merely appears in this
+    /// playlist, played from elsewhere, doesn't make the playlist "playing".
     private func isPlayingFromPage(_ page: BrowsePage) -> Bool {
-        guard let id = player.current?.id else { return false }
-        return page.tracks.contains { $0.id == id }
+        player.current != nil && player.sourceId == page.item.id
     }
 
     /// The compact artwork doubles as a play button once the hero's own Play has scrolled away,
@@ -184,7 +188,7 @@ struct BrowseScreen: View {
         let radius: CGFloat = isArtist ? size / 2 : Theme.Radius.artwork(size)
         let playingHere = isPlayingFromPage(page)
         return Button {
-            if playingHere { player.togglePlayPause() } else { player.play(page.tracks, startingAt: 0) }
+            if playingHere { player.togglePlayPause() } else { player.play(page.tracks, startingAt: 0, source: page.item.id) }
         } label: {
             SpinningArtwork(
                 url: page.item.artworkURL,
@@ -242,7 +246,7 @@ struct BrowseScreen: View {
                 }
                 if !page.tracks.isEmpty {
                     SectionHeader(page.item.kind == .artist ? "Top songs" : "Tracks")
-                    TrackRows(tracks: page.tracks)
+                    TrackRows(tracks: page.tracks, source: page.item.id)
                     if let allSongsId = page.allSongsId {
                         BrowseRow(item: BrowseItem(
                             id: allSongsId, kind: .playlist, title: "All songs",
@@ -328,14 +332,14 @@ struct BrowseScreen: View {
                 // Play between; artists have no library membership, so no save.
                 InterpolatedColor(artworkCast(page)) { cast in
                     HStack(spacing: Theme.Space.sm) {
-                        if page.item.kind != .artist {
+                        if page.item.kind != .artist, !Self.isLikedMusic(page.item) {
                             heroRoundButton(symbol: isSaved ? "bookmark.fill" : "bookmark", help: isSaved ? "Remove from Library" : "Save to Library", cast: cast) {
                                 toggleSaved(page)
                             }
                             .disabled(page.playlistId == nil || isSaving)
                         }
                         Button {
-                            player.play(page.tracks, startingAt: 0)
+                            player.play(page.tracks, startingAt: 0, source: page.item.id)
                         } label: {
                             Label("Play", systemImage: "play.fill")
                                 .font(.callout.weight(.semibold))
@@ -345,7 +349,7 @@ struct BrowseScreen: View {
                         }
                         .buttonStyle(.pressable)
                         heroRoundButton(symbol: "shuffle", help: "Shuffle", cast: cast) {
-                            player.playShuffled(page.tracks)
+                            player.playShuffled(page.tracks, source: page.item.id)
                         }
                     }
                 }

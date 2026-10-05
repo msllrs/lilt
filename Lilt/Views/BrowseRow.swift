@@ -48,13 +48,8 @@ struct BrowseRow: View {
 
     /// Hovering the artwork offers to play the album, playlist or artist's top songs right here,
     /// without opening the page.
-    /// The playing track comes from this album or playlist: by album id, or by membership of the
-    /// page's tracks when that page has been loaded.
-    private var isPlayingHere: Bool {
-        guard let current = player.current else { return false }
-        if item.kind == .album, let albumId = current.albumId, albumId == item.id { return true }
-        return music.cachedPage(for: item)?.tracks.contains { $0.id == current.id } ?? false
-    }
+    /// The queue was started from this album or playlist (not merely a track it contains).
+    private var isPlayingHere: Bool { player.current != nil && player.sourceId == item.id }
 
     private var artwork: some View {
         let playingHere = isPlayingHere
@@ -65,7 +60,7 @@ struct BrowseRow: View {
             } else {
                 Task {
                     guard let page = try? await music.page(for: item), !page.tracks.isEmpty else { return }
-                    player.play(page.tracks, startingAt: 0)
+                    player.play(page.tracks, startingAt: 0, source: item.id)
                 }
             }
         } label: {

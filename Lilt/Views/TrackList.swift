@@ -7,6 +7,8 @@ struct TrackRows: View {
     /// When set, render just this one track (still queued with the whole list). Lets a mixed
     /// list interleave track rows with other rows while keeping the shelf as the queue.
     var only: Track? = nil
+    /// The page these tracks belong to, when they are its contents.
+    var source: String? = nil
 
     var body: some View {
         ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
@@ -16,7 +18,7 @@ struct TrackRows: View {
                     isCurrent: player.current?.id == track.id,
                     isPlaying: player.isPlaying
                 ) {
-                    player.play(tracks, startingAt: index)
+                    player.play(tracks, startingAt: index, source: source)
                 }
             }
         }
