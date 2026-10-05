@@ -26,6 +26,10 @@ final class PanelWindow: NSPanel {
         for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
             standardWindowButton(button)?.isHidden = true
         }
+        // macOS 26 gives every titled window a 16pt continuous corner. The shape, clip and shadow
+        // all follow the window's private radius, so set ours there; a future OS without the
+        // selector just keeps the system corner.
+        applyNativeCornerRadius(Theme.Radius.window)
         #endif
         isMovableByWindowBackground = true
         isReleasedWhenClosed = false
@@ -34,15 +38,14 @@ final class PanelWindow: NSPanel {
         // Any click makes the panel key (still without activating the app), so shortcuts and
         // typing work right after tapping a row or play, not only after clicking the field.
         becomesKeyOnlyIfNeeded = false
-        #if NATIVE_FRAME
-        // A titled window only gets its rounded frame (and clips content to it) when it has an
-        // opaque background; clear made it a square sheet with a square shadow.
-        backgroundColor = .windowBackgroundColor
-        isOpaque = true
-        hasShadow = true
-        #else
         backgroundColor = .clear
         isOpaque = false
+        #if NATIVE_FRAME
+        // Clear, so the mini player's empty region stays transparent as before. The frame still
+        // clips in-process content to the window's corner; only behind-window blur ignores it,
+        // which is why the sidebar material keeps a mask of its own at the same radius.
+        hasShadow = true
+        #else
         hasShadow = false
         #endif
         animationBehavior = .utilityWindow
@@ -54,6 +57,18 @@ final class PanelWindow: NSPanel {
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    #if NATIVE_FRAME
+    /// The window's corner: the panel radius while expanded, the platter's own in mini, where the
+    /// window is the platter. `-[NSWindow _setCornerRadius:]`, reached through its implementation
+    /// pointer because the argument is a CGFloat (KVC would box it, `perform` can't pass it).
+    func applyNativeCornerRadius(_ radius: CGFloat) {
+        typealias Setter = @convention(c) (AnyObject, Selector, CGFloat) -> Void
+        let selector = NSSelectorFromString("_setCornerRadius:")
+        guard responds(to: selector), let imp = method(for: selector) else { return }
+        unsafeBitCast(imp, to: Setter.self)(self, selector, radius)
+    }
+    #endif
 
     /// The frame includes a transparent shadow margin that may hang off the screen, but the
     /// visible panel inside it must stay on screen. AppKit's default would push the whole frame

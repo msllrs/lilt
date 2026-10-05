@@ -166,6 +166,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let margin = Theme.Size.shadowMargin
         let current = panel.frame
         let screen = panel.screen ?? NSScreen.main ?? NSScreen.screens[0]
+        #if NATIVE_FRAME
+        panel.applyNativeCornerRadius(mini ? Theme.Radius.panel : Theme.Radius.window)
+        #endif
         if mini {
             if current.height >= Theme.Size.panelMinHeight + margin * 2 { expandedHeight = current.height }
             // The platter keeps its inset below it, so it doesn't move when the column goes.

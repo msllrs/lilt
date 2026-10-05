@@ -11,18 +11,11 @@ struct PanelBackground: View {
     private var style: PanelStyle { ArtworkStyle.shared.panel }
 
     var body: some View {
-        // Under the native frame the window clips to its own corner curve, which is not quite
-        // SwiftUI's continuous curve; any shape of ours would leave slivers along the arc.
-        #if NATIVE_FRAME
-        let radius: CGFloat = 0
-        #else
-        let radius = cornerRadius
-        #endif
         switch style.surface {
         case .glass:
-            GlassBackground(cornerRadius: radius, isHidden: isHidden)
+            GlassBackground(cornerRadius: cornerRadius, isHidden: isHidden)
         case .sidebar:
-            SidebarBackground(cornerRadius: radius, translucent: style.translucent, isHidden: isHidden)
+            SidebarBackground(cornerRadius: cornerRadius, translucent: style.translucent, isHidden: isHidden)
         }
     }
 }

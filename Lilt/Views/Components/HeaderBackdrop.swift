@@ -14,12 +14,9 @@ struct HeaderBackdrop: ViewModifier {
     var visibility: CGFloat = 1
 
     private var style: HeaderBlurStyle { ArtworkStyle.shared.headerBlur }
-    /// The panel corner the backdrop is clipped to; under the native frame the window clips.
-    #if NATIVE_FRAME
-    static let clipRadius: CGFloat = 0
-    #else
+    /// The panel corner the backdrop is clipped to. Behind-window layers ignore the window's own
+    /// corner clip, so this applies under the native frame too.
     static let clipRadius: CGFloat = Theme.Radius.window
-    #endif
 
     func body(content: Content) -> some View {
         let useBackdrop = style.useBackdrop && ProgressiveBlurBackdrop.isAvailable

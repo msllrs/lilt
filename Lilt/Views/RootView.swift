@@ -10,13 +10,8 @@ struct RootView: View {
     /// the (invisible) column keeps this size instead of reflowing, and reports none of it.
     @State private var columnHeight: CGFloat = 0
 
-    /// Our clips follow the panel shape, except under the native frame, where the window clips
-    /// to its own corner curve and any shape of ours would leave slivers along the arc.
-    #if NATIVE_FRAME
-    private static let clipRadius: CGFloat = 0
-    #else
+    /// Our clips follow the panel shape (the native frame's corner is set to the same radius).
     private static let clipRadius: CGFloat = Theme.Radius.window
-    #endif
 
     var body: some View {
         let mini = navigation.isMiniPlayer
