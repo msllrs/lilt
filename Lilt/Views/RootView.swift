@@ -308,29 +308,32 @@ private struct LeadingButton: View {
                 let amount = navigation.leadingCastAmount
                 InterpolatedColor(navigation.leadingCast) { cast in
                     if let cast {
-                        Circle()
-                            .strokeBorder(
-                                LinearGradient(stops: [.init(color: .clear, location: style.rimStart), .init(color: cast.opacity(style.rimOpacity), location: 1)], startPoint: .leading, endPoint: .trailing),
-                                lineWidth: style.rimWidth
-                            )
-                            .background {
-                                // Light from the side falls off across the button, not from a point.
-                                Circle().fill(LinearGradient(
-                                    stops: [.init(color: cast.opacity(style.washOpacity), location: 0), .init(color: .clear, location: style.washReach)],
-                                    startPoint: .trailing, endPoint: .leading
-                                ))
-                            }
-                            .clipShape(Circle())
-                            .mask {
-                                LinearGradient(
-                                    stops: [
-                                        .init(color: .black, location: 0),
-                                        .init(color: .black, location: max(0, amount - 0.2)),
-                                        .init(color: .clear, location: amount),
-                                    ],
-                                    startPoint: .bottom, endPoint: .top
+                        ZStack {
+                            // The wash: light from the side falling off across the button, not from
+                            // a point. It simply fades in with the header (a wipe cut it in half).
+                            Circle().fill(LinearGradient(
+                                stops: [.init(color: cast.opacity(style.washOpacity), location: 0), .init(color: .clear, location: style.washReach)],
+                                startPoint: .trailing, endPoint: .leading
+                            ))
+                            .opacity(amount)
+                            // The rim climbs the edge, bottom to top, as the header rises.
+                            Circle()
+                                .strokeBorder(
+                                    LinearGradient(stops: [.init(color: .clear, location: style.rimStart), .init(color: cast.opacity(style.rimOpacity), location: 1)], startPoint: .leading, endPoint: .trailing),
+                                    lineWidth: style.rimWidth
                                 )
-                            }
+                                .mask {
+                                    LinearGradient(
+                                        stops: [
+                                            .init(color: .black, location: 0),
+                                            .init(color: .black, location: max(0, amount - 0.2)),
+                                            .init(color: .clear, location: amount),
+                                        ],
+                                        startPoint: .bottom, endPoint: .top
+                                    )
+                                }
+                        }
+                        .clipShape(Circle())
                     }
                 }
                 .opacity(isBack ? 1 : 0)
