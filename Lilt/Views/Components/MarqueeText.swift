@@ -41,8 +41,11 @@ struct MarqueeText: View {
                         if scrolling { Text(text).font(font).fixedSize() }
                     }
                     .offset(x: offset(at: context.date))
-                    .frame(width: max(availableWidth, 1), alignment: .leading)
-                    .clipped()
+                    // Clipped to the measured width only: never vertically (a transient height
+                    // mismatch mid-animation showed as the title cut to a sliver), and not at all
+                    // before the first measurement.
+                    .frame(width: availableWidth > 0 ? availableWidth : nil, alignment: .leading)
+                    .clipShape(Rectangle().size(width: availableWidth > 0 ? availableWidth : 10_000, height: 1_000).offset(y: -500))
                 }
                 // The leading fade arrives with the motion, after the delay, not the moment the
                 // hover begins.

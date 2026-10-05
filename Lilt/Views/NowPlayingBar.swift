@@ -277,8 +277,10 @@ struct NowPlayingBar: View {
                 // without this the mask's bounds animated apart from the text, clipping the
                 // title's leading edge and hiding the artist line for a few frames.
                 .geometryGroup()
+                // Fills to the row's trailing edge (a trailing spacer took a share of the row),
+                // so the heart lines up with the repeat button below it.
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Spacer(minLength: 0)
         }
 
         // The glyphs take a faint share of the cover's colour (less than the scrubber), and
