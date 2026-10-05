@@ -39,8 +39,10 @@ struct NowPlayingBar: View {
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
     @State private var isHoveringPlatter = false
-    /// True from a mini change until the transition has settled (see `holdGlass`).
-    @State private var holdsGlass = false
+    /// True from a mini change until the transition has settled (see `holdGlass`). Starts true,
+    /// so the first frame after launch already wears the glass rather than fading it in once the
+    /// scroll tracker reports.
+    @State private var holdsGlass = true
     @State private var glassHold: Task<Void, Never>?
 
     /// Keeps the platter's glass on through a transition and a little past it, so it never drops
@@ -113,6 +115,8 @@ struct NowPlayingBar: View {
             holdGlass()
         }
         .onChange(of: navigation.isMiniPlayer) { _, _ in holdGlass() }
+        // At launch the scroll tracker hasn't reported yet, so the glass would arrive a beat late.
+        .onAppear { holdGlass() }
         // The window needs the platter's height to size itself as a mini player.
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { navigation.platterHeight = $0 }
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { platterFrame = $0 }

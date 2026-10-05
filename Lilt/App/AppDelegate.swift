@@ -25,8 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         player.linkResolver = { [music] videoId in try await music.links(forVideoId: videoId) }
         player.recents = recents
         navigation.recents = recents
+        if let url = player.displayArtworkURL { ImageCache.shared.restoreForLaunch(url) }
         makePanel()
         showPanel()
+        revealOnceArtworkIsWarm()
+        observeArtworkForLaunch()
         observeLoginPresentation()
         observeDockIcon()
         observeQueue()
@@ -526,6 +529,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     /// No close button on the panel; ⌘W hides it and playback carries on.
+    /// Whenever the current cover changes (and once at launch), keep it on disk for the next
+    /// launch's first frame.
+    private func observeArtworkForLaunch() {
+        withObservationTracking {
+            _ = player.displayArtworkURL
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.observeArtworkForLaunch()
+            }
+        }
+        guard let url = player.displayArtworkURL else { return }
+        Task { @MainActor in
+            // The loaded image is passed along rather than re-read from the cache: when another
+            // view started the same load first, this continuation can run before that one has
+            // stored it.
+            guard let image = await ImageCache.shared.load(url), player.displayArtworkURL == url else { return }
+            ImageCache.shared.rememberForLaunch(image, for: url)
+        }
+    }
+
+    /// The restored track is known before the first frame, but its artwork and the colours
+    /// drawn from it (platter tint, shadows) land a few hundred milliseconds later, so the panel
+    /// used to appear and then change. It now shows at zero alpha and becomes visible once that
+    /// artwork is in the cache, or after 400ms, whichever is first.
+    private func revealOnceArtworkIsWarm() {
+        guard let panel else { return }
+        guard let url = player.displayArtworkURL, ImageCache.shared.cached(url) == nil else { return }
+        panel.alphaValue = 0
+        // Whichever finishes first reveals; the other finds it already done.
+        let reveal = { @MainActor [weak panel] in if let panel, panel.alphaValue == 0 { panel.alphaValue = 1 } }
+        Task { @MainActor in _ = await ImageCache.shared.load(url); reveal() }
+        Task { @MainActor in try? await Task.sleep(for: .milliseconds(400)); reveal() }
+    }
+
     /// Hidden by alpha, not ordered out: ordering out drops the window server's state for the
     /// header's blur backdrop and the materials, which then rebuild a frame or more after the
     /// next show, with rows under the header drawn sharp until they do. Invisible and inert, the

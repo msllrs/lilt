@@ -35,6 +35,28 @@ final class ImageCache {
         images.object(forKey: url.absoluteString as NSString)
     }
 
+    // MARK: Launch artwork
+
+    private static let launchArtworkFile = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("launch-artwork.png")
+    private static let launchArtworkKey = "launchArtworkURL"
+
+    /// Keeps this cover on disk as a plain file, so a relaunch can draw the platter and its
+    /// colours before the first frame. The URL cache would serve it too, but only after the
+    /// session has spun up, which on a cold start is longer than the window takes to appear.
+    func rememberForLaunch(_ image: NSImage, for url: URL) {
+        guard let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: Self.launchArtworkFile, options: .atomic)
+        UserDefaults.standard.set(url.absoluteString, forKey: Self.launchArtworkKey)
+    }
+
+    /// Puts the remembered cover straight into the cache if it is the one asked for.
+    func restoreForLaunch(_ url: URL) {
+        guard cached(url) == nil, UserDefaults.standard.string(forKey: Self.launchArtworkKey) == url.absoluteString,
+              let image = NSImage(contentsOf: Self.launchArtworkFile) else { return }
+        store(image, for: url)
+    }
+
     /// How bright the artwork is overall. Any measured size of the same cover will do, so the
     /// value is stable from the first frame instead of jumping when this exact URL lands.
     func luminance(for url: URL) -> CGFloat {
