@@ -24,7 +24,17 @@ struct RootView: View {
         let inset = Theme.Space.panelInset
         // The container ends flush with the platter's top; the platter keeps its bottom inset so
         // it never moves vertically, while it widens to the full panel as before.
+        #if NATIVE_FRAME
+        // The window itself is the container (its frame animates, see AppDelegate), so our
+        // surfaces and clips just fill it.
+        let containerHeight: CGFloat? = nil
+        let holdsExpandedLayout = mini || navigation.isFrameAnimating
+        let platterBottomInset: CGFloat = mini ? 0 : inset
+        #else
         let containerHeight: CGFloat? = mini ? navigation.platterHeight + inset : (fullHeight > 0 ? fullHeight : nil)
+        let holdsExpandedLayout = mini
+        let platterBottomInset = inset
+        #endif
         ZStack(alignment: .bottom) {
             // The panel's surface lives here, always mounted, so hiding it is explicit and reliable
             // (see PanelBackground). It shrinks and fades with the collapse, then is switched off.
@@ -56,13 +66,13 @@ struct RootView: View {
                 .allowsHitTesting(!mini)
                 // In mini the window is shorter than the column's minimum; laid out at its
                 // expanded size but reporting zero height, it can't push the platter down.
-                .frame(height: mini && columnHeight > 0 ? columnHeight : nil)
+                .frame(height: holdsExpandedLayout && columnHeight > 0 ? columnHeight : nil)
                 .frame(height: mini ? 0 : nil, alignment: .bottom)
             if player.current != nil {
                 // The bottom inset is constant so the platter never shifts vertically.
                 NowPlayingBar()
                     .padding(.horizontal, mini ? 0 : inset)
-                    .padding(.bottom, inset)
+                    .padding(.bottom, platterBottomInset)
                     // Expanded: the platter's drop shadow would spill past the panel; keep it in.
                     .mask {
                         if mini {

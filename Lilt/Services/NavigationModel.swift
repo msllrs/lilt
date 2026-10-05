@@ -13,6 +13,9 @@ final class NavigationModel {
 
     var query: String { didSet { save() } }
     var path: [BrowseItem] { didSet { save() } }
+    /// True while the native frame is animating between the column and the platter; the column
+    /// holds its expanded layout until it ends. Not persisted.
+    var isFrameAnimating = false
     /// Collapse the column to just the now-playing platter.
     var isMiniPlayer: Bool {
         didSet {

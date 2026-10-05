@@ -77,6 +77,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func applyMiniPlayerChange(_ mini: Bool) {
         guard mini != navigation.isMiniPlayer else { return }
+        #if NATIVE_FRAME
+        // The window is the container: its frame animates alongside the fade and the system
+        // shadow follows it, instead of outlining an empty window until a later resize.
+        navigation.isMiniPlayer = mini
+        resizeWindow(mini: mini, animated: true)
+        return
+        #endif
         if mini {
             navigation.isMiniPlayer = true
             // Shrink after the fade: the region being removed is transparent by then.
@@ -158,28 +165,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let platter = queueVisible
             ? navigation.platterBaseHeight + Theme.Space.sm + QueueList.height(forCount: player.upcoming.count)
             : navigation.platterHeight
+        #if NATIVE_FRAME
+        // The window is the platter: no inset below it, or the frame's shadow outlines a strip.
+        return platter + margin * 2
+        #else
         return platter + Theme.Space.panelInset + margin * 2
+        #endif
     }
 
-    private func resizeWindow(mini: Bool, queueVisible: Bool? = nil) {
+    private func resizeWindow(mini: Bool, queueVisible: Bool? = nil, animated: Bool = false) {
         guard let panel else { return }
         let margin = Theme.Size.shadowMargin
         let current = panel.frame
         let screen = panel.screen ?? NSScreen.main ?? NSScreen.screens[0]
+        let miniMin = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: 1)
+        let fullMin = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: Theme.Size.panelMinHeight + margin * 2)
+        if mini, current.height >= Theme.Size.panelMinHeight + margin * 2 { expandedHeight = current.height }
+        let height = mini ? miniHeight(queueVisible: queueVisible ?? navigation.isQueueVisible) : expandedHeight
+        let target = Self.onScreen(NSRect(x: current.minX, y: current.minY, width: current.width, height: height), near: screen)
         #if NATIVE_FRAME
-        panel.applyNativeCornerRadius(mini ? Theme.Radius.panel : Theme.Radius.window)
+        // The corner is the platter's only once the window is the platter; growing starts from
+        // the panel's corner straight away.
+        if !mini { panel.applyNativeCornerRadius(Theme.Radius.window) }
+        if animated {
+            // Loosen the minimum first (setting a larger one would snap the frame), and tighten it
+            // once the frame has arrived.
+            panel.minSize = miniMin
+            navigation.isFrameAnimating = true
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.28
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                panel.animator().setFrame(target, display: true)
+            } completionHandler: { [weak self] in
+                guard let self else { return }
+                panel.minSize = mini ? NSSize(width: miniMin.width, height: target.height) : fullMin
+                if mini { panel.applyNativeCornerRadius(Theme.Radius.panel) }
+                navigation.isFrameAnimating = false
+            }
+            return
+        }
+        if mini { panel.applyNativeCornerRadius(Theme.Radius.panel) }
         #endif
         if mini {
-            if current.height >= Theme.Size.panelMinHeight + margin * 2 { expandedHeight = current.height }
-            // The platter keeps its inset below it, so it doesn't move when the column goes.
-            let height = miniHeight(queueVisible: queueVisible ?? navigation.isQueueVisible)
-            panel.minSize = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: height)
-            let target = NSRect(x: current.minX, y: current.minY, width: current.width, height: height)
-            panel.setFrame(Self.onScreen(target, near: screen), display: true)
+            panel.minSize = NSSize(width: miniMin.width, height: height)
+            panel.setFrame(target, display: true)
         } else {
-            panel.minSize = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: Theme.Size.panelMinHeight + margin * 2)
-            let target = NSRect(x: current.minX, y: current.minY, width: current.width, height: expandedHeight)
-            panel.setFrame(Self.onScreen(target, near: screen), display: true)
+            panel.minSize = fullMin
+            panel.setFrame(target, display: true)
             panel.contentView?.layoutSubtreeIfNeeded()
         }
     }
