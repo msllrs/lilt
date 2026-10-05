@@ -107,6 +107,9 @@ private struct PanelShadow: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         let margin = Theme.Size.shadowMargin
+        // The sidebar surface draws its own hairline; a contact shadow on top of it reads as a
+        // second edge. Glass has no line of its own, so it keeps the tight shadow.
+        let contact = ArtworkStyle.shared.panel.surface == .glass ? 1.0 : 0.0
         // The caster is exactly the panel shape; only its shadow reaches into the margin.
         shape
             .fill(.black)
@@ -115,7 +118,7 @@ private struct PanelShadow: View {
             .padding(.bottom, bottomInset)
             // Sized to stay inside the 36pt margin (blur extent + offset), so it never clips.
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.5 : 0.22), radius: 12, y: 5)
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.14), radius: 1.5, y: 0.5)
+            .shadow(color: .black.opacity((colorScheme == .dark ? 0.35 : 0.14) * contact), radius: 1.5, y: 0.5)
             // Keep everything in the margin, punch out the panel shape itself.
             .mask {
                 ZStack {

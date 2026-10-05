@@ -8,6 +8,8 @@ struct PanelBackground: View {
     var cornerRadius: CGFloat = Theme.Radius.window
     var isHidden: Bool = false
 
+    @Environment(\.colorScheme) private var colorScheme
+
     private var style: PanelStyle { ArtworkStyle.shared.panel }
 
     var body: some View {
@@ -16,10 +18,11 @@ struct PanelBackground: View {
             GlassBackground(cornerRadius: cornerRadius, isHidden: isHidden)
         case .sidebar:
             SidebarBackground(cornerRadius: cornerRadius, translucent: style.translucent, isHidden: isHidden)
-                // A window's frame gives a sidebar its edge; this panel has none, so draw one.
+                // A window's frame gives a sidebar its edge; this panel has none, so draw the one
+                // line a window has: dark on a light desktop, light on a dark one.
                 .overlay {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(.primary.opacity(0.1), lineWidth: 1)
+                        .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.12), lineWidth: 1)
                 }
         }
     }

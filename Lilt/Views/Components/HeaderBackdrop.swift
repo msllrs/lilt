@@ -45,7 +45,9 @@ struct HeaderBackdrop: ViewModifier {
                 // The backdrop blurs the window glass's own hairline rim away where it covers
                 // it; draw the rim back on top, just within this region.
                 .overlay(alignment: .top) {
-                    if useBackdrop {
+                    // Only the glass surface has a rim to restore; the sidebar's hairline sits
+                    // above the blur already.
+                    if useBackdrop, ArtworkStyle.shared.panel.surface == .glass {
                         Color.clear
                             .frame(height: Theme.Radius.window * 4)
                             .glassEdge(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous).inset(by: 0.5), opacity: style.rimOpacity)
