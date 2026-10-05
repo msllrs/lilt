@@ -107,7 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard visible != navigation.isQueueVisible else { return }
         #if NATIVE_FRAME
         // The window is the platter: it and the list ride one spring, either way.
-        if navigation.isMiniPlayer { resizeWindow(mini: true, queueVisible: visible, animated: true, spring: Theme.Motion.queueSpring) }
+        if navigation.isMiniPlayer { resizeWindow(mini: true, queueVisible: visible, animated: true, curve: Theme.Motion.queueCurve) }
         withAnimation(.spring(Theme.Motion.queueSpring)) { navigation.isQueueVisible = visible }
         autoHideQueueIfEmpty()
         return
@@ -156,7 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard navigation.isMiniPlayer, navigation.isQueueVisible, let panel else { return }
         let target = miniHeight(queueVisible: true)
         #if NATIVE_FRAME
-        if target != panel.frame.height { resizeWindow(mini: true, queueVisible: true, animated: true, spring: Theme.Motion.queueSpring) }
+        if target != panel.frame.height { resizeWindow(mini: true, queueVisible: true, animated: true, curve: Theme.Motion.queueCurve) }
         return
         #endif
         if target > panel.frame.height {
@@ -186,7 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         #endif
     }
 
-    private func resizeWindow(mini: Bool, queueVisible: Bool? = nil, animated: Bool = false, spring: Spring = Theme.Motion.frameSpring) {
+    private func resizeWindow(mini: Bool, queueVisible: Bool? = nil, animated: Bool = false, curve: FrameCurve = Theme.Motion.frameCurve) {
         guard let panel else { return }
         let margin = Theme.Size.shadowMargin
         let current = panel.frame
@@ -209,7 +209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             // once the frame has arrived. The corner eases between the two radii on the same curve.
             panel.minSize = miniMin
             navigation.isFrameAnimating = true
-            panel.animateNativeFrame(to: target, cornerRadius: cornerRadius, spring: spring) { [weak self] in
+            panel.animateNativeFrame(to: target, cornerRadius: cornerRadius, curve: curve) { [weak self] in
                 guard let self else { return }
                 panel.minSize = mini ? NSSize(width: miniMin.width, height: target.height) : fullMin
                 lockNativeHeight(mini ? target.height : nil)
@@ -472,6 +472,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let panel else { return }
         // Never show it somewhere you can't see it.
         panel.setFrame(Self.onScreen(panel.frame, near: panel.screen ?? NSScreen.main ?? NSScreen.screens[0]), display: false)
+        panel.alphaValue = 1
+        panel.ignoresMouseEvents = false
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate()
     }
@@ -524,8 +526,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     /// No close button on the panel; ⌘W hides it and playback carries on.
+    /// Hidden by alpha, not ordered out: ordering out drops the window server's state for the
+    /// header's blur backdrop and the materials, which then rebuild a frame or more after the
+    /// next show, with rows under the header drawn sharp until they do. Invisible and inert, the
+    /// window keeps that state warm.
     func hidePanel() {
-        panel?.orderOut(nil)
+        guard let panel else { return }
+        panel.alphaValue = 0
+        panel.ignoresMouseEvents = true
+        panel.orderBack(nil)
     }
 
     #if DEBUG

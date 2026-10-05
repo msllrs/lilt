@@ -86,18 +86,18 @@ final class PanelWindow: NSPanel {
 
     private var frameFrom = NSRect.zero, frameTo = NSRect.zero
     private var frameCompletion: (() -> Void)?
-    private var frameSpring = Theme.Motion.frameSpring
+    private var frameCurve = Theme.Motion.frameCurve
 
     /// Springs the frame and the corner together from their current values, one display link
     /// driving both, so every refresh gets exactly one step of each. (NSWindow's own animator
     /// ticks on a timer that isn't locked to the display, which showed as uneven steps.) The
     /// platter's inset shrinks by the same amount the radius does, so corners stay concentric.
-    func animateNativeFrame(to frame: NSRect, cornerRadius radius: CGFloat, spring: Spring, completion: @escaping () -> Void) {
+    func animateNativeFrame(to frame: NSRect, cornerRadius radius: CGFloat, curve: FrameCurve, completion: @escaping () -> Void) {
         radiusLink?.invalidate()
         frameFrom = self.frame; frameTo = frame
         radiusFrom = nativeCornerRadius; radiusTo = radius
-        frameSpring = spring
-        radiusStart = CACurrentMediaTime(); radiusDuration = spring.settlingDuration
+        frameCurve = curve
+        radiusStart = CACurrentMediaTime(); radiusDuration = curve.duration
         frameCompletion = completion
         let link = displayLink(target: self, selector: #selector(stepFrame(_:)))
         link.add(to: .main, forMode: .common)
@@ -108,9 +108,8 @@ final class PanelWindow: NSPanel {
         // Aim at the moment this step will be shown, not the moment it's computed.
         let elapsed = link.targetTimestamp - radiusStart
         let t = min(max(elapsed / radiusDuration, 0), 1)
-        // The content's own spring, overshoot included, so the window and what it reveals move
-        // as one.
-        let eased: Double = t >= 1 ? 1 : frameSpring.value(fromValue: 0.0, toValue: 1.0, initialVelocity: 0.0, time: elapsed)
+        // The content's own curve, so the window and what it reveals move as one.
+        let eased: Double = t >= 1 ? 1 : frameCurve.value(at: elapsed)
         let f = NSRect(
             x: frameFrom.minX + (frameTo.minX - frameFrom.minX) * eased,
             y: frameFrom.minY + (frameTo.minY - frameFrom.minY) * eased,

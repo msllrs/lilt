@@ -77,14 +77,43 @@ enum Theme {
         /// Colour drawn from one cover handing over to the next: slow enough to read as a change
         /// of light, not a cut.
         static let cast: Animation = .easeInOut(duration: 0.8)
-        /// The native frame growing or shrinking between the column and the platter: quick, no
-        /// bounce. The window itself steps along this same spring, so the content and the frame
-        /// land together.
-        static let frameSpring = Spring(duration: 0.2, bounce: 0)
-        static let frame: Animation = .spring(frameSpring)
+        /// The native frame growing or shrinking between the column and the platter: a quick
+        /// ease-out with a definite end. (A critically damped spring crept toward its target for
+        /// another 0.3s after the visible motion, which read as lag at the end.) The window steps
+        /// along this same curve, so the content and the frame land together.
+        static let frameDuration: TimeInterval = 0.22
+        static let frame: Animation = .easeOut(duration: frameDuration)
+        static let frameCurve: FrameCurve = .easeOut(frameDuration)
         /// The platter revealing the queue under the native frame: the window is the platter
         /// and steps along this same spring, so no bounce, or the two overshoot out of phase and
         /// a strip of bare material opens between them.
         static let queueSpring = Spring(duration: 0.3, bounce: 0)
+        static let queueCurve: FrameCurve = .spring(queueSpring)
+    }
+}
+
+/// How the native frame steps between two sizes (see PanelWindow.animateNativeFrame).
+enum FrameCurve {
+    /// Cubic ease-out over the duration, landing exactly at the end.
+    case easeOut(TimeInterval)
+    /// A spring, overshoot included, run to its settling time.
+    case spring(Spring)
+
+    var duration: TimeInterval {
+        switch self {
+        case .easeOut(let d): d
+        case .spring(let s): s.settlingDuration
+        }
+    }
+
+    /// Progress 0...1 (springs may exceed 1 briefly) at `elapsed` seconds.
+    func value(at elapsed: TimeInterval) -> Double {
+        switch self {
+        case .easeOut(let d):
+            let t = min(max(elapsed / d, 0), 1)
+            return 1 - pow(1 - t, 3)
+        case .spring(let s):
+            return elapsed >= s.settlingDuration ? 1 : s.value(fromValue: 0.0, toValue: 1.0, initialVelocity: 0.0, time: elapsed)
+        }
     }
 }
