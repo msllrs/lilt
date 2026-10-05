@@ -32,9 +32,8 @@ struct BrowseScreen: View {
     @State private var collapse: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0
     @State private var heroHeight: CGFloat = 280
-    @State private var scrollPosition = ScrollPosition()
-    /// The hero's travel fraction at the last report, for settling when a scroll ends.
-    @State private var heroTravel: CGFloat = 0
+    /// The scroll view's top inset (the header bar), to read the scroll target in content terms.
+    @State private var scrollInsetTop: CGFloat = 0
     /// Extra bottom padding that guarantees enough scroll range for the hero to hand off fully.
     @State private var extraBottom: CGFloat = 0
     @State private var isHoveringCompactArtwork = false
@@ -209,16 +208,11 @@ struct BrowseScreen: View {
         }
         .scrollIndicators(.never)
         .scrollEdgeEffectStyle(.soft, for: .all)
-        .scrollPosition($scrollPosition)
-        // A scroll that ends part-way through the hero's travel settles to the nearer end, so the
-        // page never rests with a half-faded hero and a half-visible compact header.
-        .onScrollPhaseChange { _, phase in
-            guard phase == .idle else { return }
-            let snap = ArtworkStyle.shared.heroSnap
-            guard snap.enabled, heroTravel > snap.deadZone, heroTravel < 1 - snap.deadZone else { return }
-            let target: CGFloat = heroTravel >= snap.threshold ? heroHeight : 0
-            withAnimation(.easeOut(duration: snap.duration)) { scrollPosition.scrollTo(y: target) }
-        }
+        // A scroll that would end part-way through the hero's travel is steered to the nearer
+        // end as the fingers lift, in the same motion, so the page never rests with a half-faded
+        // hero and a half-visible compact header.
+        .scrollTargetBehavior(HeroSnapBehavior(heroHeight: heroHeight, insetTop: scrollInsetTop, snap: ArtworkStyle.shared.heroSnap))
+        .onScrollGeometryChange(for: CGFloat.self) { $0.contentInsets.top } action: { _, inset in scrollInsetTop = inset }
         .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
             ScrollMetrics(
                 offset: geometry.contentOffset.y + geometry.contentInsets.top,
@@ -245,7 +239,6 @@ struct BrowseScreen: View {
             // The hero fades across its own height, so it is gone exactly when it has scrolled
             // under the header and never leaves a blank gap above the tracks.
             let travel = min(max(metrics.offset / max(heroHeight, 1), 0), 1)
-            heroTravel = travel
             heroFade = Self.smoothstep(travel)
             collapse = Self.smoothstep(min(max((travel - 0.45) / 0.55, 0), 1))
         }
@@ -353,5 +346,27 @@ struct BrowseScreen: View {
             }
         }
         return result
+    }
+}
+
+/// Steers a scroll's projected end point out of the hero's hand-off zone: below the threshold it
+/// finishes at the top, above it at the compact header, carried there by the scroll's own
+/// deceleration rather than a second animation after it stops.
+private struct HeroSnapBehavior: ScrollTargetBehavior {
+    let heroHeight: CGFloat
+    let insetTop: CGFloat
+    let snap: HeroSnapStyle
+
+    func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
+        guard snap.enabled, heroHeight > 0 else { return }
+        // Only a flick is steered, and in the direction it was going. A scroll-wheel step or a
+        // slow release has no momentum; steering those by position fights the hand (every tick
+        // pulled back to where it came from).
+        let velocity = context.velocity.dy
+        guard abs(velocity) >= snap.minFlick else { return }
+        // The target's origin is the content offset, which sits at -inset when scrolled to the top.
+        let travel = (target.rect.minY + insetTop) / heroHeight
+        guard travel > snap.deadZone, travel < 1 - snap.deadZone else { return }
+        target.rect.origin.y = (velocity > 0 ? heroHeight : 0) - insetTop
     }
 }

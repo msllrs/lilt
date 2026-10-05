@@ -89,10 +89,9 @@ struct TweakPanel: View {
                 Toggle("System shadow", isOn: $style.panel.systemShadow)
             }
             Section("Hero snap (pages)") {
-                Toggle("Settle to an end", isOn: $style.heroSnap.enabled)
-                slider("Threshold", $style.heroSnap.threshold, 0.1...0.9)
+                Toggle("Steer flicks to an end", isOn: $style.heroSnap.enabled)
+                slider("Min flick (pt/s)", $style.heroSnap.minFlick, 0...400)
                 slider("Dead zone", $style.heroSnap.deadZone, 0...0.2)
-                slider("Duration", $style.heroSnap.duration, 0.1...0.8)
             }
             Section("Library header") {
                 Toggle("Centred title", isOn: $style.centredLibraryTitle)

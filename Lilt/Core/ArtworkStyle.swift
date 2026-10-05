@@ -189,12 +189,11 @@ struct LeadingCastStyle: Equatable {
 /// travel, the page glides to whichever end is nearer, so it never rests half-collapsed.
 struct HeroSnapStyle: Equatable {
     var enabled: Bool = true
-    /// Travel fraction (0 hero at rest … 1 header fully in) above which the page settles to the
-    /// header; below it, back to the top.
-    var threshold: Double = 0.5
+    /// Flicks slower than this (points per second) are not steered: scroll-wheel steps and slow
+    /// releases rest where they are instead of being pulled back.
+    var minFlick: Double = 40
     /// Travel within this much of either end is left alone (already effectively settled).
     var deadZone: Double = 0.04
-    var duration: Double = 0.32
     static let standard = HeroSnapStyle()
 }
 
@@ -495,7 +494,7 @@ final class ArtworkStyle {
         headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), rim: \(headerControls.rim), rimOpacity: \(f(headerControls.rimOpacity)), interactive: \(headerControls.interactive), tintOpacity: \(f(headerControls.tintOpacity)), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
         panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent), systemShadow: \(panel.systemShadow))
         centredLibraryTitle = \(centredLibraryTitle)
-        heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), threshold: \(f(heroSnap.threshold)), deadZone: \(f(heroSnap.deadZone)), duration: \(f(heroSnap.duration)))
+        heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), minFlick: \(f(heroSnap.minFlick)), deadZone: \(f(heroSnap.deadZone)))
         leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)))
         """
     }
