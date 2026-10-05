@@ -85,7 +85,9 @@ struct RootView: View {
                 // or fading column animating beneath the platter is rendered as an offscreen
                 // group that lands above the platter's glass, so rows showed through it mid-move.
                 .modifier(ColumnClip(containerHeight: containerHeight))
-                .opacity(Self.surfaceHidesInMini && mini ? 0 : 1)
+                // Fades with the move in both builds; in mini it would otherwise still be there
+                // behind the platter's glass, since the native hosting view stays full height.
+                .opacity(mini ? 0 : 1)
                 .allowsHitTesting(!mini)
                 // In mini the window is shorter than the column's minimum; laid out at its
                 // expanded size but reporting zero height, it can't push the platter down.

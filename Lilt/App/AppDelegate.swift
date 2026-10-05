@@ -105,6 +105,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// shrinks only after the list has animated out; expanded, the platter just grows upward.
     func setQueueVisible(_ visible: Bool) {
         guard visible != navigation.isQueueVisible else { return }
+        #if NATIVE_FRAME
+        // The window is the platter: it rides the same spring as the list, either way.
+        if navigation.isMiniPlayer { resizeWindow(mini: true, queueVisible: visible, animated: true, spring: Theme.Motion.bounceSpring) }
+        withAnimation(Theme.Motion.bounce) { navigation.isQueueVisible = visible }
+        autoHideQueueIfEmpty()
+        return
+        #endif
         if visible, navigation.isMiniPlayer { resizeWindow(mini: true, queueVisible: true) }
         withAnimation(Theme.Motion.bounce) { navigation.isQueueVisible = visible }
         if !visible, navigation.isMiniPlayer {
@@ -148,6 +155,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         autoHideQueueIfEmpty()
         guard navigation.isMiniPlayer, navigation.isQueueVisible, let panel else { return }
         let target = miniHeight(queueVisible: true)
+        #if NATIVE_FRAME
+        if target != panel.frame.height { resizeWindow(mini: true, queueVisible: true, animated: true, spring: Theme.Motion.bounceSpring) }
+        return
+        #endif
         if target > panel.frame.height {
             resizeWindow(mini: true, queueVisible: true)
         } else if target < panel.frame.height {
@@ -167,20 +178,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             : navigation.platterHeight
         #if NATIVE_FRAME
         // The window is the platter: no inset below it, or the frame's shadow outlines a strip.
-        return platter + margin * 2
+        // Without the list, use the platter's base height: the measured height still includes a
+        // list that is only now folding away, and the window shrinks at the same time as it.
+        return (queueVisible ? platter : navigation.platterBaseHeight) + margin * 2
         #else
         return platter + Theme.Space.panelInset + margin * 2
         #endif
     }
 
-    private func resizeWindow(mini: Bool, queueVisible: Bool? = nil, animated: Bool = false) {
+    private func resizeWindow(mini: Bool, queueVisible: Bool? = nil, animated: Bool = false, spring: Spring = Theme.Motion.frameSpring) {
         guard let panel else { return }
         let margin = Theme.Size.shadowMargin
         let current = panel.frame
         let screen = panel.screen ?? NSScreen.main ?? NSScreen.screens[0]
         let miniMin = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: 1)
         let fullMin = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: Theme.Size.panelMinHeight + margin * 2)
-        if mini, current.height >= Theme.Size.panelMinHeight + margin * 2 { expandedHeight = current.height }
+        // The expanded height is remembered when collapsing from a settled window, never from a
+        // frame caught mid-animation (a collapse started during an expand would record a
+        // half-grown height and the next expand would stop there).
+        if mini, !navigation.isFrameAnimating, current.height >= Theme.Size.panelMinHeight + margin * 2 { expandedHeight = current.height }
         let height = mini ? miniHeight(queueVisible: queueVisible ?? navigation.isQueueVisible) : expandedHeight
         let target = Self.onScreen(NSRect(x: current.minX, y: current.minY, width: current.width, height: height), near: screen)
         #if NATIVE_FRAME
@@ -193,7 +209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             // once the frame has arrived. The corner eases between the two radii on the same curve.
             panel.minSize = miniMin
             navigation.isFrameAnimating = true
-            panel.animateNativeFrame(to: target, cornerRadius: cornerRadius, duration: Theme.Motion.frameDuration) { [weak self] in
+            panel.animateNativeFrame(to: target, cornerRadius: cornerRadius, spring: spring) { [weak self] in
                 guard let self else { return }
                 panel.minSize = mini ? NSSize(width: miniMin.width, height: target.height) : fullMin
                 if !mini { unpinHosting() }
