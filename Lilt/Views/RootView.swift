@@ -49,10 +49,15 @@ struct RootView: View {
             // height, bottom-anchored like the column, and the window's own frame reveals or hides
             // it. Sized by SwiftUI it would lag the window by a layout pass, leaving rows hanging
             // above its top edge for a frame; in mini the platter sits on it as when expanded.
-            PanelBackground(cornerRadius: Theme.Radius.window, isHidden: Self.surfaceHidesInMini && mini)
-                .frame(maxHeight: containerHeight ?? .infinity)
-                .frame(height: Self.surfaceHidesInMini || columnHeight <= 0 ? nil : columnHeight)
-                .opacity(Self.surfaceHidesInMini && mini ? 0 : 1)
+            // It hangs from an overlay so its extra height never enters the stack's layout: an
+            // oversized stack gets centred, which would push the platter below the window.
+            Color.clear
+                .overlay(alignment: .bottom) {
+                    PanelBackground(cornerRadius: Theme.Radius.window, isHidden: Self.surfaceHidesInMini && mini)
+                        .frame(maxHeight: containerHeight ?? .infinity)
+                        .frame(height: Self.surfaceHidesInMini || columnHeight <= 0 ? nil : columnHeight)
+                        .opacity(Self.surfaceHidesInMini && mini ? 0 : 1)
+                }
                 .allowsHitTesting(false)
             NavigationColumn()
                 .safeAreaBar(edge: .bottom, spacing: 0) {
