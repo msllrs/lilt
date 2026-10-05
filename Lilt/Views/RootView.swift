@@ -12,6 +12,11 @@ struct RootView: View {
 
     /// Our clips follow the panel shape (the native frame's corner is set to the same radius).
     private static let clipRadius: CGFloat = Theme.Radius.window
+    #if NATIVE_FRAME
+    private static let miniAnimation: Animation = Theme.Motion.frame
+    #else
+    private static let miniAnimation: Animation = Theme.Motion.standard
+    #endif
 
     var body: some View {
         let mini = navigation.isMiniPlayer
@@ -110,7 +115,7 @@ struct RootView: View {
         }
         .padding(Theme.Size.shadowMargin)
         .animation(Theme.Motion.standard, value: player.current?.id)
-        .animation(Theme.Motion.standard, value: mini)
+        .animation(Self.miniAnimation, value: mini)
     }
 }
 

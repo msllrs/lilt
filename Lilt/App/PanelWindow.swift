@@ -63,10 +63,40 @@ final class PanelWindow: NSPanel {
     /// window is the platter. `-[NSWindow _setCornerRadius:]`, reached through its implementation
     /// pointer because the argument is a CGFloat (KVC would box it, `perform` can't pass it).
     func applyNativeCornerRadius(_ radius: CGFloat) {
+        radiusLink?.invalidate(); radiusLink = nil
+        setNativeCornerRadius(radius)
+    }
+
+    private var nativeCornerRadius: CGFloat = Theme.Radius.window
+    private var radiusLink: CADisplayLink?
+    private var radiusFrom: CGFloat = 0, radiusTo: CGFloat = 0, radiusStart: CFTimeInterval = 0, radiusDuration: CFTimeInterval = 0
+
+    private func setNativeCornerRadius(_ radius: CGFloat) {
         typealias Setter = @convention(c) (AnyObject, Selector, CGFloat) -> Void
         let selector = NSSelectorFromString("_setCornerRadius:")
         guard responds(to: selector), let imp = method(for: selector) else { return }
+        nativeCornerRadius = radius
         unsafeBitCast(imp, to: Setter.self)(self, selector, radius)
+    }
+
+    /// Eases the corner from its current radius to `radius` over `duration`, in step with the
+    /// frame animation (same ease in-out), so the corner never pops between the two sizes. The
+    /// platter's inset shrinks by the same amount the radius does, so the corners stay concentric.
+    func animateNativeCornerRadius(to radius: CGFloat, duration: TimeInterval) {
+        radiusLink?.invalidate()
+        radiusFrom = nativeCornerRadius; radiusTo = radius
+        radiusStart = CACurrentMediaTime(); radiusDuration = duration
+        let link = displayLink(target: self, selector: #selector(stepCornerRadius(_:)))
+        link.add(to: .main, forMode: .common)
+        radiusLink = link
+    }
+
+    @objc private func stepCornerRadius(_ link: CADisplayLink) {
+        let t = min(max((CACurrentMediaTime() - radiusStart) / radiusDuration, 0), 1)
+        // CAMediaTimingFunction's ease in-out, close enough: a half cosine.
+        let eased = (1 - cos(.pi * t)) / 2
+        setNativeCornerRadius(radiusFrom + (radiusTo - radiusFrom) * eased)
+        if t >= 1 { link.invalidate(); radiusLink = nil }
     }
     #endif
 

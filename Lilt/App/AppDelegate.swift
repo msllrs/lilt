@@ -184,27 +184,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let height = mini ? miniHeight(queueVisible: queueVisible ?? navigation.isQueueVisible) : expandedHeight
         let target = Self.onScreen(NSRect(x: current.minX, y: current.minY, width: current.width, height: height), near: screen)
         #if NATIVE_FRAME
-        // The corner is the platter's only once the window is the platter; growing starts from
-        // the panel's corner straight away.
-        if !mini { panel.applyNativeCornerRadius(Theme.Radius.window) }
+        let cornerRadius = mini ? Theme.Radius.panel : Theme.Radius.window
         if animated {
             // Loosen the minimum first (setting a larger one would snap the frame), and tighten it
-            // once the frame has arrived.
+            // once the frame has arrived. The corner eases between the two radii on the same curve.
             panel.minSize = miniMin
             navigation.isFrameAnimating = true
+            panel.animateNativeCornerRadius(to: cornerRadius, duration: Theme.Motion.frameDuration)
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.28
+                context.duration = Theme.Motion.frameDuration
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 panel.animator().setFrame(target, display: true)
             } completionHandler: { [weak self] in
                 guard let self else { return }
                 panel.minSize = mini ? NSSize(width: miniMin.width, height: target.height) : fullMin
-                if mini { panel.applyNativeCornerRadius(Theme.Radius.panel) }
                 navigation.isFrameAnimating = false
             }
             return
         }
-        if mini { panel.applyNativeCornerRadius(Theme.Radius.panel) }
+        panel.applyNativeCornerRadius(cornerRadius)
         #endif
         if mini {
             panel.minSize = NSSize(width: miniMin.width, height: height)

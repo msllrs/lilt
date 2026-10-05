@@ -77,5 +77,10 @@ enum Theme {
         /// Colour drawn from one cover handing over to the next: slow enough to read as a change
         /// of light, not a cut.
         static let cast: Animation = .easeInOut(duration: 0.8)
+        /// The native frame growing or shrinking between the column and the platter. No bounce:
+        /// the window itself animates on this curve (AppKit's ease in-out) and the content must
+        /// land with it, or the platter overshoots an edge that doesn't.
+        static let frameDuration: TimeInterval = 0.28
+        static let frame: Animation = .easeInOut(duration: frameDuration)
     }
 }
