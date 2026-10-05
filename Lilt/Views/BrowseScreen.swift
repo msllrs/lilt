@@ -220,17 +220,12 @@ struct BrowseScreen: View {
             scrollOffset = metrics.offset
             scrollTracker.report(remainingBelow: metrics.remainingBelow, for: item.id)
 
-            // How far the list could scroll on its own, before our padding.
+            // How far the list could scroll on its own, before our padding (negative when the
+            // content is shorter than the view).
             let naturalRange = metrics.contentHeight - extraBottom - metrics.visibleHeight
-            guard naturalRange > 0 else {
-                // Fits without scrolling: nothing moves, so nothing collapses.
-                extraBottom = 0
-                heroFade = 0
-                collapse = 0
-                return
-            }
-            // Guarantee a full hero's worth of travel so the hand-off can never stall halfway
-            // with a half-faded hero and a half-visible compact header.
+            // Guarantee a full hero's worth of travel whatever the window height, so even a short
+            // page can scroll the hero away and the hand-off can never stall halfway. A page that
+            // falls short of the view gets the shortfall as well.
             extraBottom = max(0, heroHeight - naturalRange)
 
             // The hero fades across its own height, so it is gone exactly when it has scrolled
