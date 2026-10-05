@@ -124,20 +124,21 @@ struct TrackRow: View {
 
     /// Fades the text out under the hover button; full width otherwise. When a duration is
     /// shown, the text already stops short of the button's spot, so no fade is needed.
-    @ViewBuilder
     private var textFade: some View {
-        if isHovering, track.durationText == nil {
-            // Fully clear across the button itself, with the fade run-up before it.
+        // One mask whose cut-out eases in and out with the hover (a swap between two masks
+        // would snap): fully clear across the button, with the fade run-up before it.
+        ZStack(alignment: .trailing) {
+            Color.black
             HStack(spacing: 0) {
-                Color.black
-                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
                     .frame(width: Theme.Space.xl)
-                Color.clear
+                Color.black
                     .frame(width: Self.queueButtonSize + Theme.Space.xs)
             }
-        } else {
-            Color.black
+            .blendMode(.destinationOut)
+            .opacity(isHovering && track.durationText == nil ? 1 : 0)
         }
+        .compositingGroup()
     }
 
     /// The add-to-queue button, over the trailing end of the row on hover, where the duration
