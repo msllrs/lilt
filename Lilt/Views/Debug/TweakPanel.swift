@@ -80,6 +80,7 @@ struct TweakPanel: View {
                 slider("Saturation", $style.pageAmbient.saturation, 0...8)
                 slider("Blur", $style.pageAmbient.blur, 0...300)
                 slider("Reach", $style.pageAmbient.reach, 80...800)
+                slider("Cover band (h/w)", $style.pageAmbient.band, 0.2...1)
             }
             Section("Panel") {
                 Picker("Surface", selection: $style.panel.surface) {

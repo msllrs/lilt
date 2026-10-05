@@ -15,13 +15,22 @@ struct PageAmbient: View {
     var body: some View {
         ZStack(alignment: .top) {
             if let image {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .saturation(style.saturation)
-                    .blur(radius: style.blur)
-                    .id(url)
-                    .transition(.opacity)
+                // The same band of the cover the platter's wash shows (its wide shape crops to the
+                // middle), stretched to the reach, so the page's light and the platter's agree
+                // instead of one averaging the whole cover.
+                GeometryReader { geometry in
+                    let bandHeight = max(geometry.size.width * style.band, 1)
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geometry.size.width, height: bandHeight)
+                        .clipped()
+                        .saturation(style.saturation)
+                        .scaleEffect(x: 1, y: style.reach / bandHeight, anchor: .top)
+                        .blur(radius: style.blur)
+                }
+                .id(url)
+                .transition(.opacity)
             }
         }
         .frame(height: style.reach)

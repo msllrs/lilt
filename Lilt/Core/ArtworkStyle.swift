@@ -146,6 +146,10 @@ enum AccentPlacement: String, CaseIterable, Identifiable {
 
 /// The cover's light spilling down from the top of an album, artist or playlist page.
 struct PageAmbientStyle: Equatable {
+    /// The slice of the cover the wash is made from, as height over width: the platter's own
+    /// wide shape is about 0.5, so the page's light comes from the same band of the cover and the
+    /// two agree. 1 uses the whole cover.
+    var band: Double = 0.5
     /// Strength of the blurred cover wash at the very top.
     var opacity: Double = 0.28
     var saturation: Double = 3.0
@@ -492,7 +496,7 @@ final class ArtworkStyle {
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))
         headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), radius: \(f(headerBlur.radius)), saturation: \(f(headerBlur.saturation)), brightness: \(f(headerBlur.brightness)), reach: \(f(headerBlur.reach)), rimOpacity: \(f(headerBlur.rimOpacity)))
-        pageAmbient = PageAmbientStyle(opacity: \(f(pageAmbient.opacity)), saturation: \(f(pageAmbient.saturation)), blur: \(f(pageAmbient.blur)), reach: \(f(pageAmbient.reach)))
+        pageAmbient = PageAmbientStyle(band: \(f(pageAmbient.band)), opacity: \(f(pageAmbient.opacity)), saturation: \(f(pageAmbient.saturation)), blur: \(f(pageAmbient.blur)), reach: \(f(pageAmbient.reach)))
         dockTile = DockTileStyle(plateTint: \(f(dockTile.plateTint)), plateSaturation: \(f(dockTile.plateSaturation)), shadowOpacity: \(f(dockTile.shadowOpacity)), shadowBlur: \(f(dockTile.shadowBlur)), shadowOffsetY: \(f(dockTile.shadowOffsetY)))
         headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), rim: \(headerControls.rim), rimOpacity: \(f(headerControls.rimOpacity)), interactive: \(headerControls.interactive), tintOpacity: \(f(headerControls.tintOpacity)), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
         panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent), systemShadow: \(panel.systemShadow))
