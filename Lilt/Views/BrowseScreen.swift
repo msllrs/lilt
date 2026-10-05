@@ -83,7 +83,8 @@ struct BrowseScreen: View {
 
     private func publishLeadingCast() {
         guard navigation.path.last?.id == item.id else { return }
-        navigation.leadingCast = artworkCast(page ?? BrowsePage(item: item))
+        let current = page ?? BrowsePage(item: item)
+        navigation.leadingCast = current.item.artworkURL.flatMap { ImageCache.shared.tint(for: $0, saturationBoost: ArtworkStyle.shared.leadingCast.saturation) }
         navigation.leadingCastAmount = Double(collapse)
     }
 

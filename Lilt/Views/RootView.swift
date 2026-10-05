@@ -302,15 +302,16 @@ private struct LeadingButton: View {
             // Beside the compact now-playing header, the artwork's colour reaches the edge that
             // faces it: a lit rim on the trailing side and a faint wash just inside it.
             .overlay {
+                let style = ArtworkStyle.shared.leadingCast
                 InterpolatedColor(navigation.leadingCast) { cast in
                     if let cast {
                         Circle()
                             .strokeBorder(
-                                LinearGradient(stops: [.init(color: .clear, location: 0.4), .init(color: cast, location: 1)], startPoint: .leading, endPoint: .trailing),
-                                lineWidth: 1
+                                LinearGradient(stops: [.init(color: .clear, location: style.rimStart), .init(color: cast.opacity(style.rimOpacity), location: 1)], startPoint: .leading, endPoint: .trailing),
+                                lineWidth: style.rimWidth
                             )
                             .background {
-                                Circle().fill(RadialGradient(colors: [cast.opacity(0.3), .clear], center: UnitPoint(x: 1.1, y: 0.5), startRadius: 0, endRadius: Theme.Size.headerRow * 0.7))
+                                Circle().fill(RadialGradient(colors: [cast.opacity(style.washOpacity), .clear], center: UnitPoint(x: 1.1, y: 0.5), startRadius: 0, endRadius: Theme.Size.headerRow * style.washReach))
                             }
                             .clipShape(Circle())
                     }

@@ -88,6 +88,14 @@ struct TweakPanel: View {
                 Toggle("Translucent (sidebar)", isOn: $style.panel.translucent)
                 Toggle("System shadow", isOn: $style.panel.systemShadow)
             }
+            Section("Back button cast") {
+                slider("Rim opacity", $style.leadingCast.rimOpacity, 0...1)
+                slider("Rim width", $style.leadingCast.rimWidth, 0.5...3)
+                slider("Rim start", $style.leadingCast.rimStart, 0...0.9)
+                slider("Wash opacity", $style.leadingCast.washOpacity, 0...0.8)
+                slider("Wash reach", $style.leadingCast.washReach, 0.2...1.5)
+                slider("Saturation", $style.leadingCast.saturation, 0.5...4)
+            }
             Section("Header controls") {
                 Picker("Surface", selection: $style.headerControls.mode) {
                     ForEach(HeaderControlMode.allCases) { Text($0.label).tag($0) }
