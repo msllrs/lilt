@@ -300,9 +300,12 @@ private struct LeadingButton: View {
             .animation(.snappy(duration: 0.22), value: symbol)
             .headerControl()
             // Beside the compact now-playing header, the artwork's colour reaches the edge that
-            // faces it: a lit rim on the trailing side and a faint wash just inside it.
+            // faces it: a lit rim on the trailing side and a faint wash just inside it. As the
+            // header rises into place the light climbs the edge with it, bottom to top, and is
+            // fully drawn once the header is stuck.
             .overlay {
                 let style = ArtworkStyle.shared.leadingCast
+                let amount = navigation.leadingCastAmount
                 InterpolatedColor(navigation.leadingCast) { cast in
                     if let cast {
                         Circle()
@@ -318,9 +321,19 @@ private struct LeadingButton: View {
                                 ))
                             }
                             .clipShape(Circle())
+                            .mask {
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: .black, location: 0),
+                                        .init(color: .black, location: max(0, amount - 0.2)),
+                                        .init(color: .clear, location: amount),
+                                    ],
+                                    startPoint: .bottom, endPoint: .top
+                                )
+                            }
                     }
                 }
-                .opacity(isBack ? navigation.leadingCastAmount : 0)
+                .opacity(isBack ? 1 : 0)
                 .allowsHitTesting(false)
             }
         }
