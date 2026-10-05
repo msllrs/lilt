@@ -286,7 +286,7 @@ struct HeaderBlurStyle: Equatable {
     /// Blur radius in points at the top of the header.
     var radius: Double = 24
     /// Saturation of what shows through, like the system materials' boost.
-    var saturation: Double = 1.4
+    var saturation: Double = 3.0
     /// Brightness shift of what shows through (-1...1).
     var brightness: Double = 0.0
     /// How far below the header the blur reaches before fading to nothing.
