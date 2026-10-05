@@ -187,6 +187,10 @@ struct PanelStyle: Equatable {
     /// Sidebar only: the desktop shows through, as it does behind a Finder sidebar. Off gives the
     /// flat look of an inactive window (the same choice Reduce Transparency makes).
     var translucent: Bool = true
+    /// Let the window server draw the shadow from the content's alpha instead of PanelShadow.
+    /// The content has no soft shadow reaching the panel edge any more, so the system shadow
+    /// can follow the panel shape, and it follows the mini player's shape change for free.
+    var systemShadow: Bool = false
     static let standard = PanelStyle()
 }
 

@@ -86,6 +86,7 @@ struct TweakPanel: View {
                     ForEach(PanelSurface.allCases) { Text($0.label).tag($0) }
                 }
                 Toggle("Translucent (sidebar)", isOn: $style.panel.translucent)
+                Toggle("System shadow", isOn: $style.panel.systemShadow)
             }
             Section("Header controls") {
                 Picker("Surface", selection: $style.headerControls.mode) {
