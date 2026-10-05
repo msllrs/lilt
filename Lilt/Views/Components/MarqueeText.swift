@@ -40,13 +40,15 @@ struct MarqueeText: View {
             }
             .scrollDisabled(true)
             .scrollIndicators(.hidden)
+            // The leading fade arrives with the motion, after the delay, not the moment the
+            // hover begins.
+            .mask { edgeFade(moving: isMoving(at: context.date)) }
         }
         .foregroundStyle(color)
         // Exactly one line tall. A scroll view would happily shrink to nothing when its
         // container is squeezed, taking the title with it.
         .frame(height: textHeight > 0 ? textHeight : nil)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .mask { edgeFade }
         .background {
             // Measures the natural size without taking part in layout.
             Text(text).font(font).fixedSize().hidden()
@@ -61,6 +63,12 @@ struct MarqueeText: View {
         }
     }
 
+    /// Whether the text has started to move (the hover delay has passed).
+    private func isMoving(at date: Date) -> Bool {
+        guard let start = scrollStart else { return false }
+        return date.timeIntervalSince(start) >= delay
+    }
+
     private func offset(at date: Date) -> CGFloat {
         guard let start = scrollStart, textWidth > 0 else { return 0 }
         let travelled = max(0, date.timeIntervalSince(start) - delay) * speed
@@ -70,8 +78,8 @@ struct MarqueeText: View {
 
     /// Fades the edges only while content runs past them.
     @ViewBuilder
-    private var edgeFade: some View {
-        if scrolling {
+    private func edgeFade(moving: Bool) -> some View {
+        if moving {
             LinearGradient(
                 stops: [
                     .init(color: .clear, location: 0),
