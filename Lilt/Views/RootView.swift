@@ -323,14 +323,20 @@ private struct LeadingButton: View {
                                     lineWidth: style.rimWidth
                                 )
                                 .mask {
+                                    // The soft edge runs past the top at the end of the travel, so
+                                    // the rim is complete once the header is in (a feather ending
+                                    // exactly at the top left the top fifth missing).
+                                    let feather = 0.2
+                                    let edge = amount * (1 + feather)
                                     LinearGradient(
                                         stops: [
                                             .init(color: .black, location: 0),
-                                            .init(color: .black, location: max(0, amount - 0.2)),
-                                            .init(color: .clear, location: amount),
+                                            .init(color: .black, location: min(max(edge - feather, 0), 1)),
+                                            .init(color: .clear, location: min(max(edge, 0.0001), 1)),
                                         ],
                                         startPoint: .bottom, endPoint: .top
                                     )
+                                    .opacity(amount > 0 ? 1 : 0)
                                 }
                         }
                         .clipShape(Circle())
