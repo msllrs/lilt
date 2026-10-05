@@ -52,9 +52,8 @@ struct LibraryScreen: View {
     private var body_: some View {
         switch phase {
         case .loading:
-            ProgressView()
-                .controlSize(.small)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ScrollView { Skeleton.Rows(count: 7, header: true) }
+                .scrollDisabled(true)
         case .failed(let message):
             EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load your library", detail: message)
         case .loaded where content.isEmpty:

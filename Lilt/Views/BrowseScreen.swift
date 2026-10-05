@@ -173,10 +173,8 @@ struct BrowseScreen: View {
                 header(page)
                 switch phase {
                 case .loading:
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, Theme.Space.xl)
+                    Skeleton.Rows(count: 6, header: true)
+                        .transition(.opacity)
                 case .failed(let message):
                     EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load", detail: message)
                         .padding(.top, Theme.Space.xl)
@@ -262,7 +260,10 @@ struct BrowseScreen: View {
                     ArtistLink(name: page.item.subtitle, item: pageArtist(page), font: .caption)
                 }
             }
-            if !page.tracks.isEmpty {
+            if phase == .loading, page.tracks.isEmpty {
+                Skeleton.PlayCapsule()
+                    .transition(.opacity)
+            } else if !page.tracks.isEmpty {
                 Button {
                     player.play(page.tracks, startingAt: 0)
                 } label: {

@@ -51,9 +51,8 @@ struct SearchScreen: View {
             case .idle:
                 HomeScreen(scrollOffset: $scrollOffset)
             case .loading:
-                ProgressView()
-                    .controlSize(.small)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ScrollView { Skeleton.Rows(count: 7, header: true) }
+                    .scrollDisabled(true)
             case .failed(let message):
                 EmptyHint(symbol: "exclamationmark.triangle", title: "Something went wrong", detail: message)
             case .loaded where results.isEmpty:

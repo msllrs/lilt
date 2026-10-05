@@ -28,9 +28,8 @@ struct HomeScreen: View {
         Group {
             switch phase {
             case .loading:
-                ProgressView()
-                    .controlSize(.small)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ScrollView { Skeleton.Rows(count: 7, header: true) }
+                    .scrollDisabled(true)
             case .failed(let message):
                 EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load Home", detail: message)
             case .loaded where sections.isEmpty:
