@@ -88,6 +88,7 @@ final class PlayerService {
         var repeatMode: RepeatMode?
         var manualCount: Int?
         var sourceId: String?
+        var sourceTitle: String?
     }
 
     /// One token per track put right after the current one by hand ("up next"). They play
@@ -119,10 +120,13 @@ final class PlayerService {
     /// (and its row) shows as playing; a track played from anywhere else has no source, even
     /// if some playlist happens to contain it.
     private(set) var sourceId: String?
+    /// Its title, for the up-next list's "from" line.
+    private(set) var sourceTitle: String?
 
-    func play(_ tracks: [Track], startingAt index: Int, source: String? = nil) {
+    func play(_ tracks: [Track], startingAt index: Int, source: BrowseItem? = nil) {
         guard tracks.indices.contains(index) else { return }
-        sourceId = source
+        sourceId = source?.id
+        sourceTitle = source?.title
         queue = tracks
         unshuffledQueue = nil
         manualTokens = []
@@ -130,7 +134,7 @@ final class PlayerService {
     }
 
     /// Starts `tracks` in a random order with shuffle on.
-    func playShuffled(_ tracks: [Track], source: String? = nil) {
+    func playShuffled(_ tracks: [Track], source: BrowseItem? = nil) {
         guard !tracks.isEmpty else { return }
         isShuffled = true
         play(tracks, startingAt: Int.random(in: tracks.indices), source: source)
@@ -249,6 +253,28 @@ final class PlayerService {
 
     func upcomingOffset(of id: UUID) -> Int? { manualTokens.firstIndex(of: id) }
 
+    /// How many of the running list's own next tracks the up-next list shows after your adds.
+    static let automaticShown = 10
+
+    /// What follows your adds: the rest of the list you started from, in play order (the next
+    /// `automaticShown` of them).
+    var automaticUpcoming: [Track] {
+        guard let i = currentIndex, queue.indices.contains(i) else { return [] }
+        let start = min(queue.count, i + 1 + manualCount)
+        let end = min(queue.count, start + Self.automaticShown)
+        return start < end ? Array(queue[start..<end]) : []
+    }
+
+    /// Jumps to a track in `automaticUpcoming`. Your adds come along behind it (see
+    /// `adjustManual`); the automatic tracks skipped over are dropped, as played.
+    func playAutomatic(at offset: Int) {
+        guard let i = currentIndex else { return }
+        let start = i + 1 + manualCount
+        guard queue.indices.contains(start + offset) else { return }
+        queue.removeSubrange(start..<(start + offset))
+        load(index: start)
+    }
+
     /// Adds a track to the end of what's queued by hand, ahead of the rest of the list (as many
     /// times as you like); with nothing playing, it starts a queue of its own.
     func enqueue(_ track: Track) {
@@ -316,7 +342,7 @@ final class PlayerService {
         let saved = Saved(
             queue: queue, index: currentIndex, time: currentTime,
             isShuffled: isShuffled, unshuffledQueue: unshuffledQueue, repeatMode: repeatMode,
-            manualCount: manualCount, sourceId: sourceId
+            manualCount: manualCount, sourceId: sourceId, sourceTitle: sourceTitle
         )
         UserDefaults.standard.set(try? JSONEncoder().encode(saved), forKey: Self.savedKey)
     }
@@ -332,6 +358,7 @@ final class PlayerService {
         unshuffledQueue = saved.unshuffledQueue
         repeatMode = saved.repeatMode ?? .off
         sourceId = saved.sourceId
+        sourceTitle = saved.sourceTitle
         let manual = min(saved.manualCount ?? 0, max(0, saved.queue.count - index - 1))
         manualTokens = (0..<manual).map { _ in UUID() }
         needsLoad = true

@@ -60,7 +60,7 @@ struct BrowseRow: View {
             } else {
                 Task {
                     guard let page = try? await music.page(for: item), !page.tracks.isEmpty else { return }
-                    player.play(page.tracks, startingAt: 0, source: item.id)
+                    player.play(page.tracks, startingAt: 0, source: item)
                 }
             }
         } label: {

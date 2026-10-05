@@ -188,7 +188,7 @@ struct BrowseScreen: View {
         let radius: CGFloat = isArtist ? size / 2 : Theme.Radius.artwork(size)
         let playingHere = isPlayingFromPage(page)
         return Button {
-            if playingHere { player.togglePlayPause() } else { player.play(page.tracks, startingAt: 0, source: page.item.id) }
+            if playingHere { player.togglePlayPause() } else { player.play(page.tracks, startingAt: 0, source: page.item) }
         } label: {
             SpinningArtwork(
                 url: page.item.artworkURL,
@@ -246,7 +246,7 @@ struct BrowseScreen: View {
                 }
                 if !page.tracks.isEmpty {
                     SectionHeader(page.item.kind == .artist ? "Top songs" : "Tracks")
-                    TrackRows(tracks: page.tracks, source: page.item.id)
+                    TrackRows(tracks: page.tracks, source: page.item)
                     if let allSongsId = page.allSongsId {
                         BrowseRow(item: BrowseItem(
                             id: allSongsId, kind: .playlist, title: "All songs",
@@ -339,7 +339,7 @@ struct BrowseScreen: View {
                             .disabled(page.playlistId == nil || isSaving)
                         }
                         Button {
-                            player.play(page.tracks, startingAt: 0, source: page.item.id)
+                            player.play(page.tracks, startingAt: 0, source: page.item)
                         } label: {
                             Label("Play", systemImage: "play.fill")
                                 .font(.callout.weight(.semibold))
@@ -349,7 +349,7 @@ struct BrowseScreen: View {
                         }
                         .buttonStyle(.pressable)
                         heroRoundButton(symbol: "shuffle", help: "Shuffle", cast: cast) {
-                            player.playShuffled(page.tracks, source: page.item.id)
+                            player.playShuffled(page.tracks, source: page.item)
                         }
                     }
                 }

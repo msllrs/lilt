@@ -8,7 +8,7 @@ struct TrackRows: View {
     /// list interleave track rows with other rows while keeping the shelf as the queue.
     var only: Track? = nil
     /// The page these tracks belong to, when they are its contents.
-    var source: String? = nil
+    var source: BrowseItem? = nil
 
     var body: some View {
         ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in

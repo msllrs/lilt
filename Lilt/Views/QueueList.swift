@@ -1,7 +1,9 @@
 import SwiftUI
 
-/// What's up next, shown inside the platter below the scrubber. Rows drag to reorder and show
-/// a remove button on hover; clicking one jumps to it.
+/// What's up next, shown inside the platter below the scrubber: first the tracks you added
+/// (drag to reorder, remove on hover), then, under a divider, what the running list plays after
+/// them. Adds always land at the end of the first group, ahead of the second. Clicking any row
+/// jumps to it.
 struct QueueList: View {
     @Environment(PlayerService.self) private var player
     @State private var scrollEdges = ScrollEdges()
@@ -22,10 +24,15 @@ struct QueueList: View {
     /// Hairline between the player and the list, plus the gap beneath it.
     static let dividerHeight: CGFloat = 1 + Theme.Space.sm
 
-    /// The list's height for a given number of upcoming tracks (one row's worth when empty, for
-    /// the placeholder), so the mini window can be sized before the list has laid out.
-    static func height(forCount count: Int) -> CGFloat {
-        dividerHeight + CGFloat(max(1, min(count, maxRows))) * rowHeight
+    /// The "Up next from …" line above the automatic group.
+    static let groupLabelHeight: CGFloat = 20
+
+    /// The list's height for the two groups (one row's worth when both are empty, for the
+    /// placeholder), so the mini window can be sized before the list has laid out. The label
+    /// counts as part of the visible rows, which are capped at `maxRows`.
+    static func height(manual: Int, automatic: Int) -> CGFloat {
+        let rows = CGFloat(manual + automatic) * rowHeight + (automatic > 0 ? groupLabelHeight : 0)
+        return dividerHeight + max(rowHeight, min(rows, CGFloat(maxRows) * rowHeight))
     }
 
     var body: some View {
@@ -39,6 +46,8 @@ struct QueueList: View {
 
     private var rows: some View {
         let entries = player.upcomingEntries
+        let automatic = player.automaticUpcoming
+        let listHeight = Self.height(manual: entries.count, automatic: automatic.count) - Self.dividerHeight
         // The List stays mounted when empty (the placeholder lays over it), so the last row's
         // removal animates like any other instead of the whole list being swapped out.
         return List {
@@ -60,6 +69,29 @@ struct QueueList: View {
             .onMove { source, destination in
                 withAnimation(Theme.Motion.settle) { player.moveUpcoming(from: source, to: destination) }
             }
+            if !automatic.isEmpty {
+                Text(player.sourceTitle.map { "Up next from \($0)" } ?? "Up next")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .textCase(.uppercase)
+                    .kerning(0.5)
+                    .lineLimit(1)
+                    .frame(height: Self.groupLabelHeight, alignment: .bottom)
+                    .padding(.leading, Theme.Space.xs)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                // Keyed by position: the group is a window onto the running list, not entries
+                // with identities of their own.
+                ForEach(Array(automatic.enumerated()), id: \.offset) { offset, track in
+                    QueueRow(track: track, play: {
+                        withAnimation(Theme.Motion.settle) { player.playAutomatic(at: offset) }
+                    }, remove: nil)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                }
+            }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -80,7 +112,7 @@ struct QueueList: View {
             withAnimation(Theme.Motion.quick) { scrollEdges = edges }
         }
         .mask {
-            let height = Self.height(forCount: entries.count) - Self.dividerHeight
+            let height = listHeight
             let top = scrollEdges.moreAbove ? Self.edgeFade / height : 0
             let bottom = scrollEdges.moreBelow ? Self.edgeFade / height : 0
             LinearGradient(
@@ -95,22 +127,23 @@ struct QueueList: View {
             )
         }
         .overlay {
-            if entries.isEmpty {
+            if entries.isEmpty, automatic.isEmpty {
                 Text("Nothing up next")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .transition(.opacity)
             }
         }
-        .frame(height: Self.height(forCount: entries.count) - Self.dividerHeight)
-        .animation(Theme.Motion.settle, value: entries.count)
+        .frame(height: listHeight)
+        .animation(Theme.Motion.settle, value: entries.count + automatic.count)
     }
 }
 
 private struct QueueRow: View {
     let track: Track
     let play: () -> Void
-    let remove: () -> Void
+    /// Nil for the automatic group, which can't be edited.
+    let remove: (() -> Void)?
 
     @State private var isHovering = false
 
@@ -141,17 +174,19 @@ private struct QueueRow: View {
         }
         .buttonStyle(.plain)
         .overlay(alignment: .trailing) {
-            Button(action: remove) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22, height: 22)
-                    .contentShape(Circle())
+            if let remove {
+                Button(action: remove) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.pressable(scale: 0.85))
+                .opacity(isHovering ? 1 : 0)
+                .allowsHitTesting(isHovering)
+                .help("Remove from queue")
             }
-            .buttonStyle(.pressable(scale: 0.85))
-            .opacity(isHovering ? 1 : 0)
-            .allowsHitTesting(isHovering)
-            .help("Remove from queue")
         }
         .background {
             RoundedRectangle(cornerRadius: Theme.Radius.artwork(28) + Theme.Space.xs, style: .continuous)

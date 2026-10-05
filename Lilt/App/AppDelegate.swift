@@ -131,10 +131,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var queueAutoHide: Task<Void, Never>?
     private func autoHideQueueIfEmpty() {
         queueAutoHide?.cancel()
-        guard navigation.isQueueVisible, player.upcoming.isEmpty else { return }
+        guard navigation.isQueueVisible, player.upcoming.isEmpty, player.automaticUpcoming.isEmpty else { return }
         queueAutoHide = Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.5))
-            guard !Task.isCancelled, let self, navigation.isQueueVisible, player.upcoming.isEmpty else { return }
+            guard !Task.isCancelled, let self, navigation.isQueueVisible, player.upcoming.isEmpty, player.automaticUpcoming.isEmpty else { return }
             setQueueVisible(false)
         }
     }
@@ -177,7 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func miniHeight(queueVisible: Bool) -> CGFloat {
         let margin = Theme.Size.shadowMargin
         let platter = queueVisible
-            ? navigation.platterBaseHeight + Theme.Space.sm + QueueList.height(forCount: player.upcoming.count)
+            ? navigation.platterBaseHeight + Theme.Space.sm + QueueList.height(manual: player.upcoming.count, automatic: player.automaticUpcoming.count)
             : navigation.platterHeight
         #if NATIVE_FRAME
         // The window is the platter: no inset below it, or the frame's shadow outlines a strip.

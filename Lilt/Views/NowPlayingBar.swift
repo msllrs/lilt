@@ -347,6 +347,14 @@ struct NowPlayingBar: View {
 
 /// Shuffle / repeat: faint while hovering the platter, solid when on, hidden otherwise.
 private struct ModeButton: View {
+    /// Tooltip by glyph: the one view serves shuffle, repeat and the mini-player toggle.
+    private var help: String {
+        if symbol.hasPrefix("repeat") { return "Repeat" }
+        if symbol == "shuffle" { return "Shuffle" }
+        if symbol.hasPrefix("arrow.up.left") { return "Expand" }
+        if symbol.hasPrefix("arrow.down.right") { return "Mini Player" }
+        return ""
+    }
     let symbol: String
     let isOn: Bool
     let revealed: Bool
@@ -373,7 +381,7 @@ private struct ModeButton: View {
         .buttonStyle(.pressable(scale: 0.88))
         .opacity(isOn ? 1 : revealed ? 0.7 : 0)
         .allowsHitTesting(isOn || revealed)
-        .help(symbol.hasPrefix("repeat") ? "Repeat" : "Shuffle")
+        .help(help)
     }
 }
 
