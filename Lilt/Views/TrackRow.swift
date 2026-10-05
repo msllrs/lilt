@@ -127,10 +127,13 @@ struct TrackRow: View {
     @ViewBuilder
     private var textFade: some View {
         if isHovering, track.durationText == nil {
+            // Fully clear across the button itself, with the fade run-up before it.
             HStack(spacing: 0) {
                 Color.black
                 LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
-                    .frame(width: Self.queueButtonSize + Theme.Space.md)
+                    .frame(width: Theme.Space.xl)
+                Color.clear
+                    .frame(width: Self.queueButtonSize + Theme.Space.xs)
             }
         } else {
             Color.black
