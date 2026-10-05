@@ -48,19 +48,53 @@ struct BrowseRow: View {
 
     /// Hovering the artwork offers to play the album, playlist or artist's top songs right here,
     /// without opening the page.
+    /// The playing track comes from this album or playlist: by album id, or by membership of the
+    /// page's tracks when that page has been loaded.
+    private var isPlayingHere: Bool {
+        guard let current = player.current else { return false }
+        if item.kind == .album, let albumId = current.albumId, albumId == item.id { return true }
+        return music.cachedPage(for: item)?.tracks.contains { $0.id == current.id } ?? false
+    }
+
     private var artwork: some View {
-        Button {
-            Task {
-                guard let page = try? await music.page(for: item), !page.tracks.isEmpty else { return }
-                player.play(page.tracks, startingAt: 0)
+        let playingHere = isPlayingHere
+        let isDisc = playingHere && item.kind != .artist
+        return Button {
+            if playingHere {
+                player.togglePlayPause()
+            } else {
+                Task {
+                    guard let page = try? await music.page(for: item), !page.tracks.isEmpty else { return }
+                    player.play(page.tracks, startingAt: 0)
+                }
             }
         } label: {
-            ArtworkView(url: item.artworkURL, size: Theme.Size.rowArtwork, radius: artworkRadius)
-                .playOverlay(isVisible: isHoveringArtwork, radius: artworkRadius, size: Theme.Size.rowArtwork)
+            // The album or playlist that's playing wears the same spinning record, and the same
+            // notes, as the playing track's row.
+            SpinningArtwork(
+                url: item.artworkURL,
+                size: Theme.Size.rowArtwork,
+                restRadius: artworkRadius,
+                isDisc: isDisc,
+                isSpinning: isDisc && player.isPlaying
+            )
+            .playOverlay(
+                isVisible: isHoveringArtwork,
+                symbol: playingHere && player.isPlaying ? "pause.fill" : "play.fill",
+                radius: isDisc ? Theme.Size.rowArtwork / 2 : artworkRadius,
+                size: Theme.Size.rowArtwork
+            )
+            .overlay {
+                if isDisc {
+                    NoteEmitterView(isPlaying: player.isPlaying, center: CGPoint(x: 60, y: 60), artworkURL: item.artworkURL)
+                        .frame(width: 120, height: 120)
+                        .allowsHitTesting(false)
+                }
+            }
         }
         .buttonStyle(.plain)
         .onHover { isHoveringArtwork = $0 }
-        .help("Play")
+        .help(playingHere ? (player.isPlaying ? "Pause" : "Play") : "Play")
     }
 
     /// "Album • Artist • 2019" with the artist tappable, when we know who they are.
