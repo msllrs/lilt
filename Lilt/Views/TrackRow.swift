@@ -83,7 +83,7 @@ struct TrackRow: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            withAnimation(Theme.Motion.quick) { isHovering = hovering }
+            isHovering = hovering
         }
         .onChange(of: isCurrent) { _, current in
             withAnimation(Theme.Motion.standard) { disc = current ? 1 : 0 }

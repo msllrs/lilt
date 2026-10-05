@@ -159,7 +159,7 @@ private struct QueueRow: View {
                 .opacity(isHovering ? 0.6 : 0)
         }
         .onHover { hovering in
-            withAnimation(Theme.Motion.quick) { isHovering = hovering }
+            isHovering = hovering
         }
     }
 }

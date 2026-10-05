@@ -40,7 +40,7 @@ struct BrowseRow: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            withAnimation(Theme.Motion.quick) { isHovering = hovering }
+            isHovering = hovering
             // Warm the cache so the page is ready by the time it's clicked.
             if hovering { Task { _ = try? await music.page(for: item) } }
         }
