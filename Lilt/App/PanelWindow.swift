@@ -63,7 +63,9 @@ final class PanelWindow: NSPanel {
     /// window is the platter. `-[NSWindow _setCornerRadius:]`, reached through its implementation
     /// pointer because the argument is a CGFloat (KVC would box it, `perform` can't pass it).
     func applyNativeCornerRadius(_ radius: CGFloat) {
+        // Cutting a running animation short still settles its bookkeeping (unpinning, flags).
         radiusLink?.invalidate(); radiusLink = nil
+        let done = frameCompletion; frameCompletion = nil; done?()
         setNativeCornerRadius(radius)
     }
 

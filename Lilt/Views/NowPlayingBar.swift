@@ -19,9 +19,9 @@ struct NowPlayingBar: View {
     /// 0 when nothing scrolls beneath the platter, 1 once rows are passing under it. As a mini
     /// player the platter is the whole window, so it always wears its glass.
     private var glassVisibility: CGFloat {
-        // Held at full while the native frame animates: the tracker reports nothing mid-move, and
-        // a platter going bare with rows passing beneath it reads as a flash.
-        navigation.isMiniPlayer || navigation.isFrameAnimating ? 1 : min(max(scrollTracker.activeRemainingBelow / 24, 0), 1)
+        // Held at full through a mini transition and for a beat after it: the tracker reports
+        // nothing mid-move, and a platter going bare with rows passing beneath it reads as a flash.
+        navigation.isMiniPlayer || navigation.isFrameAnimating || holdsGlass ? 1 : min(max(scrollTracker.activeRemainingBelow / 24, 0), 1)
     }
 
     /// The current artwork, for the ambient fill (any cached size will do once blurred).
@@ -39,6 +39,20 @@ struct NowPlayingBar: View {
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
     @State private var isHoveringPlatter = false
+    /// True from a mini change until the transition has settled (see `holdGlass`).
+    @State private var holdsGlass = false
+    @State private var glassHold: Task<Void, Never>?
+
+    /// Keeps the platter's glass on through a transition and a little past it, so it never drops
+    /// out between the move ending and the scroll tracker reporting rows beneath again.
+    private func holdGlass() {
+        holdsGlass = true
+        glassHold?.cancel()
+        glassHold = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.6))
+            if !Task.isCancelled { holdsGlass = false }
+        }
+    }
     /// The platter in the window's coordinate space, to settle hover after the frame animates.
     @State private var platterFrame: CGRect = .zero
 
@@ -96,7 +110,9 @@ struct NowPlayingBar: View {
         }
         .onChange(of: navigation.isFrameAnimating) { _, animating in
             if !animating { settleHover() }
+            holdGlass()
         }
+        .onChange(of: navigation.isMiniPlayer) { _, _ in holdGlass() }
         // The window needs the platter's height to size itself as a mini player.
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { navigation.platterHeight = $0 }
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { platterFrame = $0 }

@@ -36,8 +36,11 @@ struct RootView: View {
         // surfaces and clips just fill it. A column that has never been laid out expanded
         // (launched in mini) holds the height the window is heading for.
         let containerHeight: CGFloat? = nil
-        let holdsExpandedLayout = mini || navigation.isFrameAnimating
-        let heldHeight = columnHeight > 0 ? columnHeight : navigation.expandedFrameHeight
+        let holdsExpandedLayout = true
+        // Never taller than the hosting view itself: an overflowing stack is centred, which cuts
+        // the column at both ends and pushes the platter below the window.
+        let heldCandidate = columnHeight > 0 ? columnHeight : navigation.expandedFrameHeight
+        let heldHeight = fullHeight > 0 ? min(heldCandidate, fullHeight) : heldCandidate
         let platterBottomInset: CGFloat = mini ? 0 : inset
         #else
         let containerHeight: CGFloat? = mini ? navigation.platterHeight + inset : (fullHeight > 0 ? fullHeight : nil)
@@ -78,31 +81,26 @@ struct RootView: View {
                 // Clipped to the container, so a shrinking container cuts the content off rather
                 // than leaving it hanging in the air. Fully transparent in mini: nothing to see,
                 // and transparent pixels pass clicks through to the window behind.
-                .mask(alignment: .bottom) {
-                    RoundedRectangle(cornerRadius: Self.clipRadius, style: .continuous)
-                        .frame(maxHeight: containerHeight ?? .infinity)
-                }
-                .opacity(mini ? 0 : 1)
+                // Native frame: none of this. The window clips and reveals the column, and a masked
+                // or fading column animating beneath the platter is rendered as an offscreen
+                // group that lands above the platter's glass, so rows showed through it mid-move.
+                .modifier(ColumnClip(containerHeight: containerHeight))
+                .opacity(Self.surfaceHidesInMini && mini ? 0 : 1)
                 .allowsHitTesting(!mini)
                 // In mini the window is shorter than the column's minimum; laid out at its
                 // expanded size but reporting zero height, it can't push the platter down.
                 .frame(height: holdsExpandedLayout && heldHeight > 0 ? heldHeight : nil)
-                .frame(height: mini ? 0 : nil, alignment: .bottom)
+                .frame(height: Self.surfaceHidesInMini && mini ? 0 : nil, alignment: .bottom)
             if player.current != nil {
                 // The bottom inset is constant so the platter never shifts vertically.
                 NowPlayingBar()
                     .padding(.horizontal, mini ? 0 : inset)
                     .padding(.bottom, platterBottomInset)
                     // Expanded: the platter's drop shadow would spill past the panel; keep it in.
-                    .mask {
-                        if mini {
-                            Rectangle().padding(-Theme.Size.shadowMargin)
-                        } else {
-                            RoundedRectangle(cornerRadius: Self.clipRadius, style: .continuous)
-                                .frame(maxHeight: .infinity)
-                                .padding(.top, -2000)
-                        }
-                    }
+                    // One shape whose parameters animate: switching between two mask views made
+                    // SwiftUI crossfade them, drawing the whole platter at partial alpha for the
+                    // length of the transition, with rows showing through it.
+                    .modifier(PlatterClip(mini: mini))
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             #if !NATIVE_FRAME
@@ -138,6 +136,43 @@ struct RootView: View {
         .padding(Theme.Size.shadowMargin)
         .animation(Theme.Motion.standard, value: player.current?.id)
         .animation(Self.miniAnimation, value: mini)
+    }
+}
+
+/// The platter's clip: the panel shape, extended upward, while expanded; in mini the window is
+/// the platter, so the clip opens out past the shadow margin. Under the native frame the window
+/// clips, so there is no mask at all (a mask is an offscreen group, which costs during the move).
+private struct PlatterClip: ViewModifier {
+    let mini: Bool
+    func body(content: Content) -> some View {
+        #if NATIVE_FRAME
+        content
+        #else
+        content.mask {
+            RoundedRectangle(cornerRadius: mini ? 0 : Theme.Radius.window, style: .continuous)
+                .frame(maxHeight: .infinity)
+                .padding(.top, -2000)
+                .padding(.horizontal, mini ? -Theme.Size.shadowMargin : 0)
+                .padding(.bottom, mini ? -Theme.Size.shadowMargin : 0)
+        }
+        #endif
+    }
+}
+
+/// The column's clip to the (possibly shrinking) container. The native frame clips with the
+/// window instead, and a masked column is an offscreen group that composites above the platter's
+/// glass while it animates.
+private struct ColumnClip: ViewModifier {
+    let containerHeight: CGFloat?
+    func body(content: Content) -> some View {
+        #if NATIVE_FRAME
+        content
+        #else
+        content.mask(alignment: .bottom) {
+            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                .frame(maxHeight: containerHeight ?? .infinity)
+        }
+        #endif
     }
 }
 
