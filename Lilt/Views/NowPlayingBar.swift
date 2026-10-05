@@ -86,23 +86,27 @@ struct NowPlayingBar: View {
         // The list slides in from under the scrubber; clipping to the platter keeps that, and the
         // list itself, inside the glass while the platter grows and shrinks.
         .clipShape(shape)
-        // Double-click anywhere on the platter opens or closes what's up next. The whole
-        // rectangle counts, not just the controls and text.
+        // Double-click anywhere on the platter collapses to the mini player or expands back.
+        // The whole rectangle counts, not just the controls and text.
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { AppDelegate.shared?.setQueueVisible(!navigation.isQueueVisible) }
-        // Collapse to a mini player, or expand back: tucked in the top-right corner, only on hover.
-        .overlay(alignment: .topTrailing) {
-            InterpolatedColor(accent) { accent in
-                ModeButton(
-                    symbol: navigation.isMiniPlayer ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left",
-                    isOn: false,
-                    revealed: isHoveringPlatter,
-                    dimTint: accent.map { Color.secondary.mix(with: $0, by: platter.controlsTint) }
-                ) {
-                    AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer)
-                }
+        .onTapGesture(count: 2) { AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer) }
+        // A sheet-style grab handle at the top, only on hover (the platter stays clean), that
+        // shows or hides what's up next.
+        .overlay(alignment: .top) {
+            Button {
+                AppDelegate.shared?.setQueueVisible(!navigation.isQueueVisible)
+            } label: {
+                Capsule()
+                    .fill(.secondary.opacity(0.55))
+                    .frame(width: 30, height: 4)
+                    .padding(.vertical, 3)
+                    .padding(.horizontal, Theme.Space.sm)
+                    .contentShape(Rectangle())
             }
-            .padding(Theme.Space.xs)
+            .buttonStyle(.plain)
+            .opacity(isHoveringPlatter ? 1 : 0)
+            .allowsHitTesting(isHoveringPlatter)
+            .help(navigation.isQueueVisible ? "Hide Up Next" : "Show Up Next")
         }
         .onHover { hovering in
             // While the native frame animates, the platter moves under a still pointer and AppKit
@@ -235,13 +239,31 @@ struct NowPlayingBar: View {
                     )
                     ArtistLink(name: player.displayArtist, item: player.current?.artistItem, color: artist ?? .secondary)
                 }
+                // Like, at the right of the title on hover. The text fades out beneath it
+                // rather than making room, so nothing shifts when the pointer arrives.
+                .mask {
+                    HStack(spacing: 0) {
+                        Color.black
+                        LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: Theme.Space.xl)
+                        Color.black.frame(width: 26).opacity(isHoveringPlatter ? 0 : 1)
+                    }
+                    .transaction { $0.animation = nil }
+                }
+                .overlay(alignment: .trailing) {
+                    ModeButton(
+                        symbol: player.isLiked ? "heart.fill" : "heart",
+                        isOn: player.isLiked,
+                        revealed: isHoveringPlatter,
+                        tint: accent,
+                        dimTint: accent.map { Color.secondary.mix(with: $0, by: platter.controlsTint) }
+                    ) {
+                        player.toggleLike()
+                    }
+                    .opacity(isHoveringPlatter || player.isLiked ? 1 : 0)
+                    .transaction { $0.animation = nil }
+                }
             }
-            // Room for the mode button in the corner, only while it's showing (hover).
-            // Eases in with the button; snaps back when the pointer leaves. Scoped to the hover
-            // change alone: blanking the whole transaction froze the title's other motion too,
-            // so it jumped while the rest of the platter eased.
-            .padding(.trailing, isHoveringPlatter ? Theme.Space.lg : 0)
-            .animation(isHoveringPlatter ? Theme.Motion.quick : nil, value: isHoveringPlatter)
             Spacer(minLength: 0)
         }
 
@@ -351,8 +373,7 @@ private struct ModeButton: View {
     private var help: String {
         if symbol.hasPrefix("repeat") { return "Repeat" }
         if symbol == "shuffle" { return "Shuffle" }
-        if symbol.hasPrefix("arrow.up.left") { return "Expand" }
-        if symbol.hasPrefix("arrow.down.right") { return "Mini Player" }
+        if symbol.hasPrefix("heart") { return isOn ? "Unlike" : "Like" }
         return ""
     }
     let symbol: String

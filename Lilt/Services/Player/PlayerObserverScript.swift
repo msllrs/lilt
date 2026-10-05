@@ -29,6 +29,9 @@ enum PlayerObserverScript {
         if (!artworkURL) { const img = document.querySelector('ytmusic-player-bar img.image'); artworkURL = img ? img.src : ''; }
         return { title, artist, artworkURL };
       };
+      // The player bar's like button: 'LIKE', 'DISLIKE' or 'INDIFFERENT' (empty when not found).
+      const likeRenderer = () => document.querySelector('ytmusic-player-bar ytmusic-like-button-renderer');
+      const likeStatus = () => { const r = likeRenderer(); return r ? (r.getAttribute('like-status') || '') : ''; };
       // The player bar's byline links to the artist (channel/UC…) and album (browse/MPREb…).
       const links = () => {
         const out = { artistId: '', albumId: '', albumTitle: '' };
@@ -49,7 +52,7 @@ enum PlayerObserverScript {
           isPlaying: !v.paused && !v.ended,
           currentTime: v.currentTime || 0,
           duration: isFinite(v.duration) ? v.duration : 0,
-        }, metadata(), links()));
+        }, metadata(), links(), { likeStatus: likeStatus() }));
       };
       const attach = (v) => {
         if (state.video === v) { return; }
@@ -145,6 +148,13 @@ enum PlayerObserverScript {
           if (state.video) { state.video.currentTime = t; }
         },
         setVolume: (x) => { if (state.video) { state.video.volume = Math.max(0, Math.min(1, x)); } },
+        // Clicks the page's own like button, so YouTube Music records it and the status above
+        // reflects it on the next update.
+        toggleLike: () => {
+          const r = likeRenderer(); if (!r) { return; }
+          const b = r.querySelector('#button-shape-like button') || r.querySelector('yt-button-shape.like button') || r.querySelector('button');
+          if (b) { b.click(); }
+        },
       };
       post('READY', {});
     })();

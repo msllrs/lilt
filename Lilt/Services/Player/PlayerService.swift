@@ -32,6 +32,8 @@ final class PlayerService {
     private(set) var liveTitle = ""
     private(set) var liveArtist = ""
     private(set) var liveArtworkURL: URL?
+    /// Whether the playing track is liked on YouTube Music, as the page reports it.
+    private(set) var isLiked = false
 
     var current: Track? {
         guard let i = currentIndex, queue.indices.contains(i) else { return nil }
@@ -176,6 +178,14 @@ final class PlayerService {
         rest.shuffle()
         queue = [current] + manual + rest
         if reload { load(index: 0, keepingManual: true) } else { currentIndex = 0 }
+    }
+
+    /// Likes or unlikes the playing track through the page's own button. Flipped at once so the
+    /// heart answers the click; the next state update confirms it.
+    func toggleLike() {
+        guard current != nil else { return }
+        isLiked.toggle()
+        bridge.toggleLike()
     }
 
     func togglePlayPause() {
@@ -460,6 +470,7 @@ final class PlayerService {
         liveTitle = s.title
         liveArtist = s.artist
         liveArtworkURL = s.artworkURL ?? liveArtworkURL
+        if let status = s.likeStatus { isLiked = status == "LIKE" }
         if let current { recents?.updateArtwork(forPlayed: current.id, url: liveArtworkURL) }
         fillLinks(from: s)
         resolveLinksIfNeeded()

@@ -12,6 +12,8 @@ struct PlaybackSnapshot: Sendable {
     var artistId: String?
     var albumId: String?
     var albumTitle: String?
+    /// "LIKE", "DISLIKE" or "INDIFFERENT" from the page's like button; nil when it wasn't found.
+    var likeStatus: String?
 }
 
 enum PlayerEvent {
@@ -89,6 +91,7 @@ final class PlayerBridge: NSObject {
     func pause() { call("window.__lilt && window.__lilt.pause()") }
     func seek(to seconds: Double) { call("window.__lilt && window.__lilt.seek(\(seconds))") }
     func setVolume(_ volume: Double) { call("window.__lilt && window.__lilt.setVolume(\(volume))") }
+    func toggleLike() { call("window.__lilt && window.__lilt.toggleLike()") }
     func unload() { webView.load(URLRequest(url: URL(string: "about:blank")!)) }
 
     private func call(_ js: String) {
@@ -131,7 +134,8 @@ final class PlayerBridge: NSObject {
                 artworkURL: (body["artworkURL"] as? String).flatMap { $0.isEmpty ? nil : URL(string: $0) },
                 artistId: (body["artistId"] as? String).flatMap { $0.isEmpty ? nil : $0 },
                 albumId: (body["albumId"] as? String).flatMap { $0.isEmpty ? nil : $0 },
-                albumTitle: (body["albumTitle"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                albumTitle: (body["albumTitle"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+                likeStatus: (body["likeStatus"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             )
             onEvent?(.state(snapshot))
         default:
