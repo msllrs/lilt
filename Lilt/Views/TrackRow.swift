@@ -57,13 +57,23 @@ struct TrackRow: View {
                     ArtistLink(name: track.artist, item: track.artistItem)
                 }
                 // Takes every point the trailing item doesn't need, so titles run wide when
-                // there's no duration to show.
+                // there's no duration to show. On hover the add-to-queue button sits over the
+                // end of the text, which fades out beneath it, instead of keeping a slot free.
                 .frame(maxWidth: .infinity, alignment: .leading)
-                trailing
-                    .padding(.leading, Theme.Space.sm)
+                .mask { textFade }
+                if let duration = track.durationText {
+                    Text(duration)
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                        .opacity(isHovering ? 0 : 1)
+                        // Swaps with the button instantly; the eased hover fade is for the row.
+                        .transaction { $0.animation = nil }
+                        .padding(.leading, Theme.Space.sm)
+                }
             }
             .padding(.horizontal, Self.horizontalPadding)
             .padding(.vertical, Self.verticalPadding)
+            .overlay(alignment: .trailing) { queueButton.padding(.trailing, Self.horizontalPadding) }
             .contentShape(rowShape)
             .background {
                 rowShape
@@ -110,18 +120,27 @@ struct TrackRow: View {
         .buttonStyle(.plain)
     }
 
-    /// The duration, which on hover gives way to the add-to-queue button in the same spot (a
-    /// tick for a moment after a click). The playing track can be queued again too.
-    private var trailing: some View {
-        ZStack {
-            if let duration = track.durationText {
-                Text(duration)
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.tertiary)
-                    .opacity(isHovering ? 0 : 1)
-                    // Swaps with the button instantly; the eased hover fade is for the row.
-                    .transaction { $0.animation = nil }
+    private static let queueButtonSize: CGFloat = 22
+
+    /// Fades the text out under the hover button; full width otherwise. When a duration is
+    /// shown, the text already stops short of the button's spot, so no fade is needed.
+    @ViewBuilder
+    private var textFade: some View {
+        if isHovering, track.durationText == nil {
+            HStack(spacing: 0) {
+                Color.black
+                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: Self.queueButtonSize + Theme.Space.md)
             }
+        } else {
+            Color.black
+        }
+    }
+
+    /// The add-to-queue button, over the trailing end of the row on hover, where the duration
+    /// was (a tick for a moment after a click). The playing track can be queued again too.
+    private var queueButton: some View {
+        Group {
             Button {
                 player.enqueue(track)
                 AppDelegate.shared?.queueDidChange()
@@ -144,7 +163,7 @@ struct TrackRow: View {
                 }
                 .animation(.snappy(duration: 0.22), value: symbol)
                 .foregroundStyle(.secondary)
-                .frame(width: 22, height: 22)
+                .frame(width: Self.queueButtonSize, height: Self.queueButtonSize)
                 .contentShape(Circle())
             }
             .buttonStyle(.pressable(scale: 0.85))
