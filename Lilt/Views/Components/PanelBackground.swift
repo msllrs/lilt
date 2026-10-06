@@ -5,43 +5,20 @@ import SwiftUI
 /// sidebar material a Finder window uses. Both are window-server composited, so hiding is done
 /// for real on the AppKit view rather than trusted to a SwiftUI fade (see `GlassBackground`).
 struct PanelBackground: View {
-    var cornerRadius: CGFloat = Theme.Radius.window
     var isHidden: Bool = false
 
     private var style: PanelStyle { ArtworkStyle.shared.panel }
     @Environment(NavigationModel.self) private var navigation
 
     var body: some View {
-        // Behind-window surfaces aren't clipped by the native frame, so under it they follow the
-        // window's live corner radius as it eases between the panel's and the platter's.
-        #if NATIVE_FRAME
+        // Behind-window surfaces aren't clipped by the window, so they follow its live corner
+        // radius as it eases between the panel's and the platter's.
         let radius = navigation.frameCornerRadius
-        #else
-        let radius = cornerRadius
-        #endif
         switch style.surface {
         case .glass:
             GlassBackground(cornerRadius: radius, isHidden: isHidden)
         case .sidebar:
             SidebarBackground(cornerRadius: radius, translucent: style.translucent, isHidden: isHidden)
-        }
-    }
-}
-
-/// The one line a window frame gives a sidebar: dark on a light desktop, light on a dark one.
-/// Drawn above the content (see RootView), not under it, so the header blur can't erase it and
-/// it covers the seam where rows pass the material's edge. Nothing for the glass surface, which
-/// has a rim of its own.
-struct PanelEdge: View {
-    var cornerRadius: CGFloat = Theme.Radius.window
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        if ArtworkStyle.shared.panel.surface == .sidebar {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.12), lineWidth: 1)
-                .allowsHitTesting(false)
         }
     }
 }

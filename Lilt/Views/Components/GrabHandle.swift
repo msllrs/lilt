@@ -4,7 +4,7 @@ import SwiftUI
 /// The hit area of a sheet-style grab handle. An AppKit view rather than a SwiftUI gesture:
 /// the window moves by its background, and AppKit decides that by asking the view under the
 /// pointer, which for SwiftUI content is the hosting view, which says yes. This view says no
-/// and handles the click and the pull itself (as ResizeEdges does for the window edges).
+/// and handles the click and the pull itself.
 struct GrabHandle: NSViewRepresentable {
     /// A click: a release within `pull` points of where the mouse went down.
     var onToggle: () -> Void

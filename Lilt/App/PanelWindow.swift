@@ -11,17 +11,12 @@ final class PanelWindow: NSPanel {
     static let autosaveName = "LiltPanel"
 
     init(contentRect: NSRect) {
-        #if NATIVE_FRAME
-        // The experiment: a real titled window, so the system supplies the shape (27.5pt corners
-        // on macOS 26, a hair under ours), the shadow, the border and resizing. Not a utility
-        // panel, whose corners are only 15pt. Still non-activating, so play doesn't steal focus.
+        // A real titled window, so the system supplies the shape, the shadow, the border and
+        // resizing. Not a utility panel, whose corners are only 15pt. Still non-activating, so
+        // play doesn't steal focus.
         let styleMask: NSWindow.StyleMask = [.titled, .fullSizeContentView, .resizable, .nonactivatingPanel]
-        #else
-        let styleMask: NSWindow.StyleMask = [.borderless, .resizable, .utilityWindow, .nonactivatingPanel]
-        #endif
         super.init(contentRect: contentRect, styleMask: styleMask, backing: .buffered, defer: false)
         title = "Lilt"
-        #if NATIVE_FRAME
         titlebarAppearsTransparent = true
         titleVisibility = .hidden
         for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
@@ -31,7 +26,6 @@ final class PanelWindow: NSPanel {
         // all follow the window's private radius, so set ours there; a future OS without the
         // selector just keeps the system corner.
         applyNativeCornerRadius(Theme.Radius.window)
-        #endif
         isMovableByWindowBackground = true
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
@@ -41,25 +35,18 @@ final class PanelWindow: NSPanel {
         becomesKeyOnlyIfNeeded = false
         backgroundColor = .clear
         isOpaque = false
-        #if NATIVE_FRAME
-        // Clear, so the mini player's empty region stays transparent as before. The frame still
-        // clips in-process content to the window's corner; only behind-window blur ignores it,
-        // which is why the sidebar material keeps a mask of its own at the same radius.
+        // The frame clips in-process content to the window's corner; only behind-window blur
+        // ignores it, which is why the sidebar material keeps a mask of its own at the same radius.
         hasShadow = true
-        #else
-        hasShadow = false
-        #endif
         animationBehavior = .utilityWindow
         collectionBehavior = [.managed, .fullScreenAuxiliary]
-        let margin = Theme.Size.shadowMargin * 2
-        minSize = NSSize(width: Theme.Size.panelMinWidth + margin, height: Theme.Size.panelMinHeight + margin)
-        maxSize = NSSize(width: Theme.Size.panelMaxWidth + margin, height: .greatestFiniteMagnitude)
+        minSize = NSSize(width: Theme.Size.panelMinWidth, height: Theme.Size.panelMinHeight)
+        maxSize = NSSize(width: Theme.Size.panelMaxWidth, height: .greatestFiniteMagnitude)
     }
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
-    #if NATIVE_FRAME
     /// The window's corner: the panel radius while expanded, the platter's own in mini, where the
     /// window is the platter. `-[NSWindow _setCornerRadius:]`, reached through its implementation
     /// pointer because the argument is a CGFloat (KVC would box it, `perform` can't pass it).
@@ -125,7 +112,6 @@ final class PanelWindow: NSPanel {
             let done = frameCompletion; frameCompletion = nil; done?()
         }
     }
-    #endif
 
     /// The frame includes a transparent shadow margin that may hang off the screen, but the
     /// visible panel inside it must stay on screen. AppKit's default would push the whole frame
@@ -206,10 +192,9 @@ final class PanelWindow: NSPanel {
 
     /// Full-height column hugging the right edge of `screen`, inset from the edges.
     static func edgeFrame(on screen: NSScreen) -> NSRect {
-        // The window frame includes the shadow margin; the visible panel keeps `screenInset`.
         let visible = screen.visibleFrame
-        let inset = Theme.Size.screenInset - Theme.Size.shadowMargin
-        let width = Theme.Size.panelWidth + Theme.Size.shadowMargin * 2
+        let inset = Theme.Size.screenInset
+        let width = Theme.Size.panelWidth
         return NSRect(
             x: visible.maxX - width - inset,
             y: visible.minY + inset,

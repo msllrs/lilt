@@ -80,55 +80,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func applyMiniPlayerChange(_ mini: Bool) {
         guard mini != navigation.isMiniPlayer else { return }
-        #if NATIVE_FRAME
         // The window is the container: its frame animates alongside the fade and the system
         // shadow follows it, instead of outlining an empty window until a later resize.
         navigation.isMiniPlayer = mini
-        resizeWindow(mini: mini, animated: true)
-        return
-        #endif
-        if mini {
-            navigation.isMiniPlayer = true
-            // Shrink after the fade: the region being removed is transparent by then.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) { [weak self] in
-                guard let self, self.navigation.isMiniPlayer else { return }
-                self.resizeWindow(mini: true)
-            }
-        } else {
-            // Grow first, unanimated; the column fades in on the next run loop.
-            resizeWindow(mini: false)
-            DispatchQueue.main.async { [weak self] in self?.navigation.isMiniPlayer = false }
-        }
     }
 
     // MARK: Up-next list
 
     /// Opens or closes the queue below the scrubber. In mini the window is the platter, so it
-    /// grows (unanimated, into transparent space above) before the list animates in, and
-    /// shrinks only after the list has animated out; expanded, the platter just grows upward.
+    /// and the list ride one spring; expanded, the platter just grows upward.
     func setQueueVisible(_ visible: Bool) {
         guard visible != navigation.isQueueVisible else { return }
-        #if NATIVE_FRAME
         // The window is the platter: it and the list ride one spring, either way.
         if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: visible ? 1 : 0, animated: true, curve: Theme.Motion.queueCurve) }
         withAnimation(.spring(Theme.Motion.queueSpring)) {
             navigation.isQueueVisible = visible
             navigation.queueReveal = visible ? 1 : 0
-        }
-        autoHideQueueIfEmpty()
-        return
-        #endif
-        if visible, navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: 1) }
-        withAnimation(Theme.Motion.bounce) {
-            navigation.isQueueVisible = visible
-            navigation.queueReveal = visible ? 1 : 0
-        }
-        if !visible, navigation.isMiniPlayer {
-            // After the spring has settled (its overshoot included).
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { [weak self] in
-                guard let self, navigation.isMiniPlayer, !navigation.isQueueVisible else { return }
-                resizeWindow(mini: true)
-            }
         }
         autoHideQueueIfEmpty()
     }
@@ -165,13 +132,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
         // Back to where it was.
-        #if NATIVE_FRAME
         if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: open ? 1 : 0, animated: true, curve: Theme.Motion.queueCurve) }
         withAnimation(.spring(Theme.Motion.queueSpring)) { navigation.queueReveal = open ? 1 : 0 }
-        #else
-        if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: open ? 1 : 0) }
-        withAnimation(Theme.Motion.bounce) { navigation.queueReveal = open ? 1 : 0 }
-        #endif
         autoHideQueueIfEmpty()
     }
 
@@ -201,54 +163,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    /// The queue changed length while showing: in mini, follow it (grow now, shrink after).
+    /// The queue changed length while showing: in mini, the window follows it.
     func queueDidChange() {
         autoHideQueueIfEmpty()
         guard navigation.isMiniPlayer, navigation.isQueueVisible, let panel else { return }
         let target = miniHeight(reveal: 1)
-        #if NATIVE_FRAME
         if target != panel.frame.height { resizeWindow(mini: true, queueReveal: 1, animated: true, curve: Theme.Motion.queueCurve) }
-        return
-        #endif
-        if target > panel.frame.height {
-            resizeWindow(mini: true, queueReveal: 1)
-        } else if target < panel.frame.height {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-                guard let self, navigation.isMiniPlayer, navigation.isQueueVisible else { return }
-                resizeWindow(mini: true, queueReveal: 1)
-            }
-        }
     }
 
     /// Window height for the mini player: the platter with the list shown as far as `reveal`
-    /// says, plus the shadow margin. Built from the platter's base height and the list's known
-    /// extent rather than the measured height, which mid-animation is whatever it's passing
-    /// through.
+    /// says. Built from the platter's base height and the list's known extent rather than the
+    /// measured height, which mid-animation is whatever it's passing through. The window is the
+    /// platter: no inset below it, or the frame's shadow outlines a strip.
     private func miniHeight(reveal: CGFloat) -> CGFloat {
-        let margin = Theme.Size.shadowMargin
-        let platter = navigation.platterBaseHeight + reveal * queueExtent
-        #if NATIVE_FRAME
-        // The window is the platter: no inset below it, or the frame's shadow outlines a strip.
-        return platter + margin * 2
-        #else
-        return platter + Theme.Space.panelInset + margin * 2
-        #endif
+        navigation.platterBaseHeight + reveal * queueExtent
     }
 
     private func resizeWindow(mini: Bool, queueReveal: CGFloat? = nil, animated: Bool = false, curve: FrameCurve = Theme.Motion.frameCurve) {
         guard let panel else { return }
-        let margin = Theme.Size.shadowMargin
         let current = panel.frame
         let screen = panel.screen ?? NSScreen.main ?? NSScreen.screens[0]
-        let miniMin = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: 1)
-        let fullMin = NSSize(width: Theme.Size.panelMinWidth + margin * 2, height: Theme.Size.panelMinHeight + margin * 2)
+        let miniMin = NSSize(width: Theme.Size.panelMinWidth, height: 1)
+        let fullMin = NSSize(width: Theme.Size.panelMinWidth, height: Theme.Size.panelMinHeight)
         // The expanded height is remembered when collapsing from a settled window, never from a
         // frame caught mid-animation (a collapse started during an expand would record a
         // half-grown height and the next expand would stop there).
-        if mini, !navigation.isFrameAnimating, current.height >= Theme.Size.panelMinHeight + margin * 2 { expandedHeight = current.height }
+        if mini, !navigation.isFrameAnimating, current.height >= Theme.Size.panelMinHeight { expandedHeight = current.height }
         let height = mini ? miniHeight(reveal: queueReveal ?? (navigation.isQueueVisible ? 1 : 0)) : expandedHeight
         let target = Self.onScreen(NSRect(x: current.minX, y: current.minY, width: current.width, height: height), near: screen)
-        #if NATIVE_FRAME
         let cornerRadius = mini ? Theme.Radius.panel : Theme.Radius.window
         navigation.expandedFrameHeight = expandedHeight
         // The layout the window reveals: the expanded one, hanging from the bottom.
@@ -270,7 +212,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.applyNativeCornerRadius(cornerRadius)
         lockNativeHeight(mini ? height : nil)
         if !mini { unpinHosting() }
-        #endif
         if mini {
             panel.minSize = NSSize(width: miniMin.width, height: height)
             panel.setFrame(target, display: true)
@@ -286,7 +227,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var panelFrame: NSRect { panel?.frame ?? .zero }
     private var panelHosting: NSView?
 
-    #if NATIVE_FRAME
     /// Native frame: while the window animates between the column and the platter (and all
     /// through mini), the hosting view keeps the expanded height and hangs from the window's
     /// bottom edge, so the window reveals or hides a layout that never changes. Resizing it with
@@ -309,37 +249,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         hosting.autoresizingMask = [.width, .height]
         hosting.frame = container.bounds
     }
-    #endif
-
-    /// The window server's shadow, shaped from the content's alpha (see PanelStyle.systemShadow).
-    func setSystemShadow(_ on: Bool) {
-        #if !NATIVE_FRAME
-        guard let panel, panel.hasShadow != on else { return }
-        panel.hasShadow = on
-        panel.invalidateShadow()
-        #endif
-    }
-
-    /// Applies a frame from the edge strips, honouring the window's min/max sizes and keeping the
-    /// anchored edge fixed when a size is clamped.
-    func setPanelFrame(_ proposed: NSRect, clampToSizes: Bool) {
-        guard let panel else { return }
-        var f = proposed
-        if clampToSizes {
-            let minW = panel.minSize.width, maxW = panel.maxSize.width
-            let minH = panel.minSize.height, maxH = panel.maxSize.height
-            if f.width < minW { if f.minX != panel.frame.minX { f.origin.x = panel.frame.maxX - minW }; f.size.width = minW }
-            if f.width > maxW { if f.minX != panel.frame.minX { f.origin.x = panel.frame.maxX - maxW }; f.size.width = maxW }
-            if f.height < minH { if f.minY != panel.frame.minY { f.origin.y = panel.frame.maxY - minH }; f.size.height = minH }
-            if f.height > maxH { if f.minY != panel.frame.minY { f.origin.y = panel.frame.maxY - maxH }; f.size.height = maxH }
-        }
-        panel.setFrame(f, display: true)
-    }
-
-    func panelDidResizeManually() {
-        guard let panel, !navigation.isMiniPlayer else { return }
-        expandedHeight = panel.frame.height
-    }
 
     /// A manual resize while expanded is the new expanded height.
     func windowDidEndLiveResize(_ notification: Notification) {
@@ -350,19 +259,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func toggleMiniPlayer() { setMiniPlayer(!navigation.isMiniPlayer) }
     func openLibrary() { navigation.open(NavigationModel.library) }
 
-    /// Nudges a window frame so its *visible panel* (the frame minus the shadow margin) lies
-    /// within the screen's visible area. The margin itself may hang off screen.
+    /// Nudges a window frame so it lies within the screen's visible area.
     static func onScreen(_ frame: NSRect, near screen: NSScreen) -> NSRect {
-        let margin = Theme.Size.shadowMargin
         let visible = screen.visibleFrame
-        var panel = frame.insetBy(dx: margin, dy: margin)
+        var panel = frame
         panel.size.height = min(panel.height, visible.height)
         panel.size.width = min(panel.width, visible.width)
         if panel.maxY > visible.maxY { panel.origin.y = visible.maxY - panel.height }
         if panel.minY < visible.minY { panel.origin.y = visible.minY }
         if panel.maxX > visible.maxX { panel.origin.x = visible.maxX - panel.width }
         if panel.minX < visible.minX { panel.origin.x = visible.minX }
-        return panel.insetBy(dx: -margin, dy: -margin)
+        return panel
     }
 
 
@@ -543,10 +450,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let hosting = NSHostingView(rootView: root)
         hosting.sizingOptions = []
         panelHosting = hosting
-        #if NATIVE_FRAME
         // The hidden title bar still counts as a safe area; the column fills the whole window.
         hosting.safeAreaRegions = []
-        #endif
 
         let container = NSView(frame: window.contentLayoutRect)
         container.autoresizingMask = [.width, .height]
@@ -556,7 +461,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Tucked well inside the rounded glass; at the corner it peeks out as a dot because the
         // borderless window is transparent there.
         let webView = player.bridge.webView
-        webView.frame = NSRect(x: Theme.Size.shadowMargin + Theme.Radius.window, y: Theme.Size.shadowMargin + Theme.Radius.window, width: 1, height: 1)
+        webView.frame = NSRect(x: Theme.Radius.window, y: Theme.Radius.window, width: 1, height: 1)
         container.addSubview(webView)
 
         hosting.frame = container.bounds

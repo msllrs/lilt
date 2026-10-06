@@ -87,7 +87,6 @@ struct TweakPanel: View {
                     ForEach(PanelSurface.allCases) { Text($0.label).tag($0) }
                 }
                 Toggle("Translucent (sidebar)", isOn: $style.panel.translucent)
-                Toggle("System shadow", isOn: $style.panel.systemShadow)
             }
             Section("Hero snap (pages)") {
                 Toggle("Steer flicks to an end", isOn: $style.heroSnap.enabled)

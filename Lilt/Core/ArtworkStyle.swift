@@ -233,10 +233,6 @@ struct PanelStyle: Equatable {
     /// Sidebar only: the desktop shows through, as it does behind a Finder sidebar. Off gives the
     /// flat look of an inactive window (the same choice Reduce Transparency makes).
     var translucent: Bool = true
-    /// Let the window server draw the shadow from the content's alpha instead of PanelShadow.
-    /// The content has no soft shadow reaching the panel edge any more, so the system shadow
-    /// can follow the panel shape, and it follows the mini player's shape change for free.
-    var systemShadow: Bool = false
     static let standard = PanelStyle()
 }
 
@@ -512,7 +508,7 @@ final class ArtworkStyle {
         pageAmbient = PageAmbientStyle(band: \(f(pageAmbient.band)), opacity: \(f(pageAmbient.opacity)), saturation: \(f(pageAmbient.saturation)), blur: \(f(pageAmbient.blur)), reach: \(f(pageAmbient.reach)))
         dockTile = DockTileStyle(plateTint: \(f(dockTile.plateTint)), plateSaturation: \(f(dockTile.plateSaturation)), shadowOpacity: \(f(dockTile.shadowOpacity)), shadowBlur: \(f(dockTile.shadowBlur)), shadowOffsetY: \(f(dockTile.shadowOffsetY)))
         headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), rim: \(headerControls.rim), rimOpacity: \(f(headerControls.rimOpacity)), interactive: \(headerControls.interactive), tintOpacity: \(f(headerControls.tintOpacity)), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
-        panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent), systemShadow: \(panel.systemShadow))
+        panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent))
         centredLibraryTitle = \(centredLibraryTitle)
         heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), minFlick: \(f(heroSnap.minFlick)), deadZone: \(f(heroSnap.deadZone)))
         leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)), darkLighten: \(f(leadingCast.darkLighten)), darkWashScale: \(f(leadingCast.darkWashScale)), darkSaturation: \(f(leadingCast.darkSaturation)))
