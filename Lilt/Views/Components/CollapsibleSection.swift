@@ -32,6 +32,9 @@ struct CollapsibleSection<Item: Identifiable, Row: View, Empty: View>: View {
     /// Distinguishes sections with the same title on different screens.
     let scope: String
     let items: [Item]
+    /// How many rows exist yet, when a screen builds its rows in slices (see LibraryScreen);
+    /// nil builds them all.
+    var limit: Int? = nil
     @ViewBuilder let row: (Item) -> Row
     /// Shown in place of rows when there are none.
     @ViewBuilder let empty: () -> Empty
@@ -42,20 +45,23 @@ struct CollapsibleSection<Item: Identifiable, Row: View, Empty: View>: View {
     private var id: String { "\(scope)/\(title)" }
     private var isCollapsed: Bool { collapsedSections.isCollapsed(id) }
 
-    init(title: String, scope: String, items: [Item], @ViewBuilder row: @escaping (Item) -> Row, @ViewBuilder empty: @escaping () -> Empty) {
+    init(title: String, scope: String, items: [Item], limit: Int? = nil, @ViewBuilder row: @escaping (Item) -> Row, @ViewBuilder empty: @escaping () -> Empty) {
         self.title = title
         self.scope = scope
         self.items = items
+        self.limit = limit
         self.row = row
         self.empty = empty
     }
 
+    private var built: [Item] { limit.map { Array(items.prefix($0)) } ?? items }
+
     var body: some View {
         Section {
             if !isCollapsed {
-                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                ForEach(Array(built.enumerated()), id: \.element.id) { index, item in
                     row(item)
-                        .transition(.fold(index: index, count: items.count))
+                        .transition(.fold(index: index, count: built.count))
                 }
                 if items.isEmpty {
                     empty()
@@ -93,8 +99,8 @@ struct CollapsibleSection<Item: Identifiable, Row: View, Empty: View>: View {
 }
 
 extension CollapsibleSection where Empty == EmptyView {
-    init(title: String, scope: String, items: [Item], @ViewBuilder row: @escaping (Item) -> Row) {
-        self.init(title: title, scope: scope, items: items, row: row, empty: { EmptyView() })
+    init(title: String, scope: String, items: [Item], limit: Int? = nil, @ViewBuilder row: @escaping (Item) -> Row) {
+        self.init(title: title, scope: scope, items: items, limit: limit, row: row, empty: { EmptyView() })
     }
 }
 
