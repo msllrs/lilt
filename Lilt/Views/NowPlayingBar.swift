@@ -58,6 +58,8 @@ struct NowPlayingBar: View {
     }
     /// The platter in the window's coordinate space, to settle hover after the frame animates.
     @State private var platterFrame: CGRect = .zero
+    /// How far the grab handle has to be pulled before it counts as a drag rather than a click.
+    private static let handlePull: CGFloat = 12
 
     /// Hover as the pointer actually stands once the window has stopped moving under it.
     private func settleHover() {
@@ -88,7 +90,9 @@ struct NowPlayingBar: View {
         // list itself, inside the glass while the platter grows and shrinks.
         .clipShape(shape)
         // A sheet-style grab handle at the top, only on hover (the platter stays clean), that
-        // shows or hides what's up next.
+        // shows or hides what's up next. A click toggles; so does a drag, up to open and down to
+        // close, like a sheet. Without the drag gesture a pull on the handle fell through to the
+        // window, which moves by its background.
         .overlay(alignment: .top) {
             Button {
                 AppDelegate.shared?.setQueueVisible(!navigation.isQueueVisible)
@@ -101,6 +105,13 @@ struct NowPlayingBar: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 4).onEnded { drag in
+                    let pull = drag.translation.height
+                    guard abs(pull) >= Self.handlePull else { return }
+                    AppDelegate.shared?.setQueueVisible(pull < 0)
+                }
+            )
             .opacity(isHoveringPlatter ? 1 : 0)
             .allowsHitTesting(isHoveringPlatter)
             .help(navigation.isQueueVisible ? "Hide Up Next" : "Show Up Next")
