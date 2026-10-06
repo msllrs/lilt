@@ -4,6 +4,23 @@ import SwiftUI
 /// border and an ambient shadow in the artwork's own colours. Images come from `ImageCache`, so
 /// revisiting a row never flashes a placeholder, and a smaller cached rendition stands in,
 /// blurred, while a larger one loads.
+/// How a picture turns inside its sleeve: an angle that is a function of time, so a tick of the
+/// clock changes the picture's transform and nothing else.
+struct ArtworkSpin: Equatable {
+    /// The angle when the clock last started, or where the picture rests.
+    var baseAngle: Double
+    /// When the clock started; nil holds `baseAngle`.
+    var resumedAt: Date?
+    var degreesPerSecond: Double
+    /// Stops the clock without forgetting where it was (a parked screen).
+    var paused: Bool
+
+    func angle(at date: Date) -> Angle {
+        guard let resumedAt else { return .degrees(baseAngle) }
+        return .degrees(baseAngle + date.timeIntervalSince(resumedAt) * degreesPerSecond)
+    }
+}
+
 struct ArtworkView: View {
     let url: URL?
     let size: CGFloat
@@ -11,7 +28,7 @@ struct ArtworkView: View {
     /// Picks the shadow preset (rows, player, pages).
     var context: ArtworkContext = .row
     /// Spins the picture inside the sleeve; the lighting, keyline and shadow stay put.
-    var rotation: Angle = .zero
+    var spin: ArtworkSpin? = nil
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.displayScale) private var displayScale
@@ -19,12 +36,12 @@ struct ArtworkView: View {
     /// True while `image` is a stand-in rendition at another size.
     @State private var isStandIn = false
 
-    init(url: URL?, size: CGFloat, radius: CGFloat, context: ArtworkContext = .row, rotation: Angle = .zero) {
+    init(url: URL?, size: CGFloat, radius: CGFloat, context: ArtworkContext = .row, spin: ArtworkSpin? = nil) {
         self.url = url
         self.size = size
         self.radius = radius
         self.context = context
-        self.rotation = rotation
+        self.spin = spin
         // Seed synchronously so a cache hit renders on the first frame.
         let seed = MainActor.assumeIsolated { () -> (NSImage?, Bool) in
             guard let url else { return (nil, false) }
@@ -90,12 +107,23 @@ struct ArtworkView: View {
     }
 
     private func sleeve(_ picture: Image) -> some View {
-        picture.resizable().aspectRatio(contentMode: .fill)
+        let flat = picture.resizable().aspectRatio(contentMode: .fill)
             .frame(width: size, height: size)
             // A genuinely undersized stand-in is blurred to hide the resampling until the real
             // one lands; a near-enough one is shown as is.
             .blur(radius: standInBlur)
-            .rotationEffect(rotation)
+        return Group {
+            if let spin {
+                // The clock sits right at the picture: a tick changes this one transform, and
+                // nothing in the sleeve, the shadow or the row around it is touched. Wrapped
+                // around the whole artwork, every tick re-ran the layout of all of them.
+                TimelineView(.animation(minimumInterval: 1 / 30, paused: spin.paused)) { context in
+                    flat.rotationEffect(spin.angle(at: context.date))
+                }
+            } else {
+                flat
+            }
+        }
             .overlay(spotlight)
             .clipShape(shape)
             .overlay(insetKeyline)
@@ -188,6 +216,13 @@ struct ArtworkView: View {
                         .offset(y: size * shadow.offsetY)
                 }
             }
+            // Flattened to one bitmap. Left as layers, the two blurs and the saturation are
+            // compositor filters that the window server re-runs on every frame the row moves,
+            // and a list of covers scrolled at a fraction of the refresh rate. The padding gives
+            // the spill room before the flattening clips to its bounds.
+            .padding(size * 0.5)
+            .drawingGroup()
+            .padding(-size * 0.5)
             .allowsHitTesting(false)
         }
     }

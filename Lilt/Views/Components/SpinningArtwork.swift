@@ -35,24 +35,23 @@ struct SpinningArtwork: View {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: !isSpinning || parked)) { context in
-            let elapsed = resumedAt.map { context.date.timeIntervalSince($0) } ?? 0
-            let angle = baseAngle + (isSpinning ? elapsed * Self.degreesPerSecond : 0)
-            ArtworkView(url: url, size: size, radius: radius, context: self.context, rotation: .degrees(angle))
-                // A real hole through the middle, so the background shows like a CD's centre.
-                .mask {
-                    ZStack {
-                        // Oversized so the ambient shadow spilling past the frame isn't clipped
-                        // square; only the hole is punched out.
-                        Rectangle().padding(-size * 2)
-                        Circle()
-                            .frame(width: holeSize * disc, height: holeSize * disc)
-                            .blendMode(.destinationOut)
-                    }
-                    .compositingGroup()
-                }
-                .overlay { hub.opacity(disc).scaleEffect(disc) }
+        ArtworkView(
+            url: url, size: size, radius: radius, context: context,
+            spin: ArtworkSpin(baseAngle: baseAngle, resumedAt: resumedAt, degreesPerSecond: Self.degreesPerSecond, paused: !isSpinning || parked)
+        )
+        // A real hole through the middle, so the background shows like a CD's centre.
+        .mask {
+            ZStack {
+                // Oversized so the ambient shadow spilling past the frame isn't clipped
+                // square; only the hole is punched out.
+                Rectangle().padding(-size * 2)
+                Circle()
+                    .frame(width: holeSize * disc, height: holeSize * disc)
+                    .blendMode(.destinationOut)
+            }
+            .compositingGroup()
         }
+        .overlay { hub.opacity(disc).scaleEffect(disc) }
         .onChange(of: isSpinning) { _, spinning in
             if spinning {
                 resumedAt = .now
