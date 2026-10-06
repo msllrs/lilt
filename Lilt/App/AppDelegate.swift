@@ -83,6 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // The window is the container: its frame animates alongside the fade and the system
         // shadow follows it, instead of outlining an empty window until a later resize.
         navigation.isMiniPlayer = mini
+        resizeWindow(mini: mini, animated: true)
     }
 
     // MARK: Up-next list

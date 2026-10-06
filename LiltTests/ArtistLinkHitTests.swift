@@ -188,10 +188,14 @@ struct ArtistLinkHitTests {
         )
         defer { window.close() }
         #expect(!delegate.navigation.isMiniPlayer, "the app should be expanded before the double-click")
+        let expandedHeight = delegate.panelFrame.height
         // The padding left of the cover, where nothing takes a click for itself.
         await doubleClick(CGPoint(x: Theme.Space.barPadding / 2, y: 85), in: window)
         await settle(4)
         #expect(delegate.navigation.isMiniPlayer, "double-clicking empty platter should collapse to the mini player")
+        // The window is the container: collapsing must shrink it, not only flip the flag.
+        await settle(20)
+        #expect(delegate.panelFrame.height < expandedHeight, "the window should shrink to the platter; was \(expandedHeight), now \(delegate.panelFrame.height)")
         #expect(navigation.path.isEmpty, "a double-click on empty platter should not open anything")
         // The change is deferred a run loop and persisted, so it needs a moment to land.
         delegate.setMiniPlayer(wasMini)
