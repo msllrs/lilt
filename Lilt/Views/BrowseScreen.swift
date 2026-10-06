@@ -292,7 +292,27 @@ struct BrowseScreen: View {
             let travel = min(max(metrics.offset / max(heroHeight, 1), 0), 1)
             heroFade = Self.smoothstep(travel)
             collapse = Self.smoothstep(min(max((travel - 0.45) / 0.55, 0), 1))
+            tickIfLanded(travel)
         }
+    }
+
+    /// Where the hero hand-off has come to rest: the top, the compact header, or in between.
+    private enum HeroStop { case top, header, between }
+    /// Nil until the first report, so restoring a page part-way down doesn't tick.
+    @State private var heroStop: HeroStop?
+
+    /// A trackpad tap as the scroll lands at either end of the hero's travel. Leaving a stop
+    /// takes a little more travel than reaching it, so hovering at the edge can't tick twice.
+    private func tickIfLanded(_ travel: CGFloat) {
+        let stop: HeroStop
+        switch travel {
+        case ...0.005: stop = .top
+        case 0.995...: stop = .header
+        case 0.05...0.95: stop = .between
+        default: stop = heroStop ?? .between
+        }
+        if let heroStop, heroStop == .between, stop != .between { Haptics.alignment() }
+        heroStop = stop
     }
 
 
