@@ -42,9 +42,10 @@ struct QueueList: View {
     static let dividerHeight: CGFloat = 1 + Theme.Space.sm
 
     /// The "Up next from …" line above the automatic group: room above it to set the group
-    /// apart from the hand-queued rows, or just the line itself when it leads the list.
-    static let groupLabelHeight: CGFloat = 20
-    static let leadingLabelHeight: CGFloat = 14
+    /// apart from the hand-queued rows, or just the line itself when it leads the list. Below
+    /// it, the same gap to the first cover as a section title keeps in the main lists.
+    static let groupLabelHeight: CGFloat = 20 + Theme.Space.xs
+    static let leadingLabelHeight: CGFloat = 14 + Theme.Space.xs
     static func labelHeight(manual: Int) -> CGFloat { manual == 0 ? leadingLabelHeight : groupLabelHeight }
 
     /// A row's artwork is 28pt in a 40pt row: this much sits above and below it. The list ends
@@ -119,8 +120,9 @@ struct QueueList: View {
                     .textCase(.uppercase)
                     .kerning(0.5)
                     .lineLimit(1)
-                    // Flush with the covers below it.
-                    .frame(height: Self.labelHeight(manual: entries.count), alignment: .bottom)
+                    // Flush with the covers below it, and the main lists' gap above them.
+                    .frame(height: Self.labelHeight(manual: entries.count) - Theme.Space.xs, alignment: .bottom)
+                    .padding(.bottom, Theme.Space.xs)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
@@ -139,7 +141,9 @@ struct QueueList: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .contentMargins(0, for: .scrollContent)
-        .environment(\.defaultMinListRowHeight, Self.rowHeight)
+        // The smallest row is the label; rows set their own height. At the row height, the
+        // label was stretched to a full row and the gap beneath it ballooned.
+        .environment(\.defaultMinListRowHeight, Self.leadingLabelHeight)
         .scrollIndicators(.never)
         // AppKit's table still insets rows by 8pt a side after the margins are zeroed;
         // pull it back so rows line up with the platter's artwork and controls.
@@ -156,15 +160,18 @@ struct QueueList: View {
             withAnimation(Theme.Motion.quick) { scrollEdges = edges }
         }
         .mask {
+            // The fade ends at the visible bottom edge (`listHeight`), not the list's own bottom
+            // a gutter below it, or what shows is the middle of the fade: a cut.
             let height = fullHeight
             let top = scrollEdges.moreAbove ? Self.edgeFade / height : 0
-            let bottom = scrollEdges.moreBelow ? Self.edgeFade / height : 0
+            let visibleBottom = listHeight / height
+            let bottomStart = scrollEdges.moreBelow ? (listHeight - Self.edgeFade) / height : 1
             LinearGradient(
                 stops: [
                     .init(color: top > 0 ? .clear : .black, location: 0),
                     .init(color: .black, location: top),
-                    .init(color: .black, location: 1 - bottom),
-                    .init(color: bottom > 0 ? .clear : .black, location: 1),
+                    .init(color: .black, location: bottomStart),
+                    .init(color: scrollEdges.moreBelow ? .clear : .black, location: scrollEdges.moreBelow ? visibleBottom : 1),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
