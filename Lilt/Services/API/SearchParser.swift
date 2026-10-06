@@ -29,7 +29,7 @@ enum SearchParser {
         guard let videoId else { return nil }
 
         let subtitle = flexRuns(item, 1)
-        let artistRuns = subtitle.filter { pageType(of: $0) == "MUSIC_PAGE_TYPE_ARTIST" }
+        let artistRuns = subtitle.filter(isArtistRun)
         let albumRun = subtitle.first { pageType(of: $0) == "MUSIC_PAGE_TYPE_ALBUM" }
         let texts = subtitle.compactMap { JSON.string($0["text"]) }
         let fallbackArtist = texts.first { !$0.contains("•") && $0 != "Song" && $0 != "Video" }
@@ -94,7 +94,7 @@ enum SearchParser {
 
     /// Builds an item, lifting the linked artist out of the subtitle runs so it can be tapped.
     private static func browseItem(id: String, kind: BrowseKind, title: String, subtitleRuns: [[String: Any]], artwork: URL?) -> BrowseItem {
-        let artistRun = subtitleRuns.first { pageType(of: $0) == "MUSIC_PAGE_TYPE_ARTIST" }
+        let artistRun = subtitleRuns.first(where: isArtistRun)
         return BrowseItem(
             id: id,
             kind: kind,
@@ -144,7 +144,7 @@ enum SearchParser {
             // Album headers link the artist in the strapline (or subtitle on older layouts).
             let artistRuns = (JSON.array(JSON.value(at: ["straplineTextOne", "runs"], in: header)) ?? [])
                 + (JSON.array(JSON.value(at: ["subtitle", "runs"], in: header)) ?? [])
-            page.artistId = artistRuns.compactMap(JSON.dict).first { pageType(of: $0) == "MUSIC_PAGE_TYPE_ARTIST" }.flatMap(browseId(of:))
+            page.artistId = artistRuns.compactMap(JSON.dict).first(where: isArtistRun).flatMap(browseId(of:))
         }
 
         // Tracks: album/playlist contents, or an artist's top songs.
@@ -234,7 +234,7 @@ enum SearchParser {
         guard let entry = entries.first(where: { JSON.string($0["videoId"]) == videoId })
             ?? entries.first(where: { ($0["selected"] as? Bool) == true }) else { return nil }
         let runs = (JSON.array(JSON.value(at: ["longBylineText", "runs"], in: entry)) ?? []).compactMap(JSON.dict)
-        let artistRun = runs.first { pageType(of: $0) == "MUSIC_PAGE_TYPE_ARTIST" }
+        let artistRun = runs.first(where: isArtistRun)
         let albumRun = runs.first { pageType(of: $0) == "MUSIC_PAGE_TYPE_ALBUM" }
         return TrackLinks(
             artist: artistRun.flatMap { JSON.string($0["text"]) },
@@ -289,7 +289,7 @@ enum SearchParser {
         guard let videoId = JSON.string(JSON.value(at: ["navigationEndpoint", "watchEndpoint", "videoId"], in: two)),
               let title = runsText(JSON.value(at: ["title", "runs"], in: two)) else { return nil }
         let runs = (JSON.array(JSON.value(at: ["subtitle", "runs"], in: two)) ?? []).compactMap(JSON.dict)
-        let artistRuns = runs.filter { pageType(of: $0) == "MUSIC_PAGE_TYPE_ARTIST" }
+        let artistRuns = runs.filter(isArtistRun)
         let texts = runs.compactMap { JSON.string($0["text"]) }
         let artist = artistRuns.isEmpty
             ? (texts.first { !$0.contains("•") && $0 != "Song" && $0 != "Video" } ?? "")
@@ -341,6 +341,13 @@ enum SearchParser {
         case "MUSIC_PAGE_TYPE_PLAYLIST": .playlist
         default: nil
         }
+    }
+
+    /// Whether a byline run links the act to open as the artist. Channel uploads (mixes, live
+    /// sets, most of YouTube proper) link a user channel rather than an artist page, but the
+    /// channel is still the artist and its browse id is a UC… id like any other, so both count.
+    private static func isArtistRun(_ run: [String: Any]) -> Bool {
+        kind(forPageType: pageType(of: run)) == .artist
     }
 
     private static func thumbnail(in item: [String: Any], size: Int) -> URL? {
