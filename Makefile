@@ -24,15 +24,34 @@ ZIP := $(RELEASE)/Lilt.zip
 # password, or an App Store Connect API key), kept in the keychain.
 NOTARY_PROFILE := lilt-notary
 
+IDENTITY := Developer ID Application: LFSGD LTD (TKGBUP8TGN)
+SPARKLE := $(APP)/Contents/Frameworks/Sparkle.framework
+SIGN := codesign --force --options runtime --timestamp --sign "$(IDENTITY)"
+
 release: gen
 	xcodebuild -scheme Lilt -configuration Release -derivedDataPath $(RELEASE) build | tail -5
+	# Sparkle's helpers ship ad hoc signed and Xcode only re-seals the framework around them,
+	# which notarization rejects. Sign them with our identity, inside out, keeping their own
+	# entitlements, then re-seal the framework and the app with the entitlements it was built with.
+	$(SIGN) --preserve-metadata=entitlements \
+		"$(SPARKLE)/Versions/B/XPCServices/Installer.xpc" \
+		"$(SPARKLE)/Versions/B/XPCServices/Downloader.xpc" \
+		"$(SPARKLE)/Versions/B/Autoupdate" \
+		"$(SPARKLE)/Versions/B/Updater.app"
+	$(SIGN) "$(SPARKLE)"
+	codesign -d --entitlements "$(RELEASE)/entitlements.plist" --xml "$(APP)"
+	$(SIGN) --entitlements "$(RELEASE)/entitlements.plist" "$(APP)"
 	codesign --verify --deep --strict --verbose=2 "$(APP)"
 	rm -f "$(ZIP)"
 	ditto -c -k --keepParent "$(APP)" "$(ZIP)"
 	@echo "signed: $(APP)"
 
+# Submits, waits, and only staples when Apple accepted; a rejection prints Apple's log.
 notarize: release
-	xcrun notarytool submit "$(ZIP)" --keychain-profile $(NOTARY_PROFILE) --wait
+	xcrun notarytool submit "$(ZIP)" --keychain-profile $(NOTARY_PROFILE) --wait --output-format json > "$(RELEASE)/notarize.json"; \
+	status=$$(/usr/bin/plutil -extract status raw -o - "$(RELEASE)/notarize.json"); id=$$(/usr/bin/plutil -extract id raw -o - "$(RELEASE)/notarize.json"); \
+	echo "notarization $$status ($$id)"; \
+	if [ "$$status" != "Accepted" ]; then xcrun notarytool log $$id --keychain-profile $(NOTARY_PROFILE); exit 1; fi
 	xcrun stapler staple "$(APP)"
 	rm -f "$(ZIP)"
 	ditto -c -k --keepParent "$(APP)" "$(ZIP)"
