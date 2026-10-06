@@ -87,10 +87,6 @@ struct NowPlayingBar: View {
         // The list slides in from under the scrubber; clipping to the platter keeps that, and the
         // list itself, inside the glass while the platter grows and shrinks.
         .clipShape(shape)
-        // Double-click anywhere on the platter collapses to the mini player or expands back.
-        // The whole rectangle counts, not just the controls and text.
-        .contentShape(Rectangle())
-        .onTapGesture(count: 2) { AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer) }
         // A sheet-style grab handle at the top, only on hover (the platter stays clean), that
         // shows or hides what's up next.
         .overlay(alignment: .top) {
@@ -108,12 +104,6 @@ struct NowPlayingBar: View {
             .opacity(isHoveringPlatter ? 1 : 0)
             .allowsHitTesting(isHoveringPlatter)
             .help(navigation.isQueueVisible ? "Hide Up Next" : "Show Up Next")
-        }
-        .onHover { hovering in
-            // While the native frame animates, the platter moves under a still pointer and AppKit
-            // reports exits and enters that mean nothing; hover is settled once it stops.
-            guard !navigation.isFrameAnimating else { return }
-            withAnimation(Theme.Motion.quick) { isHoveringPlatter = hovering }
         }
         .onChange(of: navigation.isFrameAnimating) { _, animating in
             if !animating { settleHover() }
@@ -178,8 +168,23 @@ struct NowPlayingBar: View {
         // Glass is composited by the window server, so the app's own pixels here are fully
         // transparent and macOS would pass clicks straight through to the window behind. A
         // near-invisible fill makes the platter solid to hit-testing.
-        .background { shape.fill(Color.black.opacity(0.012)) }
+        //
+        // Double-click anywhere on the platter collapses to the mini player or expands back. The
+        // gesture lives on this fill rather than over the rows: a double-tap wrapped around the
+        // content swallows single clicks on the buttons inside it (the cover, the artist), while
+        // here it only sees clicks that nothing above has claimed, so the whole rectangle counts
+        // except where a control takes the click for itself.
+        .background {
+            shape.fill(Color.black.opacity(0.012))
+                .onTapGesture(count: 2) { AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer) }
+        }
         .contentShape(shape)
+        .onHover { hovering in
+            // While the native frame animates, the platter moves under a still pointer and AppKit
+            // reports exits and enters that mean nothing; hover is settled once it stops.
+            guard !navigation.isFrameAnimating else { return }
+            withAnimation(Theme.Motion.quick) { isHoveringPlatter = hovering }
+        }
         // Border slider scales the rim; 0.10 default reads as a subtle glass edge.
         // The rim as on the play capsule: the cover's colour on the lit top edge, and a soft wash
         // of it inside falling off from the top. Both optional, both interpolated between songs.
@@ -238,6 +243,9 @@ struct NowPlayingBar: View {
                         font: .callout.weight(.medium),
                         color: title.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary)
                     )
+                    // The title does nothing with a click, so a double-click on it still reaches
+                    // the platter's mini toggle beneath.
+                    .allowsHitTesting(false)
                     ArtistLink(name: player.displayArtist, item: player.current?.artistItem, color: artist ?? .secondary)
                 }
                 // Like, at the right of the title on hover. The text fades out beneath it

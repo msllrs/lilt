@@ -68,6 +68,24 @@ struct ArtistLinkHitTests {
         await settle(2)
     }
 
+    /// A double-click at `point`: two clicks within the double-click interval, the second counted
+    /// as AppKit counts it.
+    private func doubleClick(_ point: CGPoint, in window: NSWindow) async {
+        let location = CGPoint(x: point.x, y: window.frame.height - point.y)
+        let number = Int(Date.timeIntervalSinceReferenceDate * 1000) % 1_000_000
+        let time = ProcessInfo.processInfo.systemUptime
+        for count in 1...2 {
+            let at = time + Double(count - 1) * 0.1
+            let down = NSEvent.mouseEvent(with: .leftMouseDown, location: location, modifierFlags: [], timestamp: at, windowNumber: window.windowNumber, context: nil, eventNumber: number + count * 2, clickCount: count, pressure: 1)!
+            let up = NSEvent.mouseEvent(with: .leftMouseUp, location: location, modifierFlags: [], timestamp: at + 0.05, windowNumber: window.windowNumber, context: nil, eventNumber: number + count * 2 + 1, clickCount: count, pressure: 0)!
+            window.sendEvent(down)
+            await settle(1)
+            window.sendEvent(up)
+            await settle(1)
+        }
+        await settle(2)
+    }
+
     /// Clicks a grid over `region` until one click pushes `expected`; returns where, if anywhere.
     private func pointOpening(_ expected: String, within region: CGRect, step: CGFloat = 6, in window: NSWindow, navigation: NavigationModel) async -> CGPoint? {
         for y in stride(from: region.minY, through: region.maxY, by: step) {
@@ -138,5 +156,27 @@ struct ArtistLinkHitTests {
         let cover = CGRect(x: Theme.Space.barPadding, y: Theme.Space.barPadding, width: Theme.Size.barArtwork, height: Theme.Size.barArtwork)
         let hit = await pointOpening("MPREb-lateralus", within: cover.insetBy(dx: 10, dy: 10), step: 8, in: window, navigation: navigation)
         #expect(hit != nil, "clicking the cover in the platter should open the album")
+    }
+
+    /// The tests run inside the app, so the platter's double-click reaches the real delegate and
+    /// collapses its window to the mini player; that is observed there and put back afterwards.
+    @Test func doubleClickOnEmptyPlatterTogglesTheMiniPlayer() async throws {
+        let delegate = try #require(AppDelegate.shared, "the platter's mini toggle goes through the app delegate")
+        let wasMini = delegate.navigation.isMiniPlayer
+        delegate.setMiniPlayer(false)
+        await settle(4)
+        let (window, navigation) = await host(
+            NowPlayingBar(), size: CGSize(width: 320, height: 170), player: Self.playerShowing(Self.track)
+        )
+        defer { window.close() }
+        #expect(!delegate.navigation.isMiniPlayer, "the app should be expanded before the double-click")
+        // The padding left of the cover, where nothing takes a click for itself.
+        await doubleClick(CGPoint(x: Theme.Space.barPadding / 2, y: 85), in: window)
+        await settle(4)
+        #expect(delegate.navigation.isMiniPlayer, "double-clicking empty platter should collapse to the mini player")
+        #expect(navigation.path.isEmpty, "a double-click on empty platter should not open anything")
+        // The change is deferred a run loop and persisted, so it needs a moment to land.
+        delegate.setMiniPlayer(wasMini)
+        await settle(4)
     }
 }
