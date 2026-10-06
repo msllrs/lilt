@@ -16,6 +16,11 @@ settings:
     CODE_SIGN_IDENTITY: "-"
     SWIFT_EMIT_LOC_STRINGS: "NO"
 
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.6.0
+
 targets:
   Lilt:
     type: application
@@ -38,11 +43,23 @@ targets:
         NSPrincipalClass: NSApplication
         NSHumanReadableCopyright: ""
         LSMinimumSystemVersion: "26.0"
+        # Sparkle: where updates are announced, the key their signatures are checked against,
+        # and the XPC installer the sandbox requires.
+        SUFeedURL: https://msllrs.github.io/lilt/appcast.xml
+        SUPublicEDKey: jvD3VVp7Q6+M0+UIdWA3cfAYR3WSTLoeKHgWH/5rflY=
+        SUEnableInstallerLauncherService: true
     entitlements:
       path: Config/Lilt.entitlements
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
+        # Sparkle's installer and downloader run as XPC services in the sandbox, reached through
+        # these mach names.
+        com.apple.security.temporary-exception.mach-lookup.global-name:
+          - $(PRODUCT_BUNDLE_IDENTIFIER)-spks
+          - $(PRODUCT_BUNDLE_IDENTIFIER)-spki
+    dependencies:
+      - package: Sparkle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.msllrs.Lilt

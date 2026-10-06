@@ -15,6 +15,9 @@ struct LiltApp: App {
         }
         .commands {
             CommandGroup(replacing: .newItem) {}
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { delegate.updater.checkForUpdates(nil) }
+            }
             CommandGroup(after: .windowList) {
                 Button("Show Lilt") { delegate.showPanel() }
                     .keyboardShortcut("l", modifiers: [.command, .shift])

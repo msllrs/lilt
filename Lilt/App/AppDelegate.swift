@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 import SwiftUI
 
 @MainActor
@@ -14,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let navigation = NavigationModel()
     let scrollTracker = ScrollTracker()
     let recents = RecentsStore()
+    /// Sparkle: checks the feed on its own schedule and on request from the menu.
+    let updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     let collapsedSections = CollapsedSections()
 
     private var panel: PanelWindow?
