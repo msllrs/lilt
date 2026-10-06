@@ -322,9 +322,11 @@ private struct LeadingButton: View {
                                 startPoint: .trailing, endPoint: .leading
                             ))
                             .opacity(amount)
-                            // The rim climbs the edge, bottom to top, as the header rises.
-                            Circle()
-                                .strokeBorder(
+                            // The rim climbs the edge, bottom to top, as the header rises. On the
+                            // glass highlight's own path, centred on the outline, so it colours
+                            // that highlight rather than lining the inside of it.
+                            Circle().inset(by: -0.5)
+                                .stroke(
                                     LinearGradient(stops: [.init(color: .clear, location: style.rimStart), .init(color: cast.opacity(style.rimOpacity), location: 1)], startPoint: .leading, endPoint: .trailing),
                                     lineWidth: style.rimWidth
                                 )

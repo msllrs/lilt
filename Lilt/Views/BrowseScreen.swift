@@ -311,7 +311,7 @@ struct BrowseScreen: View {
         case 0.05...0.95: stop = .between
         default: stop = heroStop ?? .between
         }
-        if let heroStop, heroStop == .between, stop != .between { Haptics.alignment() }
+        if let heroStop, stop != .between, stop != heroStop { Haptics.alignment() }
         heroStop = stop
     }
 
