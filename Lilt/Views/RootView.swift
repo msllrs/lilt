@@ -345,6 +345,9 @@ private struct LeadingButton: View {
                                         startPoint: .bottom, endPoint: .top
                                     )
                                     .opacity(amount > 0 ? 1 : 0)
+                                    // The stroke straddles the outline; a mask the size of the
+                                    // frame would cut away its outer half.
+                                    .padding(-1)
                                 }
                         }
                         .blendMode(style.blend(dark: dark))
