@@ -39,15 +39,26 @@ struct QueueList: View {
     /// Hairline between the player and the list, plus the gap beneath it.
     static let dividerHeight: CGFloat = 1 + Theme.Space.sm
 
-    /// The "Up next from …" line above the automatic group.
+    /// The "Up next from …" line above the automatic group: room above it to set the group
+    /// apart from the hand-queued rows, or just the line itself when it leads the list.
     static let groupLabelHeight: CGFloat = 20
+    static let leadingLabelHeight: CGFloat = 14
+    static func labelHeight(manual: Int) -> CGFloat { manual == 0 ? leadingLabelHeight : groupLabelHeight }
+
+    /// A row's artwork is 28pt in a 36pt row: this much sits above and below it. The list ends
+    /// at the last row's artwork, not its gutter, so the gap to the platter's edge below matches
+    /// the one beside the covers.
+    static let rowGutter: CGFloat = (rowHeight - 28) / 2
 
     /// The list's height for the two groups (one row's worth when both are empty, for the
     /// placeholder), so the mini window can be sized before the list has laid out. The label
-    /// counts as part of the visible rows, which are capped at `maxRows`.
+    /// counts as part of the visible rows, which are capped at `maxRows`; past the cap, half of
+    /// the last visible row shows, so it reads as a list that scrolls.
     static func height(manual: Int, automatic: Int) -> CGFloat {
-        let rows = CGFloat(manual + automatic) * rowHeight + (automatic > 0 ? groupLabelHeight : 0)
-        return dividerHeight + max(rowHeight, min(rows, CGFloat(maxRows) * rowHeight))
+        let rows = CGFloat(manual + automatic) * rowHeight + (automatic > 0 ? labelHeight(manual: manual) : 0)
+        let cap = CGFloat(maxRows) * rowHeight
+        let visible = rows > cap ? (CGFloat(maxRows) - 0.5) * rowHeight : max(rowHeight, rows)
+        return dividerHeight + visible - rowGutter
     }
 
     /// The list plus the gap above it: what the platter grows by to show it in full.
@@ -76,6 +87,8 @@ struct QueueList: View {
         let entries = player.upcomingEntries
         let automatic = player.automaticUpcoming
         let listHeight = Self.height(manual: entries.count, automatic: automatic.count) - Self.dividerHeight
+        // The list itself runs a gutter taller; the container below cuts that off.
+        let fullHeight = listHeight + Self.rowGutter
         // The List stays mounted when empty (the placeholder lays over it), so the last row's
         // removal animates like any other instead of the whole list being swapped out.
         return List {
@@ -104,7 +117,7 @@ struct QueueList: View {
                     .textCase(.uppercase)
                     .kerning(0.5)
                     .lineLimit(1)
-                    .frame(height: Self.groupLabelHeight, alignment: .bottom)
+                    .frame(height: Self.labelHeight(manual: entries.count), alignment: .bottom)
                     .padding(.leading, Theme.Space.xs)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                     .listRowSeparator(.hidden)
@@ -130,17 +143,18 @@ struct QueueList: View {
         // pull it back so rows line up with the platter's artwork and controls.
         .padding(.horizontal, -Self.tableInset)
         // Rows fade out at an edge only when there's more beyond it: no top fade while
-        // sitting at the top, no bottom fade once scrolled to the end.
+        // sitting at the top, no bottom fade once scrolled to the end. A few points of slack
+        // beyond the end (the table's own trailing padding) don't count as more.
         .onScrollGeometryChange(for: ScrollEdges.self) { geometry in
             ScrollEdges(
-                moreAbove: geometry.contentOffset.y > 0.5,
-                moreBelow: geometry.contentOffset.y + geometry.containerSize.height < geometry.contentSize.height - 0.5
+                moreAbove: geometry.contentOffset.y > 2,
+                moreBelow: geometry.contentSize.height - (geometry.contentOffset.y + geometry.containerSize.height) > Self.rowGutter * 2
             )
         } action: { _, edges in
             withAnimation(Theme.Motion.quick) { scrollEdges = edges }
         }
         .mask {
-            let height = listHeight
+            let height = fullHeight
             let top = scrollEdges.moreAbove ? Self.edgeFade / height : 0
             let bottom = scrollEdges.moreBelow ? Self.edgeFade / height : 0
             LinearGradient(
@@ -154,6 +168,9 @@ struct QueueList: View {
                 endPoint: .bottom
             )
         }
+        .frame(height: fullHeight)
+        .frame(height: listHeight, alignment: .top)
+        .clipped()
         .overlay {
             if entries.isEmpty, automatic.isEmpty {
                 Text("Nothing up next")
@@ -162,7 +179,6 @@ struct QueueList: View {
                     .transition(.opacity)
             }
         }
-        .frame(height: listHeight)
         .animation(Theme.Motion.settle, value: entries.count + automatic.count)
     }
 }
