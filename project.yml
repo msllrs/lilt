@@ -76,6 +76,9 @@ targets:
           DEVELOPMENT_TEAM: TKGBUP8TGN
           ENABLE_HARDENED_RUNTIME: "YES"
           OTHER_CODE_SIGN_FLAGS: "--timestamp"
+          # A plain build injects the get-task-allow debugging entitlement, which notarization
+          # rejects; an archive would not, but neither does a build told not to.
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: "NO"
 
   LiltTests:
     type: bundle.unit-test
