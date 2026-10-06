@@ -325,8 +325,9 @@ struct NowPlayingBar: View {
                     ) {
                         player.toggleLike()
                     }
-                    .opacity(isHoveringPlatter || player.isLiked ? 1 : 0)
-                    .transaction { $0.animation = nil }
+                    // No transaction of its own: one that silenced the reveal also silenced the
+                    // layout animation, so it snapped across the mini transition while shuffle
+                    // and repeat eased.
                 }
             }
         }
