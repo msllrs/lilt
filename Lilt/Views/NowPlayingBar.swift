@@ -90,31 +90,24 @@ struct NowPlayingBar: View {
         // list itself, inside the glass while the platter grows and shrinks.
         .clipShape(shape)
         // A sheet-style grab handle at the top, only on hover (the platter stays clean), that
-        // shows or hides what's up next. A click toggles; so does a drag, up to open and down to
-        // close, like a sheet. Without the drag gesture a pull on the handle fell through to the
-        // window, which moves by its background.
+        // shows or hides what's up next. A click toggles; so does a pull, up to open and down to
+        // close, like a sheet.
         .overlay(alignment: .top) {
-            Button {
-                AppDelegate.shared?.setQueueVisible(!navigation.isQueueVisible)
-            } label: {
-                Capsule()
-                    .fill(.secondary.opacity(0.55))
-                    .frame(width: 30, height: 4)
-                    .padding(.vertical, 3)
-                    .padding(.horizontal, Theme.Space.sm)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 4).onEnded { drag in
-                    let pull = drag.translation.height
-                    guard abs(pull) >= Self.handlePull else { return }
-                    AppDelegate.shared?.setQueueVisible(pull < 0)
+            Capsule()
+                .fill(.secondary.opacity(0.55))
+                .frame(width: 30, height: 4)
+                .padding(.vertical, 3)
+                .padding(.horizontal, Theme.Space.sm)
+                .background {
+                    GrabHandle(
+                        onToggle: { AppDelegate.shared?.setQueueVisible(!navigation.isQueueVisible) },
+                        onPull: { up in AppDelegate.shared?.setQueueVisible(up) },
+                        pull: Self.handlePull,
+                        toolTip: navigation.isQueueVisible ? "Hide Up Next" : "Show Up Next"
+                    )
                 }
-            )
-            .opacity(isHoveringPlatter ? 1 : 0)
-            .allowsHitTesting(isHoveringPlatter)
-            .help(navigation.isQueueVisible ? "Hide Up Next" : "Show Up Next")
+                .opacity(isHoveringPlatter ? 1 : 0)
+                .allowsHitTesting(isHoveringPlatter)
         }
         .onChange(of: navigation.isFrameAnimating) { _, animating in
             if !animating { settleHover() }
