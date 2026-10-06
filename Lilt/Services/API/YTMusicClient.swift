@@ -135,6 +135,7 @@ final class YTMusicClient {
     /// The signed-in library: playlists (with Liked Music first), saved albums, and artists.
     func library(forceRefresh: Bool = false) async throws -> LibraryContent {
         if !forceRefresh, let cached = libraryCache, Date.now.timeIntervalSince(cached.fetched) < Self.homeTTL {
+            Self.prefetchArtwork(of: cached.content)
             return cached.content
         }
         async let playlists = client.post("browse", body: ["browseId": "FEmusic_liked_playlists"])
@@ -158,6 +159,7 @@ final class YTMusicClient {
             .filter { $0.kind == .artist && seenArtists.insert($0.id).inserted }
         libraryCache = (content, .now)
         persist()
+        Self.prefetchArtwork(of: content)
         ImageCache.shared.prefetch((content.playlists + content.albums + content.artists).prefix(24).map(\.artworkURL))
         return content
     }
@@ -170,6 +172,12 @@ final class YTMusicClient {
             "isAudioOnly": true,
         ])
         return SearchParser.links(from: response.value, videoId: videoId)
+    }
+
+    /// The library changes rarely and is bounded, so every cover is fetched and decoded ahead
+    /// of the scroll, not the first dozen: a fast scroll then finds them all in memory.
+    private static func prefetchArtwork(of content: LibraryContent) {
+        ImageCache.shared.prefetch((content.playlists + content.albums + content.artists).map(\.artworkURL))
     }
 
     /// Whether an album or playlist is in the library, as far as the cached library knows.

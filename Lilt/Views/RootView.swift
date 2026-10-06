@@ -140,6 +140,7 @@ private struct NavigationColumn: View {
 
 private struct LeadingButton: View {
     @Environment(NavigationModel.self) private var navigation
+    @Environment(YTMusicClient.self) private var music
     @Environment(\.colorScheme) private var colorScheme
     let isBack: Bool
 
@@ -220,6 +221,11 @@ private struct LeadingButton: View {
             }
         }
         .buttonStyle(.pressable(scale: 0.88))
+        // Hovering the library button fetches the library, and with it every cover, so the
+        // screen and its scroll are ready by the click.
+        .onHover { hovering in
+            if hovering, !isBack { Task { _ = try? await music.library() } }
+        }
         .help(isBack ? "Back" : "Library")
     }
 }

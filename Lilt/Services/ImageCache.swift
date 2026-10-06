@@ -20,7 +20,7 @@ final class ImageCache {
     private var dominants: [String: (r: CGFloat, g: CGFloat, b: CGFloat)?] = [:]
     /// base key → URLs of the variants currently cached.
     private var variants: [String: [URL]] = [:]
-    private var inflight: [URL: Task<NSImage?, Never>] = [:]
+    private var inflight: [URL: Task<DecodedArtwork?, Never>] = [:]
     private let session: URLSession
 
     private init() {
@@ -153,29 +153,35 @@ final class ImageCache {
         return nil
     }
 
+    /// Fetches, decodes and measures the artwork off the main thread; what reaches the main
+    /// actor is a finished bitmap and three numbers. Decoded lazily, at first draw, a cover
+    /// cost the main thread its decode in the middle of a scroll.
     func load(_ url: URL) async -> NSImage? {
         if let hit = cached(url) { return hit }
-        if let task = inflight[url] { return await task.value }
-        let task = Task<NSImage?, Never> { [session] in
-            guard let (data, _) = try? await session.data(from: url), let image = NSImage(data: data) else { return nil }
-            return image
+        if let task = inflight[url] { return await task.value?.image }
+        let task = Task<DecodedArtwork?, Never>.detached(priority: .utility) { [session] in
+            guard let (data, _) = try? await session.data(from: url) else { return nil }
+            return DecodedArtwork(data)
         }
         inflight[url] = task
-        let image = await task.value
+        let decoded = await task.value
         inflight[url] = nil
-        if let image { store(image, for: url) }
-        return image
+        guard let decoded else { return nil }
+        store(decoded.image, for: url, average: decoded.average, edge: decoded.edge, dominant: decoded.dominant)
+        return decoded.image
     }
 
+    /// Caches an image that arrived some other way, measuring it here.
     func store(_ image: NSImage, for url: URL) {
+        store(image, for: url, average: Self.averageColor(of: image), edge: Self.edgeLuminance(of: image), dominant: Self.dominantColor(of: image))
+    }
+
+    private func store(_ image: NSImage, for url: URL, average: (r: CGFloat, g: CGFloat, b: CGFloat)?, edge: CGFloat?, dominant: (r: CGFloat, g: CGFloat, b: CGFloat)?) {
         let pixels = image.representations.first.map { $0.pixelsWide * $0.pixelsHigh } ?? Int(image.size.width * image.size.height)
         images.setObject(image, forKey: url.absoluteString as NSString, cost: pixels * 4)
         variants[Self.baseKey(url), default: []].append(url)
-        let average = Self.averageColor(of: image)
         if let average { averages[url.absoluteString] = average }
-        let edge = Self.edgeLuminance(of: image)
         if let edge { edges[url.absoluteString] = edge }
-        let dominant = Self.dominantColor(of: image)
         dominants[url.absoluteString] = dominant
         if let average, let edge { remember(ColourRecord(average: average, edge: edge, dominant: dominant), for: Self.baseKey(url)) }
     }
@@ -226,7 +232,7 @@ final class ImageCache {
     /// Histogram over a small downsample: pixels are binned by hue, saturation and brightness,
     /// each vote weighted by how colourful it is, and the winning bin's mean is the answer. An
     /// average would turn a red-and-blue cover purple; this picks one of them.
-    private static func dominantColor(of image: NSImage) -> (r: CGFloat, g: CGFloat, b: CGFloat)? {
+    nonisolated static func dominantColor(of image: NSImage) -> (r: CGFloat, g: CGFloat, b: CGFloat)? {
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         let side = 24
         var pixels = [UInt8](repeating: 0, count: side * side * 4)
@@ -274,7 +280,7 @@ final class ImageCache {
     }
 
     /// Downsamples to a small grid and averages the outer ring of pixels.
-    private static func edgeLuminance(of image: NSImage) -> CGFloat? {
+    nonisolated static func edgeLuminance(of image: NSImage) -> CGFloat? {
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         let side = 24
         var pixels = [UInt8](repeating: 0, count: side * side)
@@ -295,7 +301,7 @@ final class ImageCache {
     }
 
     /// Draws the image into a single pixel and reads back its average colour.
-    private static func averageColor(of image: NSImage) -> (r: CGFloat, g: CGFloat, b: CGFloat)? {
+    nonisolated static func averageColor(of image: NSImage) -> (r: CGFloat, g: CGFloat, b: CGFloat)? {
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         var pixel = [UInt8](repeating: 0, count: 4)
         guard let context = CGContext(
@@ -316,5 +322,23 @@ final class ImageCache {
     /// The URL with its size parameters removed.
     static func baseKey(_ url: URL) -> String {
         url.absoluteString.replacing(/=w\d+-h\d+[^?#]*/, with: "")
+    }
+}
+
+/// Artwork decoded to a bitmap and measured, off the main thread. The image is built from a
+/// CGImage decoded immediately, so drawing it later is a copy, not a decode.
+private struct DecodedArtwork: @unchecked Sendable {
+    let image: NSImage
+    let average: (r: CGFloat, g: CGFloat, b: CGFloat)?
+    let edge: CGFloat?
+    let dominant: (r: CGFloat, g: CGFloat, b: CGFloat)?
+
+    init?(_ data: Data) {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let cgImage = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) else { return nil }
+        image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        average = ImageCache.averageColor(of: image)
+        edge = ImageCache.edgeLuminance(of: image)
+        dominant = ImageCache.dominantColor(of: image)
     }
 }
