@@ -131,14 +131,20 @@ struct NowPlayingBar: View {
                         onToggle: { AppDelegate.shared?.setQueueVisible(!navigation.isQueueVisible) },
                         onDrag: { travel in AppDelegate.shared?.dragQueue(by: travel) },
                         onRelease: { travel, velocity in AppDelegate.shared?.settleQueue(travel: travel, velocity: velocity) },
+                        // Over the handle the platter counts as hovered, whatever SwiftUI's own
+                        // tracking says while the pointer is on an AppKit view. Leaving the handle
+                        // for the rest of the platter re-enters that tracking; leaving the platter
+                        // altogether is its exit to report.
+                        onHover: { inside in if inside, !navigation.isFrameAnimating { withAnimation(Theme.Motion.quick) { isHoveringPlatter = true } } },
                         pull: Self.handlePull,
                         toolTip: navigation.isQueueVisible ? "Hide Up Next" : "Show Up Next"
                     )
                     .padding(.horizontal, -37)
                     .padding(.bottom, -10)
                 }
+                // Shown on hover, but always there to click: gated on the hover state, a click
+                // landing as that state dropped for a frame went nowhere.
                 .opacity(isHoveringPlatter ? 1 : 0)
-                .allowsHitTesting(isHoveringPlatter)
         }
         .onChange(of: navigation.isFrameAnimating) { _, animating in
             if !animating { settleHover() }

@@ -12,6 +12,9 @@ struct GrabHandle: NSViewRepresentable {
     var onDrag: (_ travel: CGFloat) -> Void
     /// A pull of at least `pull` points has ended, with the pointer's speed in points per second.
     var onRelease: (_ travel: CGFloat, _ velocity: CGFloat) -> Void
+    /// The pointer entered or left the handle. SwiftUI's own hover for the view around the
+    /// handle can drop while the pointer is over this AppKit view, so the handle says so itself.
+    var onHover: (_ inside: Bool) -> Void = { _ in }
     var pull: CGFloat = 12
     var toolTip: String?
 
@@ -21,6 +24,7 @@ struct GrabHandle: NSViewRepresentable {
         view.onToggle = onToggle
         view.onDrag = onDrag
         view.onRelease = onRelease
+        view.onHover = onHover
         view.pull = pull
         view.toolTip = toolTip
     }
@@ -30,6 +34,7 @@ final class GrabHandleView: NSView {
     var onToggle: () -> Void = {}
     var onDrag: (CGFloat) -> Void = { _ in }
     var onRelease: (CGFloat, CGFloat) -> Void = { _, _ in }
+    var onHover: (Bool) -> Void = { _ in }
     var pull: CGFloat = 12
     private var start: NSPoint?
     /// The last two samples, for the release speed.
@@ -38,6 +43,15 @@ final class GrabHandleView: NSView {
 
     override var mouseDownCanMoveWindow: Bool { false }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
+    }
+
+    override func mouseEntered(with event: NSEvent) { onHover(true) }
+    override func mouseExited(with event: NSEvent) { onHover(false) }
 
     /// Screen coordinates: y grows upwards, so a pull up is positive.
     private func travel() -> CGFloat { start.map { NSEvent.mouseLocation.y - $0.y } ?? 0 }
