@@ -10,6 +10,12 @@ import Testing
 ///
 /// SwiftUI doesn't expose its accessibility tree in-process, so a target is found by clicking a
 /// grid of points over the region where it is laid out and watching for the navigation push.
+/// A window that runs a block when closed (the tests close theirs in a `defer`).
+private final class RestoringWindow: NSWindow {
+    var onClose: (() -> Void)?
+    override func close() { super.close(); onClose?(); onClose = nil }
+}
+
 @MainActor
 struct ArtistLinkHitTests {
     private static let track = Track(
@@ -27,10 +33,21 @@ struct ArtistLinkHitTests {
         return player
     }
 
+    /// The navigation model persists every change to the shared defaults, which the real app
+    /// reads on its next launch; a test's model must leave them as it found them.
+    private final class PreservedNavigationState: @unchecked Sendable {
+        private let saved = UserDefaults.standard.data(forKey: "navigationState")
+        func restore() {
+            if let saved { UserDefaults.standard.set(saved, forKey: "navigationState") } else { UserDefaults.standard.removeObject(forKey: "navigationState") }
+        }
+    }
+
     /// Hosts `content` with the app's environment in an off-screen window and returns the window
-    /// plus the navigation model clicks should land on.
+    /// plus the navigation model clicks should land on. Closing the window puts the saved
+    /// navigation state back.
     private func host(_ content: some View, size: CGSize, player: PlayerService? = nil) async -> (NSWindow, NavigationModel) {
         let auth = AuthService()
+        let preserved = PreservedNavigationState()
         let navigation = NavigationModel()
         navigation.path = []
         navigation.isMiniPlayer = false
@@ -43,7 +60,8 @@ struct ArtistLinkHitTests {
             .frame(width: size.width, height: size.height)
         let hosting = NSHostingView(rootView: AnyView(view))
         hosting.frame = CGRect(origin: .zero, size: size)
-        let window = NSWindow(contentRect: CGRect(origin: CGPoint(x: -10_000, y: -10_000), size: size), styleMask: [.borderless], backing: .buffered, defer: false)
+        let window = RestoringWindow(contentRect: CGRect(origin: CGPoint(x: -10_000, y: -10_000), size: size), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.onClose = { preserved.restore() }
         window.contentView = hosting
         window.makeKeyAndOrderFront(nil)
         hosting.layoutSubtreeIfNeeded()
