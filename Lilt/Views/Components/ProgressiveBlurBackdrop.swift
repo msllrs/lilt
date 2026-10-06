@@ -1,4 +1,5 @@
 import AppKit
+import ObjectiveC
 import QuartzCore
 import SwiftUI
 
@@ -20,6 +21,8 @@ struct ProgressiveBlurBackdrop: NSViewRepresentable {
     /// Radius of the panel corners on the edge the effect sits against, so the layer is clipped
     /// to the panel shape itself rather than trusting a clip further up the view tree.
     var cornerRadius: CGFloat = Theme.Radius.window
+    /// Render in-process from the layers beneath, so nothing behind the window is sampled.
+    var ownContentOnly: Bool = true
 
     /// True when the private classes exist and accept the filter we need.
     static let isAvailable: Bool = {
@@ -32,6 +35,7 @@ struct ProgressiveBlurBackdrop: NSViewRepresentable {
     func updateNSView(_ view: BackdropHostView, context: Context) {
         view.rampFlipped = flipped
         view.cornerRadius = cornerRadius
+        view.ownContentOnly = ownContentOnly
         view.configure(radius: radius, saturation: saturation, brightness: brightness, fadeStart: fadeStart)
     }
 
@@ -69,6 +73,7 @@ final class BackdropHostView: NSView {
         container.addSublayer(layer)
         self.layer?.addSublayer(container)
         backdrop = layer
+        applyScope()
     }
 
     @available(*, unavailable)
@@ -86,6 +91,31 @@ final class BackdropHostView: NSView {
         didSet { if cornerRadius != oldValue { needsLayout = true } }
     }
     private var fadeStart: CGFloat = 1
+    /// Whether the window server composites the backdrop (and so samples the windows behind
+    /// this non-opaque panel too) or the layer is rendered here from Lilt's own content only.
+    var ownContentOnly = true {
+        didSet { if ownContentOnly != oldValue { applyScope() } }
+    }
+
+    /// `windowServerAware` is the private switch between the two; a BOOL, checked before the
+    /// write since a wrong type through KVC raises and takes the app down.
+    private func applyScope() {
+        guard let backdrop, Self.isBoolProperty("windowServerAware", of: backdrop) else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        backdrop.setValue(!ownContentOnly, forKey: "windowServerAware")
+        CATransaction.commit()
+        // The layer picks filters up afresh on a change of renderer.
+        maskSize = .zero
+        applyFilters()
+    }
+
+    private static func isBoolProperty(_ name: String, of object: NSObject) -> Bool {
+        guard let property = class_getProperty(type(of: object), name),
+              let attributes = property_getAttributes(property) else { return false }
+        return String(cString: attributes).hasPrefix("TB")
+    }
+
     /// Full blur at the bottom edge instead of the top (NSView already has `isFlipped`).
     var rampFlipped = false {
         didSet { if rampFlipped != oldValue { maskSize = .zero; needsLayout = true } }

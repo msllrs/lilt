@@ -27,7 +27,7 @@ struct HeaderBackdrop: ViewModifier {
                 Group {
                     if useBackdrop {
                         // A true blur ramp: strongest under the header, gone by `reach`.
-                        ProgressiveBlurBackdrop(radius: style.radius, saturation: style.saturation, brightness: style.brightness, fadeStart: fadeStart, cornerRadius: Self.clipRadius)
+                        ProgressiveBlurBackdrop(radius: style.radius, saturation: style.saturation, brightness: style.brightness, fadeStart: fadeStart, cornerRadius: Self.clipRadius, ownContentOnly: style.ownContentOnly)
                     } else {
                         Rectangle()
                             .fill(.thinMaterial)

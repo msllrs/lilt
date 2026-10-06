@@ -142,6 +142,7 @@ struct TweakPanel: View {
                 Toggle("Backdrop ramp (private API)", isOn: $style.headerBlur.useBackdrop)
                     .disabled(!ProgressiveBlurBackdrop.isAvailable)
                 LabeledContent("Available", value: ProgressiveBlurBackdrop.isAvailable ? "yes" : "no")
+                Toggle("Own content only (ignore windows behind)", isOn: $style.headerBlur.ownContentOnly)
                 slider("Radius", $style.headerBlur.radius, 0...60)
                 slider("Saturation", $style.headerBlur.saturation, 0...3)
                 slider("Brightness", $style.headerBlur.brightness, -0.5...0.5)
