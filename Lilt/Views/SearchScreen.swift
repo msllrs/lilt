@@ -139,13 +139,14 @@ private struct SignedOutView: View {
             Image(nsImage: Self.icon)
                 .resizable()
                 .frame(width: 96, height: 96)
-            VStack(spacing: Theme.Space.xs) {
+            VStack(spacing: Theme.Space.sm) {
                 Text("Your YouTube Music, in Lilt")
                     .font(.title3.weight(.semibold))
                 Text("Sign in with your Google account to access your library, playlists and music. A Premium subscription is required.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .lineSpacing(4)
             }
             Button("Sign In") { auth.isPresentingLogin = true }
                 .buttonStyle(.glassProminent)
