@@ -26,8 +26,11 @@ struct HeaderBackdrop: ViewModifier {
                 let fadeStart = geometry.size.height / (geometry.size.height + reach)
                 Group {
                     if useBackdrop {
-                        // A true blur ramp: strongest under the header, gone by `reach`.
-                        ProgressiveBlurBackdrop(radius: style.radius, saturation: style.saturation, brightness: style.brightness, fadeStart: fadeStart, cornerRadius: Self.clipRadius, ownContentOnly: style.ownContentOnly)
+                        // A true blur ramp: strongest under the header, gone by `reach`. The
+                        // saturation boost re-saturates what a material's grey tint washes out;
+                        // blurring Lilt's own content there is no tint, and a boost turns a red
+                        // cover passing under the header into a magenta flare, so it is left at 1.
+                        ProgressiveBlurBackdrop(radius: style.radius, saturation: style.ownContentOnly ? 1 : style.saturation, brightness: style.brightness, fadeStart: fadeStart, cornerRadius: Self.clipRadius, ownContentOnly: style.ownContentOnly)
                     } else {
                         Rectangle()
                             .fill(.thinMaterial)

@@ -149,6 +149,7 @@ struct TweakPanel: View {
                 Toggle("Own content only (ignore windows behind)", isOn: $style.headerBlur.ownContentOnly)
                 slider("Radius", $style.headerBlur.radius, 0...60)
                 slider("Saturation", $style.headerBlur.saturation, 0...3)
+                    .disabled(style.headerBlur.ownContentOnly)
                 slider("Brightness", $style.headerBlur.brightness, -0.5...0.5)
                 slider("Reach", $style.headerBlur.reach, 0...96)
                 slider("Rim", $style.headerBlur.rimOpacity, 0...1)
