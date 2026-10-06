@@ -303,11 +303,13 @@ struct NowPlayingBar: View {
                     .transaction { $0.animation = nil }
                 }
                 .overlay(alignment: .trailing) {
+                    // Coloured as shuffle and repeat are: the label colour taking a share of the
+                    // cover's, not the raw accent.
                     ModeButton(
                         symbol: player.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
                         isOn: player.isLiked,
                         revealed: isHoveringPlatter,
-                        tint: accent,
+                        tint: accent.map { mono.mix(with: $0, by: platter.controlsTint) } ?? mono,
                         dimTint: accent.map { Color.secondary.mix(with: $0, by: platter.controlsTint) }
                     ) {
                         player.toggleLike()
