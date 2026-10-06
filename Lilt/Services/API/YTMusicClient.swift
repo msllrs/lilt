@@ -126,6 +126,9 @@ final class YTMusicClient {
         accountGeneration += 1
     }
 
+    /// Signed out: no account, nothing cached for it.
+    func signedOut() { switchAccount(pageId: nil) }
+
     /// Bumps whenever the account changes, so screens can reload.
     private(set) var accountGeneration = 0
 

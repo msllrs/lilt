@@ -257,6 +257,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         expandedHeight = panel.frame.height
     }
 
+    /// Signs out of YouTube Music: playback stops, the web session and everything cached for
+    /// the account go, and the login window comes up for the next one.
+    func signOut() {
+        Task { @MainActor in
+            player.stop()
+            await auth.signOut()
+            music.signedOut()
+            recents.clear()
+            auth.isPresentingLogin = true
+        }
+    }
+
     func toggleMiniPlayer() { setMiniPlayer(!navigation.isMiniPlayer) }
     func openLibrary() { navigation.open(NavigationModel.library) }
 

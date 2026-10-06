@@ -105,6 +105,9 @@ struct LibraryScreen: View {
                     }
                 }
             }
+            Section {
+                Button("Sign Out…", role: .destructive) { AppDelegate.shared?.signOut() }
+            }
         } label: {
             ArtworkView(url: account.photoURL, size: Theme.Size.headerArtwork, radius: Theme.Size.headerArtwork / 2, context: .avatar)
                 .frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
