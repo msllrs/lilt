@@ -218,8 +218,10 @@ final class ImageCache {
     }
 
     private func store(_ image: NSImage, for url: URL, average: (r: CGFloat, g: CGFloat, b: CGFloat)?, edge: CGFloat?, dominant: (r: CGFloat, g: CGFloat, b: CGFloat)?) {
-        let pixels = image.representations.first.map { $0.pixelsWide * $0.pixelsHigh } ?? Int(image.size.width * image.size.height)
-        let cost = pixels * 4
+        // The image's size is its pixel size (decoded images are built that way, and anything
+        // else is 72dpi); the representation's pixel counts come back at display scale and
+        // charged every cover four times over, so the budget held a quarter of what it should.
+        let cost = Int(image.size.width * image.size.height) * 4
         let key = url.absoluteString
         if let old = images[key] { totalCost -= old.cost }
         evict(toFit: cost)
