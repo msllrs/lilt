@@ -62,18 +62,30 @@ final class BackdropHostView: NSView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
+        fade.startPoint = CGPoint(x: 0.5, y: 1)
+        fade.endPoint = CGPoint(x: 0.5, y: 0)
+        container.mask = clip
+        self.layer?.addSublayer(container)
+        makeBackdrop()
+    }
+
+    /// The backdrop layer, built for the current scope. Core Animation settles which renderer a
+    /// backdrop uses when the layer is set up, so a change of scope replaces the layer rather
+    /// than flipping the flag on the one in place.
+    private func makeBackdrop() {
         guard let type = NSClassFromString("CABackdropLayer") as? CALayer.Type else { return }
+        backdrop?.removeFromSuperlayer()
         let layer = type.init()
         // The blur never needs full resolution; half is what the system uses for its materials.
         if layer.responds(to: NSSelectorFromString("setScale:")) { layer.setValue(0.5, forKey: "scale") }
-        fade.startPoint = CGPoint(x: 0.5, y: 1)
-        fade.endPoint = CGPoint(x: 0.5, y: 0)
+        // `windowServerAware` is the private switch between the two renderers; a BOOL, checked
+        // before the write since a wrong type through KVC raises and takes the app down.
+        if Self.isBoolProperty("windowServerAware", of: layer) { layer.setValue(!ownContentOnly, forKey: "windowServerAware") }
         layer.mask = fade
-        container.mask = clip
         container.addSublayer(layer)
-        self.layer?.addSublayer(container)
         backdrop = layer
-        applyScope()
+        maskSize = .zero
+        needsLayout = true
     }
 
     @available(*, unavailable)
@@ -94,20 +106,7 @@ final class BackdropHostView: NSView {
     /// Whether the window server composites the backdrop (and so samples the windows behind
     /// this non-opaque panel too) or the layer is rendered here from Lilt's own content only.
     var ownContentOnly = true {
-        didSet { if ownContentOnly != oldValue { applyScope() } }
-    }
-
-    /// `windowServerAware` is the private switch between the two; a BOOL, checked before the
-    /// write since a wrong type through KVC raises and takes the app down.
-    private func applyScope() {
-        guard let backdrop, Self.isBoolProperty("windowServerAware", of: backdrop) else { return }
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        backdrop.setValue(!ownContentOnly, forKey: "windowServerAware")
-        CATransaction.commit()
-        // The layer picks filters up afresh on a change of renderer.
-        maskSize = .zero
-        applyFilters()
+        didSet { if ownContentOnly != oldValue { makeBackdrop() } }
     }
 
     private static func isBoolProperty(_ name: String, of object: NSObject) -> Bool {

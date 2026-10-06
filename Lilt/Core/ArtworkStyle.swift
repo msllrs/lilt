@@ -289,8 +289,9 @@ struct HeaderBlurStyle: Equatable {
     var useBackdrop: Bool = true
     /// Blur radius in points at the top of the header.
     var radius: Double = 24
-    /// Saturation of what shows through, like the system materials' boost.
-    var saturation: Double = 3.0
+    /// Saturation of what shows through. 1 blurs what is there and amplifies nothing: a boost
+    /// turned the cover's wash under the header into a strong cast of its own.
+    var saturation: Double = 1.0
     /// Brightness shift of what shows through (-1...1).
     var brightness: Double = 0.0
     /// How far below the header the blur reaches before fading to nothing.
@@ -298,11 +299,11 @@ struct HeaderBlurStyle: Equatable {
     /// Strength of the window rim redrawn over the blur (the backdrop blurs the glass's own
     /// hairline away); 1 is the full glass-edge highlight.
     var rimOpacity: Double = 0.45
-    /// Blur Lilt's own content only. Left to the window server, the backdrop also samples the
-    /// windows behind the panel (it isn't opaque), and the saturation boost turns a dark Slack
-    /// or a bright page behind into a strong cast across the header, worst after the panel has
-    /// been hidden and shown again. The panel's own material already shows what's behind.
-    var ownContentOnly: Bool = true
+    /// Blur Lilt's own layers only, rendered in-process, instead of letting the window server
+    /// composite the backdrop from everything beneath it. Off: in-process, the capture includes
+    /// the sidebar material's tint layer, and painting the blurred result back over the same
+    /// material applied the tint twice, a darker band over the rows with a visible edge.
+    var ownContentOnly: Bool = false
 
     static let standard = HeaderBlurStyle()
 }

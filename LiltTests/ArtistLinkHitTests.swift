@@ -62,6 +62,7 @@ struct ArtistLinkHitTests {
         hosting.frame = CGRect(origin: .zero, size: size)
         let window = RestoringWindow(contentRect: CGRect(origin: CGPoint(x: -10_000, y: -10_000), size: size), styleMask: [.borderless], backing: .buffered, defer: false)
         window.onClose = { preserved.restore() }
+        window.isReleasedWhenClosed = false
         window.contentView = hosting
         window.makeKeyAndOrderFront(nil)
         hosting.layoutSubtreeIfNeeded()
