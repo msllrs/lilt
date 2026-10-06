@@ -282,10 +282,10 @@ struct NowPlayingBar: View {
                     .allowsHitTesting(false)
                     ArtistLink(name: player.displayArtist, item: player.current?.artistItem, color: artist ?? .secondary)
                 }
-                // Like, at the right of the title on hover. The text fades out beneath it
-                // rather than making room, so nothing shifts when the pointer arrives. The fade
-                // is a gradient in unit space from the measured width: fixed-width pieces in
-                // a stack blanked the whole title whenever the row was momentarily narrow.
+                // The text fades out beneath the like button (below) rather than making room, so
+                // nothing shifts when the pointer arrives. The fade is a gradient in unit space
+                // from the measured width: fixed-width pieces in a stack blanked the whole title
+                // whenever the row was momentarily narrow.
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { titleWidth = $0 }
                 .mask {
                     let w = max(titleWidth, 1)
@@ -302,6 +302,17 @@ struct NowPlayingBar: View {
                     )
                     .transaction { $0.animation = nil }
                 }
+                // The mask and the text it masks move as one while the platter changes size;
+                // without this the mask's bounds animated apart from the text, clipping the
+                // title's leading edge and hiding the artist line for a few frames.
+                .geometryGroup()
+                // Fills to the row's trailing edge (a trailing spacer took a share of the row),
+                // so the like lines up with the repeat button below it.
+                .frame(maxWidth: .infinity, alignment: .leading)
+                // Like, at the right of the title on hover; the text fades out beneath it (see
+                // the mask above). Anchored to the row, outside the geometry group: inside it,
+                // the group's frame animation was re-targeted by every window step of the mini
+                // transition and the button lurched along the trailing edge.
                 .overlay(alignment: .trailing) {
                     // Coloured as shuffle and repeat are: the label colour taking a share of the
                     // cover's, not the raw accent.
@@ -317,13 +328,6 @@ struct NowPlayingBar: View {
                     .opacity(isHoveringPlatter || player.isLiked ? 1 : 0)
                     .transaction { $0.animation = nil }
                 }
-                // The mask and the text it masks move as one while the platter changes size;
-                // without this the mask's bounds animated apart from the text, clipping the
-                // title's leading edge and hiding the artist line for a few frames.
-                .geometryGroup()
-                // Fills to the row's trailing edge (a trailing spacer took a share of the row),
-                // so the heart lines up with the repeat button below it.
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
 
