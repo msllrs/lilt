@@ -110,13 +110,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard visible != navigation.isQueueVisible else { return }
         #if NATIVE_FRAME
         // The window is the platter: it and the list ride one spring, either way.
-        if navigation.isMiniPlayer { resizeWindow(mini: true, queueVisible: visible, animated: true, curve: Theme.Motion.queueCurve) }
-        withAnimation(.spring(Theme.Motion.queueSpring)) { navigation.isQueueVisible = visible }
+        if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: visible ? 1 : 0, animated: true, curve: Theme.Motion.queueCurve) }
+        withAnimation(.spring(Theme.Motion.queueSpring)) {
+            navigation.isQueueVisible = visible
+            navigation.queueReveal = visible ? 1 : 0
+        }
         autoHideQueueIfEmpty()
         return
         #endif
-        if visible, navigation.isMiniPlayer { resizeWindow(mini: true, queueVisible: true) }
-        withAnimation(Theme.Motion.bounce) { navigation.isQueueVisible = visible }
+        if visible, navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: 1) }
+        withAnimation(Theme.Motion.bounce) {
+            navigation.isQueueVisible = visible
+            navigation.queueReveal = visible ? 1 : 0
+        }
         if !visible, navigation.isMiniPlayer {
             // After the spring has settled (its overshoot included).
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { [weak self] in
@@ -124,6 +130,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 resizeWindow(mini: true)
             }
         }
+        autoHideQueueIfEmpty()
+    }
+
+    /// What the platter grows by to show the whole list.
+    private var queueExtent: CGFloat {
+        QueueList.extent(manual: player.upcoming.count, automatic: player.automaticUpcoming.count)
+    }
+
+    /// Where a pull of `travel` points (up positive) from the settled state leaves the reveal.
+    private func queueReveal(afterPull travel: CGFloat) -> CGFloat {
+        let base: CGFloat = navigation.isQueueVisible ? 1 : 0
+        return min(max(base + travel / queueExtent, 0), 1)
+    }
+
+    /// The grab handle is being pulled: the list follows the pointer, and in mini so does the
+    /// window, with nothing animated in between.
+    func dragQueue(by travel: CGFloat) {
+        queueAutoHide?.cancel()
+        let reveal = queueReveal(afterPull: travel)
+        var still = Transaction()
+        still.disablesAnimations = true
+        withTransaction(still) { navigation.queueReveal = reveal }
+        if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: reveal) }
+    }
+
+    /// The grab handle was let go: a flick decides by its direction, anything slower by which end
+    /// is nearer; the list springs there.
+    func settleQueue(travel: CGFloat, velocity: CGFloat) {
+        let reveal = queueReveal(afterPull: travel)
+        let open = abs(velocity) > 300 ? velocity > 0 : reveal > 0.5
+        if open != navigation.isQueueVisible {
+            setQueueVisible(open)
+            return
+        }
+        // Back to where it was.
+        #if NATIVE_FRAME
+        if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: open ? 1 : 0, animated: true, curve: Theme.Motion.queueCurve) }
+        withAnimation(.spring(Theme.Motion.queueSpring)) { navigation.queueReveal = open ? 1 : 0 }
+        #else
+        if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: open ? 1 : 0) }
+        withAnimation(Theme.Motion.bounce) { navigation.queueReveal = open ? 1 : 0 }
+        #endif
         autoHideQueueIfEmpty()
     }
 
@@ -157,39 +205,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func queueDidChange() {
         autoHideQueueIfEmpty()
         guard navigation.isMiniPlayer, navigation.isQueueVisible, let panel else { return }
-        let target = miniHeight(queueVisible: true)
+        let target = miniHeight(reveal: 1)
         #if NATIVE_FRAME
-        if target != panel.frame.height { resizeWindow(mini: true, queueVisible: true, animated: true, curve: Theme.Motion.queueCurve) }
+        if target != panel.frame.height { resizeWindow(mini: true, queueReveal: 1, animated: true, curve: Theme.Motion.queueCurve) }
         return
         #endif
         if target > panel.frame.height {
-            resizeWindow(mini: true, queueVisible: true)
+            resizeWindow(mini: true, queueReveal: 1)
         } else if target < panel.frame.height {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
                 guard let self, navigation.isMiniPlayer, navigation.isQueueVisible else { return }
-                resizeWindow(mini: true, queueVisible: true)
+                resizeWindow(mini: true, queueReveal: 1)
             }
         }
     }
 
-    /// Window height for the mini player: the platter plus its inset and the shadow margin,
-    /// using the platter's eventual size rather than whatever it's animating through.
-    private func miniHeight(queueVisible: Bool) -> CGFloat {
+    /// Window height for the mini player: the platter with the list shown as far as `reveal`
+    /// says, plus the shadow margin. Built from the platter's base height and the list's known
+    /// extent rather than the measured height, which mid-animation is whatever it's passing
+    /// through.
+    private func miniHeight(reveal: CGFloat) -> CGFloat {
         let margin = Theme.Size.shadowMargin
-        let platter = queueVisible
-            ? navigation.platterBaseHeight + Theme.Space.sm + QueueList.height(manual: player.upcoming.count, automatic: player.automaticUpcoming.count)
-            : navigation.platterHeight
+        let platter = navigation.platterBaseHeight + reveal * queueExtent
         #if NATIVE_FRAME
         // The window is the platter: no inset below it, or the frame's shadow outlines a strip.
-        // Without the list, use the platter's base height: the measured height still includes a
-        // list that is only now folding away, and the window shrinks at the same time as it.
-        return (queueVisible ? platter : navigation.platterBaseHeight) + margin * 2
+        return platter + margin * 2
         #else
         return platter + Theme.Space.panelInset + margin * 2
         #endif
     }
 
-    private func resizeWindow(mini: Bool, queueVisible: Bool? = nil, animated: Bool = false, curve: FrameCurve = Theme.Motion.frameCurve) {
+    private func resizeWindow(mini: Bool, queueReveal: CGFloat? = nil, animated: Bool = false, curve: FrameCurve = Theme.Motion.frameCurve) {
         guard let panel else { return }
         let margin = Theme.Size.shadowMargin
         let current = panel.frame
@@ -200,7 +246,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // frame caught mid-animation (a collapse started during an expand would record a
         // half-grown height and the next expand would stop there).
         if mini, !navigation.isFrameAnimating, current.height >= Theme.Size.panelMinHeight + margin * 2 { expandedHeight = current.height }
-        let height = mini ? miniHeight(queueVisible: queueVisible ?? navigation.isQueueVisible) : expandedHeight
+        let height = mini ? miniHeight(reveal: queueReveal ?? (navigation.isQueueVisible ? 1 : 0)) : expandedHeight
         let target = Self.onScreen(NSRect(x: current.minX, y: current.minY, width: current.width, height: height), near: screen)
         #if NATIVE_FRAME
         let cornerRadius = mini ? Theme.Radius.panel : Theme.Radius.window

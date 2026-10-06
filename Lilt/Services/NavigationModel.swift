@@ -45,6 +45,10 @@ final class NavigationModel {
     /// The up-next list is open below the scrubber. Toggled by double-clicking the platter;
     /// goes through `AppDelegate.setQueueVisible` so the mini window can grow first.
     var isQueueVisible = false
+    /// How much of the up-next list is showing, 0 to 1: where `isQueueVisible` says once
+    /// settled, and in between while the grab handle is being pulled or the list springs to an
+    /// end. Not persisted.
+    var queueReveal: CGFloat = 0
     /// Receives every page opened, for the recents menu. Wired by the app.
     @ObservationIgnored weak var recents: RecentsStore?
 

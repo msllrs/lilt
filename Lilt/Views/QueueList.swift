@@ -35,6 +35,11 @@ struct QueueList: View {
         return dividerHeight + max(rowHeight, min(rows, CGFloat(maxRows) * rowHeight))
     }
 
+    /// The list plus the gap above it: what the platter grows by to show it in full.
+    static func extent(manual: Int, automatic: Int) -> CGFloat {
+        Theme.Space.sm + height(manual: manual, automatic: automatic)
+    }
+
     var body: some View {
         VStack(spacing: Theme.Space.sm) {
             Rectangle()

@@ -60,6 +60,9 @@ struct NowPlayingBar: View {
     @State private var platterFrame: CGRect = .zero
     /// How far the grab handle has to be pulled before it counts as a drag rather than a click.
     private static let handlePull: CGFloat = 12
+    /// The list stays mounted for a moment after it has closed, so its spring out completes.
+    @State private var queueLingers = false
+    @State private var lingering: Task<Void, Never>?
 
     /// Hover as the pointer actually stands once the window has stopped moving under it.
     private func settleHover() {
@@ -71,27 +74,49 @@ struct NowPlayingBar: View {
     }
 
     var body: some View {
-        VStack(spacing: Theme.Space.sm) {
+        VStack(spacing: 0) {
             VStack(spacing: Theme.Space.sm) {
                 playerRows
             }
             // The platter's size without the list, so the mini window can be sized for the
             // list's eventual height instead of chasing the animation.
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { navigation.platterBaseHeight = $0 + Theme.Space.barPadding * 2 }
-            if navigation.isQueueVisible {
+            // The list is always here, shown as far as `queueReveal` says: pulled out by the
+            // grab handle, or sprung to an end. It hangs from under the scrubber, cut off below.
+            // Mounted only while it shows (a mounted list, even at no height, takes the
+            // platter's double-click for itself), and for a beat after, so its spring out
+            // isn't cut short when the model value lands on zero.
+            let reveal = navigation.queueReveal
+            if navigation.isQueueVisible || reveal > 0 || queueLingers {
                 QueueList()
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .padding(.top, Theme.Space.sm)
+                    .frame(height: QueueList.extent(manual: player.upcoming.count, automatic: player.automaticUpcoming.count) * reveal, alignment: .top)
+                    .clipped()
+                    .opacity(reveal)
+                    .allowsHitTesting(reveal > 0.5)
             }
         }
         // The player rows never give up height to the list below them.
         .fixedSize(horizontal: false, vertical: true)
+        .onChange(of: navigation.isQueueVisible || navigation.queueReveal > 0) { _, showing in
+            lingering?.cancel()
+            if showing {
+                queueLingers = true
+            } else {
+                lingering = Task {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    guard !Task.isCancelled else { return }
+                    queueLingers = false
+                }
+            }
+        }
         .padding(Theme.Space.barPadding)
         // The list slides in from under the scrubber; clipping to the platter keeps that, and the
         // list itself, inside the glass while the platter grows and shrinks.
         .clipShape(shape)
         // A sheet-style grab handle at the top, only on hover (the platter stays clean), that
-        // shows or hides what's up next. A click toggles; so does a pull, up to open and down to
-        // close, like a sheet.
+        // shows or hides what's up next. A click toggles. A pull drags the list out with the
+        // pointer, and on release it springs to whichever end is nearer, or the way it was flicked.
         .overlay(alignment: .top) {
             Capsule()
                 .fill(.secondary.opacity(0.55))
@@ -99,12 +124,16 @@ struct NowPlayingBar: View {
                 .padding(.vertical, 3)
                 .padding(.horizontal, Theme.Space.sm)
                 .background {
+                    // The hit area runs wider and deeper than the capsule itself.
                     GrabHandle(
                         onToggle: { AppDelegate.shared?.setQueueVisible(!navigation.isQueueVisible) },
-                        onPull: { up in AppDelegate.shared?.setQueueVisible(up) },
+                        onDrag: { travel in AppDelegate.shared?.dragQueue(by: travel) },
+                        onRelease: { travel, velocity in AppDelegate.shared?.settleQueue(travel: travel, velocity: velocity) },
                         pull: Self.handlePull,
                         toolTip: navigation.isQueueVisible ? "Hide Up Next" : "Show Up Next"
                     )
+                    .padding(.horizontal, -13)
+                    .padding(.bottom, -6)
                 }
                 .opacity(isHoveringPlatter ? 1 : 0)
                 .allowsHitTesting(isHoveringPlatter)
