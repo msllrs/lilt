@@ -80,8 +80,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func applyMiniPlayerChange(_ mini: Bool) {
         guard mini != navigation.isMiniPlayer else { return }
-        // Every path here is a hand on the platter (double-click, the cover, the menu).
-        Haptics.levelChange()
         #if NATIVE_FRAME
         // The window is the container: its frame animates alongside the fade and the system
         // shadow follows it, instead of outlining an empty window until a later resize.
@@ -108,10 +106,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// Opens or closes the queue below the scrubber. In mini the window is the platter, so it
     /// grows (unanimated, into transparent space above) before the list animates in, and
     /// shrinks only after the list has animated out; expanded, the platter just grows upward.
-    /// `haptic` is for the hand that asked: a list folding away on its own stays silent.
-    func setQueueVisible(_ visible: Bool, haptic: Bool = true) {
+    func setQueueVisible(_ visible: Bool) {
         guard visible != navigation.isQueueVisible else { return }
-        if haptic { Haptics.levelChange() }
         #if NATIVE_FRAME
         // The window is the platter: it and the list ride one spring, either way.
         if navigation.isMiniPlayer { resizeWindow(mini: true, queueVisible: visible, animated: true, curve: Theme.Motion.queueCurve) }
@@ -139,7 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         queueAutoHide = Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.5))
             guard !Task.isCancelled, let self, navigation.isQueueVisible, player.upcoming.isEmpty, player.automaticUpcoming.isEmpty else { return }
-            setQueueVisible(false, haptic: false)
+            setQueueVisible(false)
         }
     }
 

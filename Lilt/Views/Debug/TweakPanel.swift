@@ -138,10 +138,6 @@ struct TweakPanel: View {
                 slider("Disc shadow blur", $style.dockTile.shadowBlur, 0...0.4)
                 slider("Disc shadow offset", $style.dockTile.shadowOffsetY, -0.1...0.2)
             }
-            Section("Haptics") {
-                Button("Tap: alignment") { Haptics.alignment() }
-                Button("Tap: level change") { Haptics.levelChange() }
-            }
             Section("Header blur") {
                 Toggle("Backdrop ramp (private API)", isOn: $style.headerBlur.useBackdrop)
                     .disabled(!ProgressiveBlurBackdrop.isAvailable)
