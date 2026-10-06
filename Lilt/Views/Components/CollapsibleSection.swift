@@ -81,6 +81,10 @@ struct CollapsibleSection<Content: View>: View {
         // but only those near the viewport are built. A plain stack built every row the moment
         // the screen appeared (a whole library at once), felt as a pause before it showed.
         LazyVStack(spacing: 0) { content() }
+            // Keeps its natural height whatever the clip below proposes. A lazy stack sizes
+            // itself to a proposal, shedding rows as the clip shrinks, and its height then
+            // positions the next section's title on a different curve from the fold.
+            .fixedSize(horizontal: false, vertical: true)
             .frame(maxHeight: isCollapsed ? 0 : nil, alignment: .top)
             .mask {
                 if fold > 0 {
