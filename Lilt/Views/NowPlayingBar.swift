@@ -262,7 +262,7 @@ struct NowPlayingBar: View {
                 }
                 .overlay(alignment: .trailing) {
                     ModeButton(
-                        symbol: player.isLiked ? "heart.fill" : "heart",
+                        symbol: player.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
                         isOn: player.isLiked,
                         revealed: isHoveringPlatter,
                         tint: accent,
@@ -389,7 +389,7 @@ private struct ModeButton: View {
     private var help: String {
         if symbol.hasPrefix("repeat") { return "Repeat" }
         if symbol == "shuffle" { return "Shuffle" }
-        if symbol.hasPrefix("heart") { return isOn ? "Unlike" : "Like" }
+        if symbol.hasPrefix("hand.thumbsup") { return isOn ? "Unlike" : "Like" }
         return ""
     }
     let symbol: String
