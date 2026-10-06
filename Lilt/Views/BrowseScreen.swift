@@ -303,6 +303,8 @@ struct BrowseScreen: View {
 
     /// A trackpad tap as the scroll lands at either end of the hero's travel. Leaving a stop
     /// takes a little more travel than reaching it, so hovering at the edge can't tick twice.
+    /// A flick can report one stop and then the other with nothing in between, so arriving at
+    /// a stop ticks whatever the last state was, as long as it wasn't this stop already.
     private func tickIfLanded(_ travel: CGFloat) {
         let stop: HeroStop
         switch travel {
@@ -475,14 +477,15 @@ private struct HeroGlass<S: InsettableShape>: ViewModifier {
                             stops: [.init(color: cast.opacity(style.washOpacity(dark: dark)), location: 0), .init(color: .clear, location: style.washReach)],
                             startPoint: .top, endPoint: .bottom
                         ))
-                        // The rim catches the light along the top, fading out below the start.
-                        shape.inset(by: 0.5).strokeBorder(
+                        // The rim catches the light along the top, fading out below the start. It
+                        // runs on the glass highlight's own path, centred on the outline, so the
+                        // cast colours that highlight rather than lining the inside of it.
+                        shape.inset(by: -0.5).stroke(
                             LinearGradient(stops: [.init(color: cast.opacity(style.rimOpacity), location: 0), .init(color: .clear, location: 1 - style.rimStart)], startPoint: .top, endPoint: .bottom),
                             lineWidth: style.rimWidth
                         )
                     }
                     .blendMode(style.blend(dark: dark))
-                    .clipShape(shape)
                     .allowsHitTesting(false)
                 }
             }
