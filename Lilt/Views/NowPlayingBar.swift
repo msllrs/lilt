@@ -124,7 +124,8 @@ struct NowPlayingBar: View {
                 .padding(.vertical, 3)
                 .padding(.horizontal, Theme.Space.sm)
                 .background {
-                    // The hit area runs wider and deeper than the capsule itself.
+                    // The hit area runs well wider and deeper than the capsule: 120 by 20 points
+                    // from the platter's top edge, which stops short of anything else clickable.
                     GrabHandle(
                         onToggle: { AppDelegate.shared?.setQueueVisible(!navigation.isQueueVisible) },
                         onDrag: { travel in AppDelegate.shared?.dragQueue(by: travel) },
@@ -132,8 +133,8 @@ struct NowPlayingBar: View {
                         pull: Self.handlePull,
                         toolTip: navigation.isQueueVisible ? "Hide Up Next" : "Show Up Next"
                     )
-                    .padding(.horizontal, -13)
-                    .padding(.bottom, -6)
+                    .padding(.horizontal, -37)
+                    .padding(.bottom, -10)
                 }
                 .opacity(isHoveringPlatter ? 1 : 0)
                 .allowsHitTesting(isHoveringPlatter)
