@@ -94,7 +94,8 @@ struct QueueList: View {
         let fullHeight = listHeight + Self.rowGutter
         // The List stays mounted when empty (the placeholder lays over it), so the last row's
         // removal animates like any other instead of the whole list being swapped out.
-        return List {
+        return ScrollViewReader { proxy in
+        List {
             // Each entry has its own identity (the same track can be queued twice), so rows
             // animate out and shuffle up instead of swapping their contents.
             ForEach(entries) { entry in
@@ -141,6 +142,12 @@ struct QueueList: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .contentMargins(0, for: .scrollContent)
+        // A track added by hand goes in at the top of the list; a scrolled list would keep its
+        // place and leave the new row cut off above the fade, so it scrolls to show it.
+        .onChange(of: entries.count) { old, new in
+            guard new > old, let first = entries.first else { return }
+            withAnimation(Theme.Motion.settle) { proxy.scrollTo(first.id, anchor: .top) }
+        }
         // The smallest row is the label; rows set their own height. At the row height, the
         // label was stretched to a full row and the gap beneath it ballooned.
         .environment(\.defaultMinListRowHeight, Self.leadingLabelHeight)
@@ -178,6 +185,7 @@ struct QueueList: View {
             )
         }
         .frame(height: fullHeight)
+        }
         .frame(height: listHeight, alignment: .top)
         .clipped()
         .overlay {
