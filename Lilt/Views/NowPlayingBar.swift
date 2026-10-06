@@ -88,7 +88,8 @@ struct NowPlayingBar: View {
             // isn't cut short when the model value lands on zero.
             let reveal = navigation.queueReveal
             if navigation.isQueueVisible || reveal > 0 || queueLingers {
-                QueueList()
+                // The list's text takes the cover's colour as the title and artist above do.
+                InterpolatedColor(accent) { QueueList(accent: $0) }
                     .padding(.top, Theme.Space.sm)
                     .frame(height: QueueList.extent(manual: player.upcoming.count, automatic: player.automaticUpcoming.count) * reveal, alignment: .top)
                     .clipped()

@@ -6,7 +6,22 @@ import SwiftUI
 /// jumps to it.
 struct QueueList: View {
     @Environment(PlayerService.self) private var player
+    @Environment(\.colorScheme) private var colorScheme
+    /// The cover's colour, already interpolated by the platter; the list's text takes the same
+    /// share of it as the platter's title and artist do.
+    var accent: Color? = nil
     @State private var scrollEdges = ScrollEdges()
+
+    private var tint: Double { ArtworkStyle.shared.platter.textTint }
+    private var titleColor: Color {
+        let mono = colorScheme == .dark ? Color.white : Color.black
+        return accent.map { mono.mix(with: $0, by: tint) } ?? mono
+    }
+    private var secondaryColor: Color { accent.map { Color.secondary.mix(with: $0, by: tint * 0.5) } ?? .secondary }
+    private var tertiaryColor: Color {
+        let base = Color(nsColor: .tertiaryLabelColor)
+        return accent.map { base.mix(with: $0, by: tint * 0.5) } ?? base
+    }
 
     /// Whether the list has content hidden past each end.
     private struct ScrollEdges: Equatable {
@@ -67,7 +82,7 @@ struct QueueList: View {
             // Each entry has its own identity (the same track can be queued twice), so rows
             // animate out and shuffle up instead of swapping their contents.
             ForEach(entries) { entry in
-                QueueRow(track: entry.track) {
+                QueueRow(track: entry.track, titleColor: titleColor, secondaryColor: secondaryColor) {
                     guard let offset = player.upcomingOffset(of: entry.id) else { return }
                     withAnimation(Theme.Motion.settle) { player.playUpcoming(at: offset) }
                 } remove: {
@@ -85,7 +100,7 @@ struct QueueList: View {
             if !automatic.isEmpty {
                 Text(player.sourceTitle.map { "Up next from \($0)" } ?? "Up next")
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(tertiaryColor)
                     .textCase(.uppercase)
                     .kerning(0.5)
                     .lineLimit(1)
@@ -97,7 +112,7 @@ struct QueueList: View {
                 // Keyed by track (a repeat gets a numbered key), so when the group shifts the
                 // rows move rather than crossfading their text in place.
                 ForEach(Array(Self.keyed(automatic).enumerated()), id: \.element.key) { offset, entry in
-                    QueueRow(track: entry.track, play: {
+                    QueueRow(track: entry.track, titleColor: titleColor, secondaryColor: secondaryColor, play: {
                         withAnimation(Theme.Motion.settle) { player.playAutomatic(at: offset) }
                     }, remove: nil)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
@@ -143,7 +158,7 @@ struct QueueList: View {
             if entries.isEmpty, automatic.isEmpty {
                 Text("Nothing up next")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(tertiaryColor)
                     .transition(.opacity)
             }
         }
@@ -154,6 +169,9 @@ struct QueueList: View {
 
 private struct QueueRow: View {
     let track: Track
+    /// Title and artist colours, carrying the platter's share of the cover's colour.
+    let titleColor: Color
+    let secondaryColor: Color
     let play: () -> Void
     /// Nil for the automatic group, which can't be edited.
     let remove: (() -> Void)?
@@ -172,10 +190,11 @@ private struct QueueRow: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(track.title)
                         .font(.caption)
+                        .foregroundStyle(titleColor)
                         .lineLimit(1)
                     Text(track.artist)
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(secondaryColor)
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
