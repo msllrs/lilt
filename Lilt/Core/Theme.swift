@@ -51,6 +51,8 @@ enum Theme {
         /// sit beside, so the header row reads as one line of equal circles.
         static let headerArtwork: CGFloat = headerRow
         static let rowArtwork: CGFloat = 40
+        /// Every list row (track, album, artist, playlist): the artwork plus its vertical padding.
+        static let row: CGFloat = rowArtwork + (Space.xs + 2) * 2
         static let barArtwork: CGFloat = 48
         static let controlIcon: CGFloat = 16
         static let playIcon: CGFloat = 22

@@ -167,7 +167,7 @@ final class ImageCache {
         return image
     }
 
-    private func store(_ image: NSImage, for url: URL) {
+    func store(_ image: NSImage, for url: URL) {
         let pixels = image.representations.first.map { $0.pixelsWide * $0.pixelsHigh } ?? Int(image.size.width * image.size.height)
         images.setObject(image, forKey: url.absoluteString as NSString, cost: pixels * 4)
         variants[Self.baseKey(url), default: []].append(url)
