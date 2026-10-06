@@ -80,6 +80,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func applyMiniPlayerChange(_ mini: Bool) {
         guard mini != navigation.isMiniPlayer else { return }
+        // Every path here is a hand on the platter (double-click, the cover, the menu).
+        Haptics.levelChange()
         #if NATIVE_FRAME
         // The window is the container: its frame animates alongside the fade and the system
         // shadow follows it, instead of outlining an empty window until a later resize.
