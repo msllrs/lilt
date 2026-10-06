@@ -12,7 +12,21 @@ import SwiftUI
 final class ImageCache {
     static let shared = ImageCache()
 
-    private let images = NSCache<NSString, NSImage>()
+    /// Decoded covers, least recently used first out. A plain store rather than NSCache, whose
+    /// limit is a hint and which evicted on heuristics of its own: a log showed it throwing out
+    /// hundreds of covers a minute well under budget, which showed as rows re-loading their
+    /// covers on every visit.
+    private var images: [String: Entry] = [:]
+    private var totalCost = 0
+    private var tick: UInt64 = 0
+    private struct Entry {
+        let image: NSImage
+        let cost: Int
+        var lastUsed: UInt64
+    }
+    /// Decoded pixels. Covers are decoded no larger than needed (see `load`), so this holds
+    /// several hundred of them.
+    private static let costLimit = 160 * 1024 * 1024
     /// Average colour per cached URL, for balancing ambient shadows and tinting the platter.
     private var averages: [String: (r: CGFloat, g: CGFloat, b: CGFloat)] = [:]
     /// Average luminance of the outer perimeter per cached URL, for picking the keyline colour.
@@ -27,16 +41,9 @@ final class ImageCache {
     /// Diagnostics: covers that have been stored, so a miss on one of them can be told apart
     /// from a cover never loaded.
     private var everStored = Set<String>()
-    private let evictions = EvictionLog()
     private static let log = Logger(subsystem: "com.msllrs.Lilt", category: "imagecache")
 
     private init() {
-        // Decoded pixels. Covers are decoded no larger than `maxPixels` on a side, so this holds
-        // several hundred of them; before, 576px playlist art and 1280px video thumbnails came
-        // in at up to 3.7MB each and a few hundred distinct covers thrashed the cache, which
-        // showed as rows re-loading covers on every visit.
-        images.totalCostLimit = 160 * 1024 * 1024
-        images.delegate = evictions
         let config = URLSessionConfiguration.default
         config.urlCache = URLCache(memoryCapacity: 20 * 1024 * 1024, diskCapacity: 300 * 1024 * 1024)
         config.requestCachePolicy = .returnCacheDataElseLoad
@@ -44,11 +51,25 @@ final class ImageCache {
     }
 
     func cached(_ url: URL) -> NSImage? {
-        let hit = images.object(forKey: url.absoluteString as NSString)
-        if hit == nil, everStored.contains(url.absoluteString) {
-            Self.log.debug("miss on a cover stored earlier: \(url.absoluteString, privacy: .public)")
+        let key = url.absoluteString
+        guard let entry = images[key] else {
+            if everStored.contains(key) { Self.log.debug("miss on a cover stored earlier: \(key, privacy: .public)") }
+            return nil
         }
-        return hit
+        tick += 1
+        images[key]?.lastUsed = tick
+        return entry.image
+    }
+
+    /// Makes room for `cost` more, least recently used first.
+    private func evict(toFit cost: Int) {
+        guard totalCost + cost > Self.costLimit else { return }
+        for (key, entry) in images.sorted(by: { $0.value.lastUsed < $1.value.lastUsed }) {
+            images[key] = nil
+            totalCost -= entry.cost
+            Self.log.debug("evicting \(key, privacy: .public) (\(entry.cost / 1024)KB)")
+            if totalCost + cost <= Self.costLimit { break }
+        }
     }
 
     // MARK: Launch artwork
@@ -172,12 +193,16 @@ final class ImageCache {
     /// Fetches, decodes and measures the artwork off the main thread; what reaches the main
     /// actor is a finished bitmap and three numbers. Decoded lazily, at first draw, a cover
     /// cost the main thread its decode in the middle of a scroll.
-    func load(_ url: URL) async -> NSImage? {
+    /// `maxPixels` is the largest side anything will draw the cover at: the hero at 140pt on a
+    /// 2x display by default; the Dock tile asks for more. The server's rendition can be far
+    /// bigger (576px playlist art, 1280px video thumbnails), and decoded at that size a cover
+    /// cost up to 3.7MB, so a couple of hundred of them overran any sensible budget.
+    func load(_ url: URL, maxPixels: Int = 288) async -> NSImage? {
         if let hit = cached(url) { return hit }
         if let task = inflight[url] { return await task.value?.image }
         let task = Task<DecodedArtwork?, Never>.detached(priority: .utility) { [session] in
             guard let (data, _) = try? await session.data(from: url) else { return nil }
-            return DecodedArtwork(data)
+            return DecodedArtwork(data, maxPixels: maxPixels)
         }
         inflight[url] = task
         let decoded = await task.value
@@ -194,8 +219,14 @@ final class ImageCache {
 
     private func store(_ image: NSImage, for url: URL, average: (r: CGFloat, g: CGFloat, b: CGFloat)?, edge: CGFloat?, dominant: (r: CGFloat, g: CGFloat, b: CGFloat)?) {
         let pixels = image.representations.first.map { $0.pixelsWide * $0.pixelsHigh } ?? Int(image.size.width * image.size.height)
-        images.setObject(image, forKey: url.absoluteString as NSString, cost: pixels * 4)
-        everStored.insert(url.absoluteString)
+        let cost = pixels * 4
+        let key = url.absoluteString
+        if let old = images[key] { totalCost -= old.cost }
+        evict(toFit: cost)
+        tick += 1
+        images[key] = Entry(image: image, cost: cost, lastUsed: tick)
+        totalCost += cost
+        everStored.insert(key)
         variants[Self.baseKey(url), default: []].append(url)
         if let average { averages[url.absoluteString] = average }
         if let edge { edges[url.absoluteString] = edge }
@@ -344,21 +375,18 @@ final class ImageCache {
 
 /// Artwork decoded to a bitmap and measured, off the main thread. The image is built from a
 /// CGImage decoded immediately, so drawing it later is a copy, not a decode, and no larger
-/// than anything draws it (the Dock tile, at 512px, is the biggest), so a cover costs what it
-/// is worth in the cache.
+/// than the caller will draw it, so a cover costs what it is worth in the cache.
 private struct DecodedArtwork: @unchecked Sendable {
-    static let maxPixels = 512
-
     let image: NSImage
     let average: (r: CGFloat, g: CGFloat, b: CGFloat)?
     let edge: CGFloat?
     let dominant: (r: CGFloat, g: CGFloat, b: CGFloat)?
 
-    init?(_ data: Data) {
+    init?(_ data: Data, maxPixels: Int) {
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: Self.maxPixels,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixels,
             kCGImageSourceShouldCacheImmediately: true,
         ]
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
@@ -367,14 +395,5 @@ private struct DecodedArtwork: @unchecked Sendable {
         average = ImageCache.averageColor(of: image)
         edge = ImageCache.edgeLuminance(of: image)
         dominant = ImageCache.dominantColor(of: image)
-    }
-}
-
-/// Diagnostics: says when the cache throws a cover out.
-private final class EvictionLog: NSObject, NSCacheDelegate {
-    private static let log = Logger(subsystem: "com.msllrs.Lilt", category: "imagecache")
-    func cache(_ cache: NSCache<AnyObject, AnyObject>, willEvictObject obj: Any) {
-        let image = obj as? NSImage
-        Self.log.debug("evicting a cover \(image.map { "\(Int($0.size.width))px" } ?? "?", privacy: .public)")
     }
 }

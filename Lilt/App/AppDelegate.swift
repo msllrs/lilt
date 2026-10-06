@@ -343,7 +343,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             // The row thumbnail is 240px; the Dock tile wants more, so ask for a larger rendition
             // of the same cover (Google thumbnails take the size in the URL).
             let large = ImageCache.sized(url, 544)
-            var image = await ImageCache.shared.load(large)
+            var image = await ImageCache.shared.load(large, maxPixels: 512)
             if image == nil { image = await ImageCache.shared.load(url) }
             guard let image, self?.dockArtworkURL == url else { return }
             let accent = ImageCache.shared.accent(for: large, saturationBoost: 1) ?? ImageCache.shared.tint(for: large, saturationBoost: 1)
