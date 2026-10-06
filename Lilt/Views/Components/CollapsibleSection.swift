@@ -77,14 +77,10 @@ struct CollapsibleSection<Content: View>: View {
         // ever draws over the header. While folding, the bottom edge fades rather than cuts.
         // Clip and fade apply only while folding or folded; an open section is left untouched
         // so the last row's ambient shadow can spill past the section as usual.
-        // A lazy stack of its own, nested in the screen's: the rows stay one view for the clip,
-        // but only those near the viewport are built. A plain stack built every row the moment
-        // the screen appeared (a whole library at once), felt as a pause before it showed.
-        LazyVStack(spacing: 0) { content() }
-            // Keeps its natural height whatever the clip below proposes. A lazy stack sizes
-            // itself to a proposal, shedding rows as the clip shrinks, and its height then
-            // positions the next section's title on a different curve from the fold.
-            .fixedSize(horizontal: false, vertical: true)
+        // A plain stack, not a lazy one: nested in the screen's lazy stack, a lazy section sized
+        // itself to the fold's shrinking clip and shed rows, the next title moved on its own
+        // curve, and sections reordered on their own. Rows must be cheap to build instead.
+        VStack(spacing: 0) { content() }
             .frame(maxHeight: isCollapsed ? 0 : nil, alignment: .top)
             .mask {
                 if fold > 0 {
