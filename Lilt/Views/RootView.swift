@@ -348,7 +348,6 @@ private struct LeadingButton: View {
                                 }
                         }
                         .blendMode(style.blend(dark: dark))
-                        .clipShape(Circle())
                     }
                 }
                 // Only while a browse page is on top: the library page (or any page without a
