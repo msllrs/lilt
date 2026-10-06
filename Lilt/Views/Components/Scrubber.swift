@@ -19,8 +19,9 @@ struct Scrubber: NSViewRepresentable {
         let cell = LineSliderCell()
         cell.tint = tint
         slider.cell = cell
-        slider.minValue = range.lowerBound
-        slider.maxValue = range.upperBound
+        // Every write redraws the control, so only what changed is written.
+        if slider.minValue != range.lowerBound { slider.minValue = range.lowerBound }
+        if slider.maxValue != range.upperBound { slider.maxValue = range.upperBound }
         slider.doubleValue = value
         slider.target = context.coordinator
         slider.action = #selector(Coordinator.changed(_:))
@@ -39,7 +40,7 @@ struct Scrubber: NSViewRepresentable {
             slider.needsDisplay = true
         }
         // Don't fight the user's hand while they're dragging.
-        if !context.coordinator.isDragging {
+        if !context.coordinator.isDragging, slider.doubleValue != value {
             slider.doubleValue = value
         }
     }
