@@ -27,17 +27,20 @@ struct SearchScreen: View {
             // A safe-area *bar* (not inset): results scroll beneath it and the system draws its
             // progressive scroll-edge blur under the field.
             .safeAreaBar(edge: .top, spacing: 0) {
-                HStack(spacing: Theme.Space.sm) {
-                    // The library button itself is drawn by the column, static above the pages
-                    // (it becomes the back chevron); this just keeps its room.
-                    Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
-                    SearchField(text: $navigation.query)
-                    RecentsMenu()
+                // Signed out there is nothing to search or revisit, so no controls at all.
+                if auth.isSignedIn {
+                    HStack(spacing: Theme.Space.sm) {
+                        // The library button itself is drawn by the column, static above the pages
+                        // (it becomes the back chevron); this just keeps its room.
+                        Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
+                        SearchField(text: $navigation.query)
+                        RecentsMenu()
+                    }
+                    .padding(.top, Theme.Space.panelInset)
+                    .padding(.horizontal, Theme.Space.panelInset)
+                    .padding(.bottom, Theme.Space.sm)
+                    .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
                 }
-                .padding(.top, Theme.Space.panelInset)
-                .padding(.horizontal, Theme.Space.panelInset)
-                .padding(.bottom, Theme.Space.sm)
-                .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
             }
             .task(id: navigation.query) { await search() }
     }
@@ -122,16 +125,33 @@ struct SearchScreen: View {
     }
 }
 
+/// The welcome when nobody is signed in: the app's own icon, a line on what Lilt is, and the
+/// one thing to do.
 private struct SignedOutView: View {
     @Environment(AuthService.self) private var auth
 
+    /// The icon from the bundle, not `NSApp.applicationIconImage`, which the Dock tile replaces
+    /// with the cover while something plays.
+    private static let icon = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
+
     var body: some View {
         VStack(spacing: Theme.Space.lg) {
-            EmptyHint(symbol: "person.crop.circle", title: "Sign in to YouTube Music", detail: "Lilt uses your account and Premium subscription.")
+            Image(nsImage: Self.icon)
+                .resizable()
+                .frame(width: 96, height: 96)
+            VStack(spacing: Theme.Space.xs) {
+                Text("Your YouTube Music, in Lilt")
+                    .font(.title3.weight(.semibold))
+                Text("Sign in with your Google account to access your library, playlists and music. A Premium subscription is required.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
             Button("Sign In") { auth.isPresentingLogin = true }
                 .buttonStyle(.glassProminent)
                 .controlSize(.large)
         }
+        .padding(.horizontal, Theme.Space.xl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

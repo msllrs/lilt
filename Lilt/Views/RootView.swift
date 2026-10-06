@@ -82,6 +82,7 @@ struct RootView: View {
 private struct NavigationColumn: View {
     @Environment(NavigationModel.self) private var navigation
     @Environment(ScrollTracker.self) private var scrollTracker
+    @Environment(AuthService.self) private var auth
 
     /// How far a screen travels while entering or leaving.
     private static let travel: CGFloat = 20
@@ -115,10 +116,13 @@ private struct NavigationColumn: View {
         // One static control in the top-left corner: the library glyph on the search root, the
         // back chevron on every page. Pages slide beneath it; it only swaps glyphs in place.
         .overlay(alignment: .topLeading) {
-            // Alone in the overlay: a second child would make an implicit, centred stack.
-            LeadingButton(isBack: !path.isEmpty)
-                .padding(.top, Theme.Space.panelInset)
-                .padding(.leading, Theme.Space.panelInset)
+            // Alone in the overlay: a second child would make an implicit, centred stack. Signed
+            // out there is no library to open, so no button.
+            if auth.isSignedIn {
+                LeadingButton(isBack: !path.isEmpty)
+                    .padding(.top, Theme.Space.panelInset)
+                    .padding(.leading, Theme.Space.panelInset)
+            }
         }
         .background {
             if !path.isEmpty {
