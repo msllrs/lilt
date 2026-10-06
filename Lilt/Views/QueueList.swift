@@ -29,7 +29,9 @@ struct QueueList: View {
         var moreBelow = false
     }
 
-    static let rowHeight: CGFloat = 36
+    /// A 28pt cover with the same gap between rows as the main lists keep between their 40pt
+    /// covers (12pt), so the two read as one rhythm.
+    static let rowHeight: CGFloat = 28 + (Theme.Size.row - Theme.Size.rowArtwork)
     static let maxRows = 5
     /// The horizontal inset a plain List keeps around its rows on macOS.
     static let tableInset: CGFloat = 8
@@ -45,7 +47,7 @@ struct QueueList: View {
     static let leadingLabelHeight: CGFloat = 14
     static func labelHeight(manual: Int) -> CGFloat { manual == 0 ? leadingLabelHeight : groupLabelHeight }
 
-    /// A row's artwork is 28pt in a 36pt row: this much sits above and below it. The list ends
+    /// A row's artwork is 28pt in a 40pt row: this much sits above and below it. The list ends
     /// at the last row's artwork, not its gutter, so the gap to the platter's edge below matches
     /// the one beside the covers.
     static let rowGutter: CGFloat = (rowHeight - 28) / 2
@@ -117,8 +119,8 @@ struct QueueList: View {
                     .textCase(.uppercase)
                     .kerning(0.5)
                     .lineLimit(1)
+                    // Flush with the covers below it.
                     .frame(height: Self.labelHeight(manual: entries.count), alignment: .bottom)
-                    .padding(.leading, Theme.Space.xs)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
