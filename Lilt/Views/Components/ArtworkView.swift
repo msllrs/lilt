@@ -219,10 +219,12 @@ struct ArtworkView: View {
             // Flattened to one bitmap. Left as layers, the two blurs and the saturation are
             // compositor filters that the window server re-runs on every frame the row moves,
             // and a list of covers scrolled at a fraction of the refresh rate. The padding gives
-            // the spill room before the flattening clips to its bounds.
-            .padding(size * 0.5)
+            // the spill room before the flattening clips to its bounds: a cover's width each
+            // way, since the blur runs well past the shadow's own edge and is pushed down too
+            // (at half that, the bottom of every shadow was cut square).
+            .padding(size)
             .drawingGroup()
-            .padding(-size * 0.5)
+            .padding(-size)
             .allowsHitTesting(false)
         }
     }
