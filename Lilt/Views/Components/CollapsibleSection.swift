@@ -124,7 +124,10 @@ nonisolated private struct FoldRow: ViewModifier, Animatable {
         let mine = min(max(visible - CGFloat(index) * height, 0), height)
         content
             .frame(height: mine, alignment: .top)
-            .clipped()
+            // Clipped to the row only while folding. At rest the clip stands far outside it, so
+            // the cover's ambient shadow can spill past the row as it always has; a plain
+            // `.clipped()` here cut every shadow square at the row's edges.
+            .clipShape(Rectangle().inset(by: progress > 0 ? 0 : -height * 4))
             .opacity(mine / height)
     }
 }
