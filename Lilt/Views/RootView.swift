@@ -73,6 +73,9 @@ struct RootView: View {
         }
         .animation(Theme.Motion.standard, value: player.current?.id)
         .animation(Theme.Motion.frame, value: mini)
+        // Everything outside a screen (the platter's marquee and disc) pauses with the hidden
+        // panel too; screens combine this with their own parked state above.
+        .environment(\.screenIsParked, navigation.isPanelHidden)
     }
 }
 
@@ -98,7 +101,7 @@ private struct NavigationColumn: View {
         let path = navigation.path
         ZStack {
             SearchScreen()
-                .parked(path.isEmpty ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path)
+                .parked(path.isEmpty ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path, panelHidden: navigation.isPanelHidden)
             ForEach(Array(path.enumerated()), id: \.element.id) { index, item in
                 let isTop = index == path.count - 1
                 Group {
@@ -108,7 +111,7 @@ private struct NavigationColumn: View {
                         BrowseScreen(item: item)
                     }
                 }
-                .parked(isTop ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path)
+                .parked(isTop ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path, panelHidden: navigation.isPanelHidden)
                 .transition(.offset(x: Self.travel).combined(with: .opacity).animation(Self.enter))
             }
         }
@@ -233,7 +236,7 @@ private struct LeadingButton: View {
 private extension View {
     /// Keeps a screen mounted but slid aside and inert while another one is on top.
     @ViewBuilder
-    func parked<V: Equatable>(_ edge: HorizontalEdge?, travel: CGFloat, blur: CGFloat, animation: Animation, value: V) -> some View {
+    func parked<V: Equatable>(_ edge: HorizontalEdge?, travel: CGFloat, blur: CGFloat, animation: Animation, value: V, panelHidden: Bool) -> some View {
         let parked = edge != nil
         self
             .offset(x: edge == .leading ? -travel : edge == .trailing ? travel : 0)
@@ -246,7 +249,7 @@ private extension View {
             .accessibilityHidden(parked)
             // Discs, notes and marquees stop while a screen sits unseen beneath another; left
             // running, every parked page redrew its spinning artwork thirty times a second.
-            .environment(\.screenIsParked, parked)
+            .environment(\.screenIsParked, parked || panelHidden)
     }
 }
 

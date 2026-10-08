@@ -17,6 +17,10 @@ final class NavigationModel {
     /// True while the native frame is animating between the column and the platter; the column
     /// holds its expanded layout until it ends. Not persisted.
     var isFrameAnimating = false
+    /// The panel is hidden (alpha zero, kept alive for its window-server state). Every clock in
+    /// the view tree pauses on it: a hidden window keeps its hosting view, and timelines in it
+    /// kept ticking. Not persisted.
+    var isPanelHidden = false
     /// The native frame's current corner radius while it eases between the panel's and the
     /// platter's. Behind-window surfaces mask themselves to it, since the frame's own clip
     /// doesn't reach them. Not persisted.

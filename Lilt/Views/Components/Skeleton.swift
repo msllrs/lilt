@@ -76,6 +76,7 @@ enum Skeleton {
     /// A soft band of light passing across the placeholders, once every couple of seconds.
     struct Shimmer: ViewModifier {
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @Environment(\.screenIsParked) private var parked
         @State private var phase: CGFloat = -1
 
         func body(content: Content) -> some View {
@@ -98,9 +99,16 @@ enum Skeleton {
                         .allowsHitTesting(false)
                     }
                 }
-                .onAppear {
-                    guard !reduceMotion else { return }
-                    withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) { phase = 1.4 }
+                // A repeat-forever animation runs every frame for as long as its view lives, so
+                // it is started only while the screen is in view and put back when it isn't.
+                .onChange(of: parked || reduceMotion, initial: true) { _, still in
+                    if still {
+                        var stop = Transaction()
+                        stop.disablesAnimations = true
+                        withTransaction(stop) { phase = -1 }
+                    } else {
+                        withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) { phase = 1.4 }
+                    }
                 }
         }
     }

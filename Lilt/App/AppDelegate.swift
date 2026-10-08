@@ -444,6 +444,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let panel else { return }
         // Never show it somewhere you can't see it.
         panel.setFrame(Self.onScreen(panel.frame, near: panel.screen ?? NSScreen.main ?? NSScreen.screens[0]), display: false)
+        navigation.isPanelHidden = false
         panel.alphaValue = 1
         panel.ignoresMouseEvents = false
         panel.makeKeyAndOrderFront(nil)
@@ -536,6 +537,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// window keeps that state warm.
     func hidePanel() {
         guard let panel else { return }
+        navigation.isPanelHidden = true
         panel.alphaValue = 0
         panel.ignoresMouseEvents = true
         panel.orderBack(nil)
