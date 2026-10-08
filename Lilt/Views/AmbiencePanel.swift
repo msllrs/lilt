@@ -46,43 +46,39 @@ struct AmbiencePanel: View {
                 Spacer(minLength: Theme.Space.sm)
                 level($ambience.volume, help: "Ambience level")
             }
-            // The tower: a station, a play button, a level.
+            // The tower: the airplane switches the feed on and off, under the rain button; the
+            // name beside it picks the station; a level at the end.
             HStack(spacing: Theme.Space.xs) {
+                Button { ambience.setStreaming(!ambience.isStreaming) } label: {
+                    Image(systemName: "airplane")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(ambience.isStreaming ? tint : dim)
+                        .frame(width: 28, height: 28)
+                        .background(Circle().fill(tint.opacity(ambience.isStreaming ? 0.14 : 0)))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.pressable(scale: 0.88))
+                .help(ambience.isStreaming ? "Stop the feed" : "Listen to the feed")
                 Menu {
                     ForEach(AmbienceService.stations) { station in
                         Button(station.name) { ambience.station = station }
                     }
                 } label: {
-                    HStack(spacing: Theme.Space.xs) {
-                        Image(systemName: "airplane")
-                            .font(.system(size: 11, weight: .semibold))
-                        // A fixed box the name scrolls in on hover, so a long one can't widen
-                        // the platter.
-                        MarqueeText(text: ambience.station.name, isActive: isHoveringStation, font: .caption, color: AnyShapeStyle(ambience.isStreaming ? tint : dim))
-                            .frame(width: Self.stationWidth)
-                    }
-                    .foregroundStyle(ambience.isStreaming ? tint : dim)
-                    .frame(height: 28)
-                    .contentShape(Rectangle())
+                    // A fixed box the name scrolls in on hover, so a long one can't widen the
+                    // platter.
+                    MarqueeText(text: ambience.station.name, isActive: isHoveringStation, font: .caption, color: AnyShapeStyle(ambience.isStreaming ? tint : dim))
+                        .frame(width: Self.stationWidth, height: 28)
+                        .contentShape(Rectangle())
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
                 .menuIndicator(.hidden)
                 // A menu button sizes itself to its widest item, not its label, which widened
                 // the platter as the drawer came and went; it gets the label's width and no more.
-                .frame(width: 11 + Theme.Space.xs + Self.stationWidth, alignment: .leading)
+                .frame(width: Self.stationWidth, alignment: .leading)
                 .clipped()
                 .onHover { isHoveringStation = $0 }
-                .help("Air traffic control feed")
-                Button { ambience.setStreaming(!ambience.isStreaming) } label: {
-                    Image(systemName: ambience.isStreaming ? "stop.fill" : "play.fill")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(ambience.isStreaming ? tint : dim)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.pressable(scale: 0.88))
-                .help(ambience.isStreaming ? "Stop the feed" : "Listen to the feed")
+                .help("Choose a station")
                 Spacer(minLength: Theme.Space.sm)
                 level($ambience.streamVolume, help: "Feed level")
             }
