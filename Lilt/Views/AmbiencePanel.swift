@@ -65,6 +65,10 @@ struct AmbiencePanel: View {
                 .menuStyle(.button)
                 .buttonStyle(.plain)
                 .menuIndicator(.hidden)
+                // A menu button sizes itself to its widest item, not its label, which widened
+                // the platter as the drawer came and went; it gets the label's width and no more.
+                .frame(width: 11 + Theme.Space.xs + 118, alignment: .leading)
+                .clipped()
                 .onHover { isHoveringStation = $0 }
                 .help("Air traffic control feed")
                 Button { ambience.setStreaming(!ambience.isStreaming) } label: {
@@ -80,7 +84,9 @@ struct AmbiencePanel: View {
                 level($ambience.streamVolume, help: "Feed level")
             }
         }
+        .frame(maxWidth: .infinity)
         .frame(height: Self.height)
+        .clipped()
     }
 
     /// The scrubber's own line slider, at a small width.

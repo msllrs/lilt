@@ -112,7 +112,17 @@ final class AmbienceService {
     private func startStream() {
         guard let url = URL(string: station.url) else { return }
         stream?.pause()
-        let player = AVPlayer(url: url)
+        // The feed servers refuse AVFoundation's own user agent (a permission error before any
+        // audio arrives); as a browser they answer. A live feed at 16kbps also takes a while to
+        // buffer, so the player is told to start as soon as it can rather than wait to be safe.
+        let asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": [
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+            "Icy-MetaData": "0",
+        ]])
+        let item = AVPlayerItem(asset: asset)
+        item.preferredForwardBufferDuration = 2
+        let player = AVPlayer(playerItem: item)
+        player.automaticallyWaitsToMinimizeStalling = false
         player.volume = streamVolume
         player.play()
         stream = player
