@@ -81,6 +81,12 @@ struct NowPlayingBar: View {
             // The platter's size without the list, so the mini window can be sized for the
             // list's eventual height instead of chasing the animation.
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { navigation.platterBaseHeight = $0 + Theme.Space.barPadding * 2 }
+            // The ambience drawer, under the scrubber, opened with an option-click on the cover.
+            if navigation.isAmbienceVisible {
+                InterpolatedColor(accent) { AmbiencePanel(accent: $0) }
+                    .padding(.top, Theme.Space.sm)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
             // The list is always here, shown as far as `queueReveal` says: pulled out by the
             // grab handle, or sprung to an end. It hangs from under the scrubber, cut off below.
             // Mounted only while it shows (a mounted list, even at no height, takes the
@@ -384,17 +390,18 @@ struct NowPlayingBar: View {
     private var artwork: some View {
         let view = ArtworkView(url: player.displayArtworkURL, size: Theme.Size.barArtwork, radius: Theme.Radius.barArtwork, context: .player)
         let album = player.current?.albumItem
-        if album != nil || navigation.isMiniPlayer {
-            Button {
-                // In mini there is no column to show the album in: expand first, then open it.
-                if navigation.isMiniPlayer { AppDelegate.shared?.setMiniPlayer(false) }
-                if let album { navigation.open(album) }
-            } label: { view }
-                .buttonStyle(.plain)
-                .help(album?.title ?? "Expand")
-        } else {
-            view
-        }
+        Button {
+            // Option-click: the ambience drawer, the platter's one hidden door.
+            if NSEvent.modifierFlags.contains(.option) {
+                withAnimation(.spring(Theme.Motion.queueSpring)) { AppDelegate.shared?.setAmbienceVisible(!navigation.isAmbienceVisible) }
+                return
+            }
+            // In mini there is no column to show the album in: expand first, then open it.
+            if navigation.isMiniPlayer { AppDelegate.shared?.setMiniPlayer(false) }
+            if let album { navigation.open(album) }
+        } label: { view }
+            .buttonStyle(.plain)
+            .help(album?.title ?? (navigation.isMiniPlayer ? "Expand" : "Option-click for ambience"))
     }
 
     /// Elapsed on the left, the line in the middle, total on the right.

@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// Sparkle: checks the feed on its own schedule and on request from the menu.
     let updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     let collapsedSections = CollapsedSections()
+    let ambience = AmbienceService()
 
     private var panel: PanelWindow?
     private var loginWindow: NSWindow?
@@ -180,7 +181,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// measured height, which mid-animation is whatever it's passing through. The window is the
     /// platter: no inset below it, or the frame's shadow outlines a strip.
     private func miniHeight(reveal: CGFloat) -> CGFloat {
-        navigation.platterBaseHeight + reveal * queueExtent
+        navigation.platterBaseHeight + ambienceExtent + reveal * queueExtent
+    }
+
+    /// What the platter grows by to show the ambience drawer.
+    private var ambienceExtent: CGFloat { navigation.isAmbienceVisible ? Theme.Space.sm + AmbiencePanel.height : 0 }
+
+    /// Opens or closes the ambience drawer below the scrubber; in mini the window grows with it
+    /// on the same spring as the list.
+    func setAmbienceVisible(_ visible: Bool) {
+        guard visible != navigation.isAmbienceVisible else { return }
+        navigation.isAmbienceVisible = visible
+        if navigation.isMiniPlayer { resizeWindow(mini: true, animated: true, curve: Theme.Motion.queueCurve) }
     }
 
     private func resizeWindow(mini: Bool, queueReveal: CGFloat? = nil, animated: Bool = false, curve: FrameCurve = Theme.Motion.frameCurve) {
@@ -464,6 +476,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .environment(scrollTracker)
             .environment(recents)
             .environment(collapsedSections)
+            .environment(ambience)
         let hosting = NSHostingView(rootView: root)
         hosting.sizingOptions = []
         panelHosting = hosting
