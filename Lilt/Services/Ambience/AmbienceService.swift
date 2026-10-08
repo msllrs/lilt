@@ -40,13 +40,17 @@ final class AmbienceService {
         let url: String
     }
 
+    /// Mounts checked against the server on 2026-10-08; LiveATC serves only the ones it has.
     static let stations: [Station] = [
         Station(name: "New York JFK", url: "https://d.liveatc.net/kjfk_twr"),
-        Station(name: "Boston", url: "https://d.liveatc.net/kbos_twr"),
-        Station(name: "Chicago O'Hare", url: "https://d.liveatc.net/kord_twr"),
+        Station(name: "JFK Ground", url: "https://d.liveatc.net/kjfk_gnd"),
+        Station(name: "Newark", url: "https://d.liveatc.net/kewr_twr"),
+        Station(name: "LaGuardia", url: "https://d.liveatc.net/klga_twr"),
+        Station(name: "Atlanta", url: "https://d.liveatc.net/katl_twr"),
         Station(name: "Los Angeles", url: "https://d.liveatc.net/klax_twr"),
         Station(name: "San Francisco", url: "https://d.liveatc.net/ksfo_twr"),
-        Station(name: "London Heathrow", url: "https://d.liveatc.net/egll_twr"),
+        Station(name: "SFO Ground", url: "https://d.liveatc.net/ksfo_gnd"),
+        Station(name: "Tokyo Haneda", url: "https://d.liveatc.net/rjtt_twr"),
     ]
 
     /// The sounds playing now. Not remembered: a relaunch shouldn't start raining on its own.
