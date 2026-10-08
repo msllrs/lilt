@@ -41,12 +41,12 @@ final class AmbienceService {
     }
 
     static let stations: [Station] = [
-        Station(name: "New York JFK Tower", url: "https://d.liveatc.net/kjfk_twr"),
-        Station(name: "Boston Tower", url: "https://d.liveatc.net/kbos_twr"),
-        Station(name: "Chicago O'Hare Tower", url: "https://d.liveatc.net/kord_twr"),
-        Station(name: "Los Angeles Tower", url: "https://d.liveatc.net/klax_twr"),
-        Station(name: "San Francisco Tower", url: "https://d.liveatc.net/ksfo_twr"),
-        Station(name: "London Heathrow Tower", url: "https://d.liveatc.net/egll_twr"),
+        Station(name: "New York JFK", url: "https://d.liveatc.net/kjfk_twr"),
+        Station(name: "Boston", url: "https://d.liveatc.net/kbos_twr"),
+        Station(name: "Chicago O'Hare", url: "https://d.liveatc.net/kord_twr"),
+        Station(name: "Los Angeles", url: "https://d.liveatc.net/klax_twr"),
+        Station(name: "San Francisco", url: "https://d.liveatc.net/ksfo_twr"),
+        Station(name: "London Heathrow", url: "https://d.liveatc.net/egll_twr"),
     ]
 
     /// The sounds playing now. Not remembered: a relaunch shouldn't start raining on its own.
