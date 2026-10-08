@@ -59,6 +59,10 @@ final class AmbienceService {
     var volume: Float = 0.5 { didSet { engine.mainMixerNode.outputVolume = volume; save() } }
     var station: Station = stations[0] { didSet { if isStreaming { startStream() }; save() } }
     private(set) var isStreaming = false
+    /// Where the feed is: a live one takes ten seconds or so to buffer, and a dead mount never
+    /// arrives, so the switch shows which.
+    enum StreamState { case off, connecting, playing, failed }
+    private(set) var streamState: StreamState = .off
     var streamVolume: Float = 0.6 { didSet { stream?.volume = streamVolume; save() } }
 
     /// Anything audible from here.
@@ -67,6 +71,7 @@ final class AmbienceService {
     private let engine = AVAudioEngine()
     private var nodes: [Sound: AVAudioSourceNode] = [:]
     private var stream: AVPlayer?
+    private var streamObservers: [NSKeyValueObservation] = []
 
     init() {
         restore()
@@ -105,7 +110,14 @@ final class AmbienceService {
 
     func setStreaming(_ on: Bool) {
         isStreaming = on
-        if on { startStream() } else { stream?.pause(); stream = nil }
+        if on { startStream() } else { stopStream() }
+    }
+
+    private func stopStream() {
+        streamObservers = []
+        stream?.pause()
+        stream = nil
+        streamState = .off
     }
 
     func stopAll() {
@@ -128,6 +140,23 @@ final class AmbienceService {
         let player = AVPlayer(playerItem: item)
         player.automaticallyWaitsToMinimizeStalling = false
         player.volume = streamVolume
+        streamState = .connecting
+        streamObservers = [
+            player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
+                let playing = player.timeControlStatus == .playing
+                Task { @MainActor in
+                    guard let self, self.stream === player, self.streamState != .failed else { return }
+                    self.streamState = playing ? .playing : .connecting
+                }
+            },
+            item.observe(\.status, options: [.new]) { [weak self] item, _ in
+                let failed = item.status == .failed
+                Task { @MainActor in
+                    guard let self, self.stream?.currentItem === item, failed else { return }
+                    self.streamState = .failed
+                }
+            },
+        ]
         player.play()
         stream = player
     }
@@ -145,7 +174,9 @@ final class AmbienceService {
         guard let data = UserDefaults.standard.data(forKey: Self.key), let saved = try? JSONDecoder().decode(Saved.self, from: data) else { return }
         volume = saved.volume
         streamVolume = saved.streamVolume
-        if let station = saved.station { self.station = station }
+        // A remembered station that is no longer in the list was a mount the server didn't
+        // have; falling back beats a switch that never makes a sound.
+        if let station = saved.station, Self.stations.contains(station) { self.station = station }
     }
 }
 

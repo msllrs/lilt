@@ -50,15 +50,19 @@ struct AmbiencePanel: View {
             // name beside it picks the station; a level at the end.
             HStack(spacing: Theme.Space.xs) {
                 Button { ambience.setStreaming(!ambience.isStreaming) } label: {
+                    // Lit once the feed is actually playing; it pulses while it buffers (a live
+                    // feed takes ten seconds or so) and goes red if the mount never answers.
+                    let state = ambience.streamState
                     Image(systemName: "airplane")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(ambience.isStreaming ? tint : dim)
+                        .foregroundStyle(state == .failed ? Color.red : state == .off ? dim : tint)
+                        .symbolEffect(.pulse, isActive: state == .connecting)
                         .frame(width: 28, height: 28)
                         .background(Circle().fill(tint.opacity(ambience.isStreaming ? 0.14 : 0)))
                         .contentShape(Circle())
                 }
                 .buttonStyle(.pressable(scale: 0.88))
-                .help(ambience.isStreaming ? "Stop the feed" : "Listen to the feed")
+                .help(ambience.streamState == .failed ? "This feed isn't answering" : ambience.isStreaming ? "Stop the feed" : "Listen to the feed")
                 Menu {
                     ForEach(AmbienceService.stations) { station in
                         Button(station.name) { ambience.station = station }
