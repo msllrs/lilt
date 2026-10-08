@@ -28,5 +28,11 @@
 	<string></string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://msllrs.github.io/lilt/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>jvD3VVp7Q6+M0+UIdWA3cfAYR3WSTLoeKHgWH/5rflY=</string>
 </dict>
 </plist>

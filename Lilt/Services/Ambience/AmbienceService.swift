@@ -1,11 +1,12 @@
 import AVFoundation
 import Foundation
 import Observation
+import OSLog
 
 /// Background sound under the music: ambience generated live (rain, wind, fire, ocean, deep
-/// noise, no samples and no licences) and live air traffic control streams. Its own audio
-/// graph, outside the web player, so it can't touch DRM or the Media Session, and it keeps
-/// going when the music pauses.
+/// noise, no samples and no licences) and a live stream of the listener's choosing, air traffic
+/// control or otherwise. Its own audio graph, outside the web player, so it can't touch DRM or
+/// the Media Session, and it keeps going when the music pauses.
 @MainActor
 @Observable
 final class AmbienceService {
@@ -32,32 +33,15 @@ final class AmbienceService {
         }
     }
 
-    /// A live tower or approach feed. The URLs are LiveATC mounts; their terms allow personal
-    /// listening, not redistribution, so this stays a listener and ships no feed of its own.
-    struct Station: Identifiable, Hashable, Codable {
-        var id: String { url }
-        let name: String
-        let url: String
-    }
-
-    /// Mounts checked against the server on 2026-10-08; LiveATC serves only the ones it has.
-    static let stations: [Station] = [
-        Station(name: "New York JFK", url: "https://d.liveatc.net/kjfk_twr"),
-        Station(name: "JFK Ground", url: "https://d.liveatc.net/kjfk_gnd"),
-        Station(name: "Newark", url: "https://d.liveatc.net/kewr_twr"),
-        Station(name: "LaGuardia", url: "https://d.liveatc.net/klga_twr"),
-        Station(name: "Atlanta", url: "https://d.liveatc.net/katl_twr"),
-        Station(name: "Los Angeles", url: "https://d.liveatc.net/klax_twr"),
-        Station(name: "San Francisco", url: "https://d.liveatc.net/ksfo_twr"),
-        Station(name: "SFO Ground", url: "https://d.liveatc.net/ksfo_gnd"),
-        Station(name: "Tokyo Haneda", url: "https://d.liveatc.net/rjtt_twr"),
-    ]
+    /// The live feed to play, supplied by the listener: a plain audio stream URL (an Icecast or
+    /// SHOUTcast mount, or any HTTP audio stream) they are entitled to listen to in an app. Lilt
+    /// ships no feed of its own and does nothing to disguise itself to a server.
+    var streamURL: String = "" { didSet { if isStreaming { startStream() }; save() } }
 
     /// The sounds playing now. Not remembered: a relaunch shouldn't start raining on its own.
     private(set) var active: Set<Sound> = []
     /// Level of the whole ambience bed under the music.
     var volume: Float = 0.5 { didSet { engine.mainMixerNode.outputVolume = volume; save() } }
-    var station: Station = stations[0] { didSet { if isStreaming { startStream() }; save() } }
     private(set) var isStreaming = false
     /// Where the feed is: a live one takes ten seconds or so to buffer, and a dead mount never
     /// arrives, so the switch shows which.
@@ -68,6 +52,7 @@ final class AmbienceService {
     /// Anything audible from here.
     var isOn: Bool { !active.isEmpty || isStreaming }
 
+    private static let log = Logger(subsystem: "com.msllrs.Lilt", category: "ambience")
     private let engine = AVAudioEngine()
     private var nodes: [Sound: AVAudioSourceNode] = [:]
     private var stream: AVPlayer?
@@ -126,16 +111,14 @@ final class AmbienceService {
     }
 
     private func startStream() {
-        guard let url = URL(string: station.url) else { return }
+        guard let url = URL(string: streamURL.trimmingCharacters(in: .whitespacesAndNewlines)), url.scheme?.hasPrefix("http") == true else {
+            streamState = .failed
+            return
+        }
         stream?.pause()
-        // The feed servers refuse AVFoundation's own user agent (a permission error before any
-        // audio arrives); as a browser they answer. A live feed at 16kbps also takes a while to
-        // buffer, so the player is told to start as soon as it can rather than wait to be safe.
-        let asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": [
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-            "Icy-MetaData": "0",
-        ]])
-        let item = AVPlayerItem(asset: asset)
+        // A live feed at a low bitrate takes a while to buffer, so the player is told to start
+        // as soon as it can rather than wait to be safe.
+        let item = AVPlayerItem(url: url)
         item.preferredForwardBufferDuration = 2
         let player = AVPlayer(playerItem: item)
         player.automaticallyWaitsToMinimizeStalling = false
@@ -144,6 +127,9 @@ final class AmbienceService {
         streamObservers = [
             player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
                 let playing = player.timeControlStatus == .playing
+                let status = player.timeControlStatus.rawValue, rate = player.rate, volume = player.volume, muted = player.isMuted
+                let waiting = player.reasonForWaitingToPlay?.rawValue ?? "-"
+                Self.log.debug("feed timeControlStatus \(status) rate \(rate) volume \(volume) muted \(muted) waiting \(waiting, privacy: .public)")
                 Task { @MainActor in
                     guard let self, self.stream === player, self.streamState != .failed else { return }
                     self.streamState = playing ? .playing : .connecting
@@ -159,24 +145,23 @@ final class AmbienceService {
         ]
         player.play()
         stream = player
+        Self.log.debug("feed start \(url.absoluteString, privacy: .private) volume \(player.volume) rate \(player.rate)")
     }
 
     // MARK: Remembered settings
 
     private static let key = "ambience"
-    private struct Saved: Codable { var volume: Float; var streamVolume: Float; var station: Station? }
+    private struct Saved: Codable { var volume: Float; var streamVolume: Float; var streamURL: String? }
 
     private func save() {
-        UserDefaults.standard.set(try? JSONEncoder().encode(Saved(volume: volume, streamVolume: streamVolume, station: station)), forKey: Self.key)
+        UserDefaults.standard.set(try? JSONEncoder().encode(Saved(volume: volume, streamVolume: streamVolume, streamURL: streamURL)), forKey: Self.key)
     }
 
     private func restore() {
         guard let data = UserDefaults.standard.data(forKey: Self.key), let saved = try? JSONDecoder().decode(Saved.self, from: data) else { return }
         volume = saved.volume
         streamVolume = saved.streamVolume
-        // A remembered station that is no longer in the list was a mount the server didn't
-        // have; falling back beats a switch that never makes a sound.
-        if let station = saved.station, Self.stations.contains(station) { self.station = station }
+        streamURL = saved.streamURL ?? ""
     }
 }
 

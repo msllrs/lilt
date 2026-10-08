@@ -1,11 +1,11 @@
 import SwiftUI
 
 /// The platter's hidden drawer, opened with an option-click on the cover: a bed of generated
-/// ambience under the music, and a live air traffic control feed beside it.
+/// ambience under the music, and a live stream of the listener's choosing beside it.
 struct AmbiencePanel: View {
     /// Fixed, so the mini window can be sized for it before it has laid out (see QueueList).
     static let height: CGFloat = 1 + Theme.Space.sm + 28 + Theme.Space.sm + 28
-    /// The station name's box. With the sliders giving way, both rows fit the platter at the
+    /// The stream field's box. With the sliders giving way, both rows fit the platter at the
     /// panel's minimum width (a 236pt content area) and never widen it.
     static let stationWidth: CGFloat = 104
 
@@ -14,7 +14,6 @@ struct AmbiencePanel: View {
 
     @Environment(AmbienceService.self) private var ambience
     @Environment(\.colorScheme) private var colorScheme
-    @State private var isHoveringStation = false
 
     private var tint: Color {
         let mono = colorScheme == .dark ? Color.white : Color.black
@@ -46,12 +45,12 @@ struct AmbiencePanel: View {
                 Spacer(minLength: Theme.Space.sm)
                 level($ambience.volume, help: "Ambience level")
             }
-            // The tower: the airplane switches the feed on and off, under the rain button; the
-            // name beside it picks the station; a level at the end.
+            // The feed: the airplane switches it on and off, under the rain button; the field
+            // beside it takes the stream's URL; a level at the end.
             HStack(spacing: Theme.Space.xs) {
                 Button { ambience.setStreaming(!ambience.isStreaming) } label: {
                     // Lit once the feed is actually playing; it pulses while it buffers (a live
-                    // feed takes ten seconds or so) and goes red if the mount never answers.
+                    // feed can take ten seconds or so) and goes red if the stream never answers.
                     let state = ambience.streamState
                     Image(systemName: "airplane")
                         .font(.system(size: 12, weight: .semibold))
@@ -62,29 +61,16 @@ struct AmbiencePanel: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.pressable(scale: 0.88))
-                .help(ambience.streamState == .failed ? "This feed isn't answering" : ambience.isStreaming ? "Stop the feed" : "Listen to the feed")
-                Menu {
-                    ForEach(AmbienceService.stations) { station in
-                        Button(station.name) { ambience.station = station }
-                    }
-                } label: {
-                    // A fixed box the name scrolls in on hover, so a long one can't widen the
-                    // platter.
-                    MarqueeText(text: ambience.station.name, isActive: isHoveringStation, font: .caption, color: AnyShapeStyle(ambience.isStreaming ? tint : dim))
-                        .frame(width: Self.stationWidth, height: 28)
-                        .contentShape(Rectangle())
-                }
-                .menuStyle(.button)
-                .buttonStyle(.plain)
-                .menuIndicator(.hidden)
-                // A menu button sizes itself to its widest item, not its label, which widened
-                // the platter as the drawer came and went; it gets the label's width and no more.
-                .frame(width: Self.stationWidth, alignment: .leading)
-                .clipped()
-                .onHover { isHoveringStation = $0 }
-                .help("Choose a station")
+                .disabled(ambience.streamURL.trimmingCharacters(in: .whitespaces).isEmpty)
+                .help(ambience.streamState == .failed ? "This stream isn't answering" : ambience.isStreaming ? "Stop the stream" : "Listen to the stream")
+                TextField("Stream URL", text: $ambience.streamURL)
+                    .textFieldStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(ambience.isStreaming ? tint : dim)
+                    .frame(width: Self.stationWidth, height: 28)
+                    .help("An audio stream you're entitled to listen to here")
                 Spacer(minLength: Theme.Space.sm)
-                level($ambience.streamVolume, help: "Feed level")
+                level($ambience.streamVolume, help: "Stream level")
             }
         }
         .frame(maxWidth: .infinity)
