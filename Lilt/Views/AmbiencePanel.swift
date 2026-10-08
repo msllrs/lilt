@@ -11,6 +11,7 @@ struct AmbiencePanel: View {
 
     @Environment(AmbienceService.self) private var ambience
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isHoveringStation = false
 
     private var tint: Color {
         let mono = colorScheme == .dark ? Color.white : Color.black
@@ -52,17 +53,19 @@ struct AmbiencePanel: View {
                     HStack(spacing: Theme.Space.xs) {
                         Image(systemName: "airplane")
                             .font(.system(size: 11, weight: .semibold))
-                        Text(ambience.station.name)
-                            .font(.caption)
-                            .lineLimit(1)
+                        // A fixed box the name scrolls in on hover, so a long one can't widen
+                        // the platter.
+                        MarqueeText(text: ambience.station.name, isActive: isHoveringStation, font: .caption, color: AnyShapeStyle(ambience.isStreaming ? tint : dim))
+                            .frame(width: 118)
                     }
                     .foregroundStyle(ambience.isStreaming ? tint : dim)
                     .frame(height: 28)
+                    .contentShape(Rectangle())
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
                 .menuIndicator(.hidden)
-                .fixedSize()
+                .onHover { isHoveringStation = $0 }
                 .help("Air traffic control feed")
                 Button { ambience.setStreaming(!ambience.isStreaming) } label: {
                     Image(systemName: ambience.isStreaming ? "stop.fill" : "play.fill")

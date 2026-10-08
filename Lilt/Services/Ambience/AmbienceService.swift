@@ -68,19 +68,26 @@ final class AmbienceService {
         restore()
         let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
         for sound in Sound.allCases {
-            let generator = AmbienceGenerator(sound)
-            let node = AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
-                let buffers = UnsafeMutableAudioBufferListPointer(audioBufferList)
-                guard let data = buffers[0].mData else { return noErr }
-                generator.render(data.assumingMemoryBound(to: Float.self), Int(frameCount))
-                return noErr
-            }
+            let node = Self.makeNode(for: sound, format: format)
             node.volume = 0
             engine.attach(node)
             engine.connect(node, to: engine.mainMixerNode, format: format)
             nodes[sound] = node
         }
         engine.mainMixerNode.outputVolume = volume
+    }
+
+    /// The render block runs on the audio thread. Written inside this main-actor class it would
+    /// inherit the actor and trap the first time it was called, so the node is built here, off
+    /// the actor, with a generator of its own.
+    nonisolated private static func makeNode(for sound: Sound, format: AVAudioFormat) -> AVAudioSourceNode {
+        let generator = AmbienceGenerator(sound)
+        return AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
+            let buffers = UnsafeMutableAudioBufferListPointer(audioBufferList)
+            guard let data = buffers[0].mData else { return noErr }
+            generator.render(data.assumingMemoryBound(to: Float.self), Int(frameCount))
+            return noErr
+        }
     }
 
     func toggle(_ sound: Sound) {
