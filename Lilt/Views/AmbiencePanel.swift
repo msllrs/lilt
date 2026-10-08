@@ -5,6 +5,9 @@ import SwiftUI
 struct AmbiencePanel: View {
     /// Fixed, so the mini window can be sized for it before it has laid out (see QueueList).
     static let height: CGFloat = 1 + Theme.Space.sm + 28 + Theme.Space.sm + 28
+    /// The station name's box. With the sliders giving way, both rows fit the platter at the
+    /// panel's minimum width (a 236pt content area) and never widen it.
+    static let stationWidth: CGFloat = 104
 
     /// The cover's colour, interpolated by the platter; the active sounds take it.
     var accent: Color?
@@ -56,7 +59,7 @@ struct AmbiencePanel: View {
                         // A fixed box the name scrolls in on hover, so a long one can't widen
                         // the platter.
                         MarqueeText(text: ambience.station.name, isActive: isHoveringStation, font: .caption, color: AnyShapeStyle(ambience.isStreaming ? tint : dim))
-                            .frame(width: 118)
+                            .frame(width: Self.stationWidth)
                     }
                     .foregroundStyle(ambience.isStreaming ? tint : dim)
                     .frame(height: 28)
@@ -67,7 +70,7 @@ struct AmbiencePanel: View {
                 .menuIndicator(.hidden)
                 // A menu button sizes itself to its widest item, not its label, which widened
                 // the platter as the drawer came and went; it gets the label's width and no more.
-                .frame(width: 11 + Theme.Space.xs + 118, alignment: .leading)
+                .frame(width: 11 + Theme.Space.xs + Self.stationWidth, alignment: .leading)
                 .clipped()
                 .onHover { isHoveringStation = $0 }
                 .help("Air traffic control feed")
@@ -97,7 +100,8 @@ struct AmbiencePanel: View {
             onEditing: { v, _ in value.wrappedValue = Float(v) },
             tint: accent.map { NSColor($0) }
         )
-        .frame(width: 72, height: 16)
+        .frame(minWidth: 44, maxWidth: 72)
+        .frame(height: 16)
         .help(help)
     }
 }
