@@ -47,6 +47,16 @@ final class PanelWindow: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
+    /// The panel hides by alpha, so a plain order-front (the Dock menu's window entry, the
+    /// Window menu) would bring forward an invisible window. Route it through the real show.
+    override func makeKeyAndOrderFront(_ sender: Any?) {
+        if let delegate = AppDelegate.shared, delegate.navigation.isPanelHidden {
+            delegate.showPanel()
+            return
+        }
+        super.makeKeyAndOrderFront(sender)
+    }
+
     /// The window's corner: the panel radius while expanded, the platter's own in mini, where the
     /// window is the platter. `-[NSWindow _setCornerRadius:]`, reached through its implementation
     /// pointer because the argument is a CGFloat (KVC would box it, `perform` can't pass it).
