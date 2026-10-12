@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         observeArtworkForLaunch()
         observeLoginPresentation()
         observeDockIcon()
+        observeWindowTitle()
         observeQueue()
         remoteCommands = RemoteCommandBridge(player: player)
         observeMiniPlayer()
@@ -341,6 +342,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
         updateDockIcon()
+    }
+
+    /// The panel's title is the loaded track, as the Dock tile is its cover: that is what
+    /// Mission Control, the Window menu and the Dock menu's window list call the panel. The Dock
+    /// tile's own hover label is the bundle name, fixed when the app registers (a LaunchServices
+    /// rename changes `lsappinfo` but not the tile); the track lives in the tile's menu instead.
+    private func observeWindowTitle() {
+        withObservationTracking {
+            _ = player.current?.title
+            _ = player.current?.artist
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.observeWindowTitle()
+            }
+        }
+        panel?.title = TrackLabel.text(for: player.current) ?? "Lilt"
     }
 
     private func updateDockIcon() {
