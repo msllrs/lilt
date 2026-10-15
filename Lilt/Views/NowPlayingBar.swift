@@ -277,8 +277,9 @@ struct NowPlayingBar: View {
     /// beneath the like button wherever that button shows.
     static func titleMaskStops(width: CGFloat, hovering: Bool, liked: Bool) -> [Gradient.Stop] {
         let w = max(width, 1)
-        let clear = hovering ? 26.0 : 0
-        let fade = hovering ? Double(Theme.Space.xl) : 0
+        let shows = hovering || liked
+        let clear = shows ? 26.0 : 0
+        let fade = shows ? Double(Theme.Space.xl) : 0
         return [
             .init(color: .black, location: 0),
             .init(color: .black, location: max(0, 1 - (clear + fade) / w)),
@@ -310,7 +311,8 @@ struct NowPlayingBar: View {
                     ArtistLink(name: player.displayArtist, item: player.current?.artistItem, color: artist ?? .secondary)
                 }
                 // The text fades out beneath the like button (below) rather than making room, so
-                // nothing shifts when the pointer arrives. The fade is a gradient in unit space
+                // nothing shifts when the pointer arrives; a liked thumb stays without the pointer,
+                // and so does the fade. The fade is a gradient in unit space
                 // from the measured width: fixed-width pieces in a stack blanked the whole title
                 // whenever the row was momentarily narrow.
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { titleWidth = $0 }
