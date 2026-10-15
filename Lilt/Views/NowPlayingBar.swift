@@ -273,6 +273,20 @@ struct NowPlayingBar: View {
     }
 
 
+    /// The title's fade, in unit space across its measured width: solid, then fading out to clear
+    /// beneath the like button wherever that button shows.
+    static func titleMaskStops(width: CGFloat, hovering: Bool, liked: Bool) -> [Gradient.Stop] {
+        let w = max(width, 1)
+        let clear = hovering ? 26.0 : 0
+        let fade = hovering ? Double(Theme.Space.xl) : 0
+        return [
+            .init(color: .black, location: 0),
+            .init(color: .black, location: max(0, 1 - (clear + fade) / w)),
+            .init(color: .clear, location: max(0, 1 - clear / w)),
+            .init(color: .clear, location: 1),
+        ]
+    }
+
     /// Title row, transport row and scrubber.
     @ViewBuilder
     private var playerRows: some View {
@@ -301,16 +315,8 @@ struct NowPlayingBar: View {
                 // whenever the row was momentarily narrow.
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { titleWidth = $0 }
                 .mask {
-                    let w = max(titleWidth, 1)
-                    let clear = isHoveringPlatter ? 26.0 : 0
-                    let fade = isHoveringPlatter ? Double(Theme.Space.xl) : 0
                     LinearGradient(
-                        stops: [
-                            .init(color: .black, location: 0),
-                            .init(color: .black, location: max(0, 1 - (clear + fade) / w)),
-                            .init(color: .clear, location: max(0, 1 - clear / w)),
-                            .init(color: .clear, location: 1),
-                        ],
+                        stops: Self.titleMaskStops(width: titleWidth, hovering: isHoveringPlatter, liked: player.isLiked),
                         startPoint: .leading, endPoint: .trailing
                     )
                     .transaction { $0.animation = nil }
