@@ -262,7 +262,7 @@ struct BrowseScreen: View {
             .padding(.bottom, Theme.Space.sm + extraBottom)
         }
         .scrollIndicators(.never)
-        .scrollEdgeEffectStyle(.soft, for: .all)
+        .panelScrollEdge()
         // A scroll that would end part-way through the hero's travel is steered to the nearer
         // end as the fingers lift, in the same motion, so the page never rests with a half-faded
         // hero and a half-visible compact header.

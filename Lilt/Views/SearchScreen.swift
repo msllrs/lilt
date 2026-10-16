@@ -84,7 +84,7 @@ struct SearchScreen: View {
             .padding(.bottom, Theme.Space.sm)
         }
         .scrollIndicators(.never)
-        .scrollEdgeEffectStyle(.soft, for: .all)
+        .panelScrollEdge()
         .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
             ScrollMetrics(
                 offset: geometry.contentOffset.y + geometry.contentInsets.top,

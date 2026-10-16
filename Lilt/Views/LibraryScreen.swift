@@ -101,7 +101,7 @@ struct LibraryScreen: View {
             }
         }
         .scrollIndicators(.never)
-        .scrollEdgeEffectStyle(.soft, for: .all)
+        .panelScrollEdge()
         .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
             ScrollMetrics(
                 offset: geometry.contentOffset.y + geometry.contentInsets.top,
