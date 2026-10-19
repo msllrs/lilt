@@ -362,23 +362,42 @@ struct BrowseScreen: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { heroHeight = $0 }
     }
 
+    /// Fetches the page every time it opens, since it may have changed elsewhere. A cached copy
+    /// already on screen stays put while it does: no skeleton, the scroll position kept, and a
+    /// changed page eases in. If the fetch fails, the cached copy stays rather than an error.
     private func load() async {
+        let showingCached = phase == .loaded
+        if case .failed = phase { phase = .loading }
         do {
             var loaded = try await music.page(for: item)
-            page = loaded
-            phase = .loaded
+            guard !Task.isCancelled else { return }
             // Fill short album pages out with the artist's other releases and related artists
-            // rather than leaving dead space under the tracks.
-            if loaded.item.kind == .album, let artistId = loaded.artistId {
-                let artist = BrowseItem(id: artistId, kind: .artist, title: loaded.item.subtitle, subtitle: "Artist", artworkURL: nil)
-                if let artistPage = try? await music.page(for: artist), !Task.isCancelled {
-                    loaded.sections.append(contentsOf: Self.relatedSections(from: artistPage, excluding: loaded))
-                    withAnimation(Theme.Motion.standard) { page = loaded }
-                }
+            // rather than leaving dead space under the tracks. The artist's page rarely changes,
+            // so a copy we have is used as is, and a refetched album keeps those sections
+            // instead of dropping them for a moment.
+            let artist = pageArtist(loaded)
+            if let artist, let artistPage = music.cachedPage(for: artist) {
+                loaded.sections.append(contentsOf: Self.relatedSections(from: artistPage, excluding: loaded))
+            }
+            show(loaded, animated: showingCached)
+            if let artist, music.cachedPage(for: artist) == nil,
+               let artistPage = try? await music.page(for: artist), !Task.isCancelled {
+                loaded.sections.append(contentsOf: Self.relatedSections(from: artistPage, excluding: loaded))
+                show(loaded, animated: true)
             }
         } catch is CancellationError {
         } catch {
-            phase = .failed(error.localizedDescription)
+            if !showingCached { phase = .failed(error.localizedDescription) }
+        }
+    }
+
+    private func show(_ loaded: BrowsePage, animated: Bool) {
+        guard loaded != page || phase != .loaded else { return }
+        if animated {
+            withAnimation(Theme.Motion.standard) { page = loaded; phase = .loaded }
+        } else {
+            page = loaded
+            phase = .loaded
         }
     }
 

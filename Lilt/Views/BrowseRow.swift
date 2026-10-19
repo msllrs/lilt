@@ -41,8 +41,9 @@ struct BrowseRow: View {
         .buttonStyle(.plain)
         .onHover { hovering in
             isHovering = hovering
-            // Warm the cache so the page is ready by the time it's clicked.
-            if hovering { Task { _ = try? await music.page(for: item) } }
+            // Warm the cache so the page is ready by the time it's clicked. Only once: opening
+            // the page fetches it fresh anyway, so a warm copy needn't be fetched again here.
+            if hovering, music.cachedPage(for: item) == nil { Task { _ = try? await music.page(for: item) } }
         }
     }
 

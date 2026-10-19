@@ -90,7 +90,7 @@ struct BrowseSection: Identifiable, Hashable, Sendable {
 }
 
 /// A parsed artist, album or playlist page.
-struct BrowsePage: Sendable {
+struct BrowsePage: Equatable, Sendable {
     var item: BrowseItem
     var tracks: [Track] = []
     /// For artists: the browse id of the "all songs" playlist, when YouTube offers one.

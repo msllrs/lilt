@@ -27,7 +27,7 @@ struct ArtistLink: View {
             .buttonStyle(.plain)
             .onHover { hovering in
                 isHovering = hovering
-                if hovering { Task { _ = try? await music.page(for: item) } }
+                if hovering, music.cachedPage(for: item) == nil { Task { _ = try? await music.page(for: item) } }
             }
             .help(name)
         } else {

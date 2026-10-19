@@ -207,8 +207,9 @@ final class YTMusicClient {
         persist()
     }
 
+    /// Always asks the server: a playlist can change elsewhere (a song liked on the phone), and
+    /// the cached copy is only for `cachedPage(for:)` to draw a first frame from.
     func page(for item: BrowseItem) async throws -> BrowsePage {
-        if let cached = pageCache[item.id] { return cached }
         let response = try await fetchPage(item.id)
         let page = SearchParser.browsePage(from: response.value, for: item)
         pageCache[item.id] = page
