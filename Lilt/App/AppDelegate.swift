@@ -287,6 +287,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func toggleMiniPlayer() { setMiniPlayer(!navigation.isMiniPlayer) }
     func openLibrary() { navigation.open(NavigationModel.library) }
+    /// Fetches the screen on top again (⌘R).
+    func refresh() { navigation.refresh() }
 
     /// Nudges a window frame so it lies within the screen's visible area.
     static func onScreen(_ frame: NSRect, near screen: NSScreen) -> NSRect {

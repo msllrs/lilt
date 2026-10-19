@@ -55,6 +55,9 @@ final class NavigationModel {
     /// settled, and in between while the grab handle is being pulled or the list springs to an
     /// end. Not persisted.
     var queueReveal: CGFloat = 0
+    /// Bumps when the screen on top should fetch its content again (⌘R). Every screen in the
+    /// stack sees it; only the one on top answers. Not persisted.
+    private(set) var refreshRequest = 0
     /// Receives every page opened, for the recents menu. Wired by the app.
     @ObservationIgnored weak var recents: RecentsStore?
 
@@ -93,6 +96,8 @@ final class NavigationModel {
         path.append(item)
         recents?.recordViewed(item)
     }
+
+    func refresh() { refreshRequest += 1 }
 
     func pop() {
         guard !path.isEmpty else { return }

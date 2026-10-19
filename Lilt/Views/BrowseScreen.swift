@@ -44,6 +44,10 @@ struct BrowseScreen: View {
             // The cover's light spills down from the top of the page, behind everything.
             .background(alignment: .top) { PageAmbient(url: (page?.item.artworkURL) ?? item.artworkURL) }
             .task(id: item.id) { await load() }
+            // ⌘R takes the same path as pulling the list down.
+            .onChange(of: navigation.refreshRequest) { _, _ in
+                if navigation.path.last?.id == item.id { Task { await load() } }
+            }
     }
 
     /// Back button, plus a compact artwork/title/artist that fades in as the hero scrolls out.

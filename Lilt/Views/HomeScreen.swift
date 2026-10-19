@@ -4,6 +4,7 @@ import SwiftUI
 struct HomeScreen: View {
     @Environment(YTMusicClient.self) private var music
     @Environment(ScrollTracker.self) private var scrollTracker
+    @Environment(NavigationModel.self) private var navigation
 
     private enum Phase: Equatable {
         case loading
@@ -39,6 +40,10 @@ struct HomeScreen: View {
             }
         }
         .task { await load() }
+        // ⌘R, while the feed is the screen on top (no page opened over it).
+        .onChange(of: navigation.refreshRequest) { _, _ in
+            if navigation.path.isEmpty { Task { await load(refresh: true) } }
+        }
     }
 
     private var feed: some View {
@@ -72,13 +77,18 @@ struct HomeScreen: View {
         }
     }
 
-    private func load() async {
+    /// A `refresh` (⌘R) fetches even a fresh feed, eases a change in, and keeps the shelves on
+    /// screen if it fails.
+    private func load(refresh: Bool = false) async {
         do {
-            sections = try await music.home()
-            phase = .loaded
+            let fresh = try await music.home(forceRefresh: refresh)
+            withAnimation(refresh ? Theme.Motion.standard : nil) {
+                sections = fresh
+                phase = .loaded
+            }
         } catch is CancellationError {
         } catch {
-            phase = .failed(error.localizedDescription)
+            if !(refresh && phase == .loaded) { phase = .failed(error.localizedDescription) }
         }
     }
 }

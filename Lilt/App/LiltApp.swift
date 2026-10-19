@@ -18,6 +18,12 @@ struct LiltApp: App {
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates…") { delegate.updater.checkForUpdates(nil) }
             }
+            // ⌘R, as in Safari; ⌘⇧R is Repeat.
+            CommandGroup(before: .toolbar) {
+                Button("Refresh") { delegate.refresh() }
+                    .keyboardShortcut("r", modifiers: .command)
+                Divider()
+            }
             CommandGroup(after: .windowList) {
                 Button("Show Lilt") { delegate.showPanel() }
                     .keyboardShortcut("l", modifiers: [.command, .shift])

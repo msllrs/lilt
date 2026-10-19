@@ -189,6 +189,9 @@ final class PanelWindow: NSPanel {
         case ("l", [.command]):
             delegate.openLibrary()
             return true
+        case ("r", [.command]):
+            delegate.refresh()
+            return true
         #if DEBUG
         case ("t", [.command, .option]):
             delegate.showTweakPanel()

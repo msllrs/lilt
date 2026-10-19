@@ -4,6 +4,7 @@ import SwiftUI
 struct LibraryScreen: View {
     @Environment(YTMusicClient.self) private var music
     @Environment(ScrollTracker.self) private var scrollTracker
+    @Environment(NavigationModel.self) private var navigation
 
     private enum Phase: Equatable {
         case loading
@@ -30,6 +31,9 @@ struct LibraryScreen: View {
         body_
             .safeAreaBar(edge: .top, spacing: 0) { header }
             .task(id: music.accountGeneration) { await load() }
+            .onChange(of: navigation.refreshRequest) { _, _ in
+                if navigation.path.last?.id == NavigationModel.library.id { Task { await load(refresh: true) } }
+            }
     }
 
     private var header: some View {
@@ -158,15 +162,18 @@ struct LibraryScreen: View {
         }
     }
 
-    private func load() async {
+    /// A `refresh` (⌘R) fetches even a fresh library, eases a change in, and keeps the rows on
+    /// screen if it fails.
+    private func load(refresh: Bool = false) async {
         do {
             async let who = music.account()
-            content = try await music.library()
+            let fresh = try await music.library(forceRefresh: refresh)
+            withAnimation(refresh ? Theme.Motion.standard : nil) { content = fresh }
             if let fresh = try? await who { account = fresh }
             phase = .loaded
         } catch is CancellationError {
         } catch {
-            phase = .failed(error.localizedDescription)
+            if !(refresh && phase == .loaded) { phase = .failed(error.localizedDescription) }
         }
     }
 }
