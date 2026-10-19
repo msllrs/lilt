@@ -38,6 +38,10 @@ struct BrowseScreen: View {
     @State private var isHoveringCompactArtwork = false
     @State private var isHoveringHeader = false
 
+    /// Only playlists gain songs elsewhere (a song liked on the phone), so only they refresh:
+    /// albums don't change once released and artist pages rarely do.
+    private var isRefreshable: Bool { item.kind == .playlist }
+
     var body: some View {
         content
             .safeAreaBar(edge: .top, spacing: 0) { navigationHeader }
@@ -46,7 +50,7 @@ struct BrowseScreen: View {
             .task(id: item.id) { await load() }
             // ⌘R takes the same path as pulling the list down.
             .onChange(of: navigation.refreshRequest) { _, _ in
-                if navigation.path.last?.id == item.id { Task { await load() } }
+                if isRefreshable, navigation.path.last?.id == item.id { Task { await load() } }
             }
     }
 
@@ -150,9 +154,8 @@ struct BrowseScreen: View {
     /// Opposite the back button: a place for page actions as they arrive.
     private func pageMenu(_ page: BrowsePage) -> some View {
         Menu {
-            // Only playlists change under you (a song liked on the phone); albums are fixed and
-            // artists rarely move. The same refresh as pulling the list down or ⌘R.
-            if page.item.kind == .playlist {
+            // The same refresh as pulling the list down or ⌘R.
+            if isRefreshable {
                 Button("Refresh") { Task { await load() } }
                 Divider()
             }
@@ -273,7 +276,7 @@ struct BrowseScreen: View {
         }
         .scrollIndicators(.never)
         .panelScrollEdge()
-        .pullToRefresh { await load() }
+        .pullToRefresh(isEnabled: isRefreshable) { await load() }
         // A scroll that would end part-way through the hero's travel is steered to the nearer
         // end as the fingers lift, in the same motion, so the page never rests with a half-faded
         // hero and a half-visible compact header.

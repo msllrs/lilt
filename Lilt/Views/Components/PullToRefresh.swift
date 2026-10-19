@@ -5,10 +5,11 @@ extension View {
     /// Pulling the list down past its top runs `action`, with AppKit's refresh indicator showing
     /// until it returns. Apply it to the `ScrollView` itself. macOS 27 only: SwiftUI's
     /// `.refreshable` installs nothing on the Mac, and `NSRefreshController` is new there; on
-    /// earlier systems the list is left as it was.
+    /// earlier systems the list is left as it was. `isEnabled` is fixed for a screen's lifetime
+    /// (a page's kind), so switching branches never rebuilds a live list.
     @ViewBuilder
-    func pullToRefresh(_ action: @escaping @MainActor () async -> Void) -> some View {
-        if #available(macOS 27, *) {
+    func pullToRefresh(isEnabled: Bool = true, _ action: @escaping @MainActor () async -> Void) -> some View {
+        if isEnabled, #available(macOS 27, *) {
             background(RefreshControllerAttacher(action: action).allowsHitTesting(false))
         } else {
             self
