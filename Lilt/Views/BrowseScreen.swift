@@ -150,9 +150,12 @@ struct BrowseScreen: View {
     /// Opposite the back button: a place for page actions as they arrive.
     private func pageMenu(_ page: BrowsePage) -> some View {
         Menu {
-            // The same refresh as pulling the list down or ⌘R.
-            Button("Refresh") { Task { await load() } }
-            Divider()
+            // Only playlists change under you (a song liked on the phone); albums are fixed and
+            // artists rarely move. The same refresh as pulling the list down or ⌘R.
+            if page.item.kind == .playlist {
+                Button("Refresh") { Task { await load() } }
+                Divider()
+            }
             Button("Open in YouTube Music") { if let url = webURL(for: page) { NSWorkspace.shared.open(url) } }
             Button("Copy Link") {
                 guard let url = webURL(for: page) else { return }
