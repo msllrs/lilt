@@ -10,6 +10,8 @@ final class YTMusicClient {
     private static let songsFilter = "EgWKAQIIAWoMEA4QChADEAQQCRAF"
 
     @ObservationIgnored private let client: InnerTubeClient
+    /// Fetches a browse page's raw response. Tests stand in for the network here.
+    @ObservationIgnored private let fetchPage: @MainActor (_ browseId: String) async throws -> JSONObject
     @ObservationIgnored private var pageCache: [String: BrowsePage] = [:]
     @ObservationIgnored private var homeCache: (sections: [HomeSection], fetched: Date)?
     @ObservationIgnored private var libraryCache: (content: LibraryContent, fetched: Date)?
@@ -47,8 +49,10 @@ final class YTMusicClient {
     }
     private static let homeTTL: TimeInterval = 5 * 60
 
-    init(auth: AuthService) {
-        client = InnerTubeClient(auth: auth)
+    init(auth: AuthService, fetchPage: (@MainActor (_ browseId: String) async throws -> JSONObject)? = nil) {
+        let client = InnerTubeClient(auth: auth)
+        self.client = client
+        self.fetchPage = fetchPage ?? { browseId in try await client.post("browse", body: ["browseId": browseId]) }
         restore()
     }
 
@@ -205,7 +209,7 @@ final class YTMusicClient {
 
     func page(for item: BrowseItem) async throws -> BrowsePage {
         if let cached = pageCache[item.id] { return cached }
-        let response = try await client.post("browse", body: ["browseId": item.id])
+        let response = try await fetchPage(item.id)
         let page = SearchParser.browsePage(from: response.value, for: item)
         pageCache[item.id] = page
         ImageCache.shared.prefetch(
