@@ -44,7 +44,7 @@ private struct ScrollPocketHider: NSViewRepresentable {
         /// any layout: after the first lookup it only scans the scroll view's few direct subviews.
         func hidePockets() {
             guard window != nil else { return }
-            if scrollView == nil { attach(to: findScrollView()) }
+            if scrollView == nil { attach(to: scrollViewBeside()) }
             guard let scrollView else { return }
             for view in scrollView.subviews where Self.isPocket(view) {
                 if !view.isHidden { view.isHidden = true }
@@ -72,30 +72,33 @@ private struct ScrollPocketHider: NSViewRepresentable {
             }
         }
 
-        /// SwiftUI places a background beside the scroll view rather than inside it, so search
-        /// a few levels around this view for the scroll view under its center.
-        private func findScrollView() -> NSScrollView? {
-            guard window != nil else { return nil }
-            let center = convert(NSPoint(x: bounds.midX, y: bounds.midY), to: nil)
-            func search(_ view: NSView, depth: Int) -> NSScrollView? {
-                for sub in view.subviews where sub !== self {
-                    if let scroll = sub as? NSScrollView, !scroll.isHidden,
-                       scroll.convert(scroll.bounds, to: nil).contains(center) { return scroll }
-                    if depth > 0, !(sub is NSScrollView), let found = search(sub, depth: depth - 1) { return found }
-                }
-                return nil
-            }
-            var ancestor = superview
-            for _ in 0..<3 {
-                guard let current = ancestor else { break }
-                if let found = search(current, depth: 2) { return found }
-                ancestor = current.superview
-            }
-            return nil
-        }
-
         isolated deinit {
             if let frameObserver { NotificationCenter.default.removeObserver(frameObserver) }
         }
+    }
+}
+
+extension NSView {
+    /// The hosted scroll view a SwiftUI `.background` of a `ScrollView` belongs to. SwiftUI places
+    /// a background beside the scroll view rather than inside it, so this searches a few levels
+    /// around the view for the scroll view under its center.
+    func scrollViewBeside() -> NSScrollView? {
+        guard window != nil else { return nil }
+        let center = convert(NSPoint(x: bounds.midX, y: bounds.midY), to: nil)
+        func search(_ view: NSView, depth: Int) -> NSScrollView? {
+            for sub in view.subviews where sub !== self {
+                if let scroll = sub as? NSScrollView, !scroll.isHidden,
+                   scroll.convert(scroll.bounds, to: nil).contains(center) { return scroll }
+                if depth > 0, !(sub is NSScrollView), let found = search(sub, depth: depth - 1) { return found }
+            }
+            return nil
+        }
+        var ancestor = superview
+        for _ in 0..<3 {
+            guard let current = ancestor else { break }
+            if let found = search(current, depth: 2) { return found }
+            ancestor = current.superview
+        }
+        return nil
     }
 }
