@@ -6,7 +6,6 @@ enum RowAction: Hashable {
     case play, shuffle, playNext, addToQueue
     case addToPlaylist, removeFromPlaylist
     case like, unlike
-    case saveToLibrary, subscribe
     case goToArtist, goToAlbum
     case copyLink
 
@@ -20,8 +19,6 @@ enum RowAction: Hashable {
         case .removeFromPlaylist: "Remove from Playlist"
         case .like: "Like"
         case .unlike: "Remove from Liked Music"
-        case .saveToLibrary: "Save to Library"
-        case .subscribe: "Subscribe"
         case .goToArtist: "Go to Artist"
         case .goToAlbum: "Go to Album"
         case .copyLink: "Copy Link"
@@ -32,7 +29,7 @@ enum RowAction: Hashable {
     /// make so far. They show greyed out until they do.
     var isStub: Bool {
         switch self {
-        case .addToPlaylist, .removeFromPlaylist, .saveToLibrary, .subscribe: true
+        case .addToPlaylist, .removeFromPlaylist: true
         default: false
         }
     }
@@ -60,10 +57,10 @@ enum RowMenu {
     static func item(_ item: BrowseItem) -> [[RowAction]] {
         switch item.kind {
         case .artist:
-            return [[.play, .shuffle], [.subscribe], [.copyLink]]
+            return [[.play, .shuffle], [.copyLink]]
         case .album, .playlist:
             let go: [RowAction] = item.artistItem != nil ? [.goToArtist] : []
-            return [[.play, .shuffle, .playNext, .addToQueue], [.addToPlaylist, .saveToLibrary], go, [.copyLink]].filter { !$0.isEmpty }
+            return [[.play, .shuffle, .playNext, .addToQueue], [.addToPlaylist], go, [.copyLink]].filter { !$0.isEmpty }
         case .library:
             return []
         }

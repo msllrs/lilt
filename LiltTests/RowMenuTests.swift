@@ -41,10 +41,10 @@ struct RowMenuTests {
 
     @Test func pagesOfferWhatSuitsTheirKind() {
         let artist = RowMenu.item(page("UCtool", .artist)).flatMap { $0 }
-        #expect(artist.contains(.subscribe))
+        #expect(artist.contains(.play) && artist.contains(.copyLink))
         #expect(!artist.contains(.addToPlaylist))
         let album = RowMenu.item(page("MPREb-lateralus", .album)).flatMap { $0 }
-        #expect(album.contains(.saveToLibrary) && album.contains(.addToQueue))
+        #expect(album.contains(.addToPlaylist) && album.contains(.addToQueue))
         #expect(RowMenu.item(page("library", .library)).isEmpty)
     }
 
