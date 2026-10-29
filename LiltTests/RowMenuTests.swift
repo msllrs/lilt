@@ -49,7 +49,7 @@ struct RowMenuTests {
     }
 
     @Test func onlyWiredActionsAreEnabled() {
-        #expect(!RowAction.play.isStub && !RowAction.addToQueue.isStub && !RowAction.copyLink.isStub)
+        #expect(!RowAction.play.isStub && !RowAction.playNext.isStub && !RowAction.addToQueue.isStub && !RowAction.copyLink.isStub)
         #expect(RowAction.addToPlaylist.isStub && RowAction.removeFromPlaylist.isStub)
     }
 }

@@ -301,6 +301,22 @@ final class PlayerService {
         save()
     }
 
+    /// Puts tracks straight after the current one, in order, ahead of anything already queued by
+    /// hand; with nothing playing, they start a queue of their own.
+    func playNext(_ tracks: [Track]) {
+        guard !tracks.isEmpty else { return }
+        guard let i = currentIndex, current != nil else {
+            play(tracks, startingAt: 0)
+            return
+        }
+        queue.insert(contentsOf: tracks, at: min(queue.count, i + 1))
+        if unshuffledQueue != nil, let j = unshuffledQueue!.firstIndex(where: { $0.id == queue[i].id }) {
+            unshuffledQueue!.insert(contentsOf: tracks, at: min(unshuffledQueue!.count, j + 1))
+        }
+        manualTokens.insert(contentsOf: tracks.map { _ in UUID() }, at: 0)
+        save()
+    }
+
     /// Removes the track at an offset into `upcoming`.
     func removeUpcoming(at offset: Int) {
         guard let i = currentIndex, offset < manualCount, queue.indices.contains(i + 1 + offset) else { return }

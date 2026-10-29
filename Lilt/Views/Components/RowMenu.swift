@@ -32,7 +32,7 @@ enum RowAction: Hashable {
     /// make so far. They show greyed out until they do.
     var isStub: Bool {
         switch self {
-        case .playNext, .addToPlaylist, .removeFromPlaylist, .like, .unlike, .saveToLibrary, .subscribe: true
+        case .addToPlaylist, .removeFromPlaylist, .like, .unlike, .saveToLibrary, .subscribe: true
         default: false
         }
     }

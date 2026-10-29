@@ -130,6 +130,9 @@ struct TrackRow: View {
     private func perform(_ menuAction: RowAction) {
         switch menuAction {
         case .play: action()
+        case .playNext:
+            player.playNext([track])
+            AppDelegate.shared?.queueDidChange()
         case .addToQueue: enqueue()
         case .goToArtist: if let artist = track.artistItem { navigation.open(artist) }
         case .goToAlbum: if let album = track.albumItem { navigation.open(album) }

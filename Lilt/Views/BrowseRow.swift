@@ -54,6 +54,11 @@ struct BrowseRow: View {
         switch action {
         case .play: withTracks { player.play($0, startingAt: 0, source: item) }
         case .shuffle: withTracks { player.playShuffled($0, source: item) }
+        case .playNext:
+            withTracks { tracks in
+                player.playNext(tracks)
+                AppDelegate.shared?.queueDidChange()
+            }
         case .addToQueue:
             withTracks { tracks in
                 tracks.forEach(player.enqueue)
