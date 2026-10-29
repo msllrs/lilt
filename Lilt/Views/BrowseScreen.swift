@@ -110,9 +110,10 @@ struct BrowseScreen: View {
     /// Liked Music is YouTube's automatic playlist: always in the library, never saved or removed.
     nonisolated static func isLikedMusic(_ item: BrowseItem) -> Bool { item.id == "VLLM" || item.id == "LM" }
 
-    /// A song unliked in Lilt leaves Liked Music at once, without waiting for a refetch.
+    /// A song unliked or removed in Lilt leaves the list at once, without waiting for a refetch.
     private func shownTracks(_ page: BrowsePage) -> [Track] {
-        Self.isLikedMusic(page.item) ? page.tracks.filter { music.isLiked($0) != false } : page.tracks
+        let likedMusic = Self.isLikedMusic(page.item)
+        return page.tracks.filter { !music.isRemoved($0) && (!likedMusic || music.isLiked($0) != false) }
     }
 
     /// Play, save and shuffle all share this height so the row reads as one set of controls.

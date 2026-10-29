@@ -235,6 +235,27 @@ final class YTMusicClient {
     /// Records a like made another way (the playing track's own heart), so rows agree.
     func noteLiked(_ liked: Bool, track: Track) { likeChanges[track.id] = liked }
 
+    /// Playlist entries removed in Lilt since their pages were fetched.
+    private(set) var removedEntries: Set<PlaylistEntry> = []
+
+    /// Whether a song's row has been removed from the playlist it was fetched in.
+    func isRemoved(_ track: Track) -> Bool { track.playlistEntry.map(removedEntries.contains) ?? false }
+
+    /// Takes a song out of one of your playlists. The row goes at once; a failed call brings it back.
+    func removeFromPlaylist(_ track: Track) async throws {
+        guard let entry = track.playlistEntry else { return }
+        removedEntries.insert(entry)
+        do {
+            _ = try await write("browse/edit_playlist", [
+                "playlistId": entry.playlistId,
+                "actions": [["action": "ACTION_REMOVE_VIDEO", "setVideoId": entry.setVideoId, "removedVideoId": track.id]],
+            ])
+        } catch {
+            removedEntries.remove(entry)
+            throw error
+        }
+    }
+
     /// Always asks the server: a playlist can change elsewhere (a song liked on the phone), and
     /// the cached copy is only for `cachedPage(for:)` to draw a first frame from.
     func page(for item: BrowseItem) async throws -> BrowsePage {

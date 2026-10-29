@@ -46,8 +46,21 @@ enum SearchParser {
             artworkURL: thumbnail(in: item, size: 240),
             artistId: artistRuns.first.flatMap(browseId(of:)),
             albumId: albumRun.flatMap(browseId(of:)),
-            isLiked: likeState(of: item)
+            isLiked: likeState(of: item),
+            playlistEntry: playlistEntry(of: item)
         )
+    }
+
+    /// Rows of a playlist you can edit carry their own "Remove from playlist" call; other
+    /// playlists' rows don't, so its presence is what makes a song removable.
+    static func playlistEntry(of item: [String: Any]) -> PlaylistEntry? {
+        for edit in JSON.findAll(key: "playlistEditEndpoint", in: item) {
+            guard let playlistId = JSON.string(edit["playlistId"]) else { continue }
+            for action in JSON.array(edit["actions"])?.compactMap(JSON.dict) ?? [] where JSON.string(action["action"]) == "ACTION_REMOVE_VIDEO" {
+                if let setVideoId = JSON.string(action["setVideoId"]) { return PlaylistEntry(playlistId: playlistId, setVideoId: setVideoId) }
+            }
+        }
+        return nil
     }
 
     /// A row's like state. Playlist rows carry a like button with its status; search and other

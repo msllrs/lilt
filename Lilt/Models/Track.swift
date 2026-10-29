@@ -8,6 +8,12 @@ struct TrackLinks: Sendable {
     var albumId: String?
 }
 
+/// One song's place in a playlist, which is what removing it from the playlist names.
+struct PlaylistEntry: Hashable, Codable, Sendable {
+    var playlistId: String
+    var setVideoId: String
+}
+
 struct Track: Identifiable, Hashable, Codable, Sendable {
     /// YouTube video id.
     let id: String
@@ -22,6 +28,8 @@ struct Track: Identifiable, Hashable, Codable, Sendable {
     var albumId: String?
     /// Whether you've liked it, when the response said.
     var isLiked: Bool?
+    /// Where this song sits in a playlist you can edit. Only your own playlists' rows carry it.
+    var playlistEntry: PlaylistEntry?
 
     var artistItem: BrowseItem? {
         guard let artistId else { return nil }

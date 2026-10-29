@@ -136,6 +136,7 @@ struct TrackRow: View {
             AppDelegate.shared?.queueDidChange()
         case .addToQueue: enqueue()
         case .like, .unlike: setLiked(menuAction == .like)
+        case .removeFromPlaylist: Task { try? await music.removeFromPlaylist(track) }
         case .goToArtist: if let artist = track.artistItem { navigation.open(artist) }
         case .goToAlbum: if let album = track.albumItem { navigation.open(album) }
         case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))

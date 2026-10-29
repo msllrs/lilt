@@ -6,10 +6,16 @@ struct RowMenuTests {
     private let song = Track(id: "v1", title: "Schism", artist: "Tool", album: "Lateralus", artistId: "UCtool", albumId: "MPREb-lateralus")
     private func page(_ id: String, _ kind: BrowseKind) -> BrowseItem { BrowseItem(id: id, kind: kind, title: "", subtitle: "", artworkURL: nil) }
 
-    @Test func aPlaylistsOwnTrackCanBeRemovedFromIt() {
-        let actions = RowMenu.track(song, in: page("VLPLmine", .playlist)).flatMap { $0 }
+    @Test func aSongInYourOwnPlaylistCanBeRemovedFromIt() {
+        var mine = song
+        mine.playlistEntry = PlaylistEntry(playlistId: "PLmine", setVideoId: "set1")
+        let actions = RowMenu.track(mine, in: page("VLPLmine", .playlist)).flatMap { $0 }
         #expect(actions.contains(.removeFromPlaylist))
         #expect(actions.contains(.addToPlaylist))
+    }
+
+    @Test func someoneElsesPlaylistOffersNoRemove() {
+        #expect(!RowMenu.track(song, in: page("VLPLtheirs", .playlist)).flatMap { $0 }.contains(.removeFromPlaylist))
     }
 
     @Test func aLikedTrackLeavesLikedMusicByBeingUnliked() {
@@ -57,6 +63,7 @@ struct RowMenuTests {
     @Test func onlyWiredActionsAreEnabled() {
         #expect(!RowAction.play.isStub && !RowAction.playNext.isStub && !RowAction.addToQueue.isStub && !RowAction.copyLink.isStub)
         #expect(!RowAction.like.isStub && !RowAction.unlike.isStub)
-        #expect(RowAction.addToPlaylist.isStub && RowAction.removeFromPlaylist.isStub)
+        #expect(!RowAction.removeFromPlaylist.isStub)
+        #expect(RowAction.addToPlaylist.isStub)
     }
 }
