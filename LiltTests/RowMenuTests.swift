@@ -13,10 +13,16 @@ struct RowMenuTests {
     }
 
     @Test func aLikedTrackLeavesLikedMusicByBeingUnliked() {
-        let actions = RowMenu.track(song, in: page(RowMenu.likedMusicId, .playlist)).flatMap { $0 }
+        let actions = RowMenu.track(song, in: page("VLLM", .playlist)).flatMap { $0 }
         #expect(actions.contains(.unlike))
         #expect(!actions.contains(.removeFromPlaylist))
         #expect(!actions.contains(.like))
+    }
+
+    @Test func aLikedSongOffersUnlikeAnywhere() {
+        #expect(RowMenu.track(song, in: nil, isLiked: true).flatMap { $0 }.contains(.unlike))
+        #expect(RowMenu.track(song, in: nil, isLiked: false).flatMap { $0 }.contains(.like))
+        #expect(RowMenu.track(song, in: nil, isLiked: nil).flatMap { $0 }.contains(.like))
     }
 
     @Test func aTrackElsewhereHasNothingToBeRemovedFrom() {
@@ -50,6 +56,7 @@ struct RowMenuTests {
 
     @Test func onlyWiredActionsAreEnabled() {
         #expect(!RowAction.play.isStub && !RowAction.playNext.isStub && !RowAction.addToQueue.isStub && !RowAction.copyLink.isStub)
+        #expect(!RowAction.like.isStub && !RowAction.unlike.isStub)
         #expect(RowAction.addToPlaylist.isStub && RowAction.removeFromPlaylist.isStub)
     }
 }

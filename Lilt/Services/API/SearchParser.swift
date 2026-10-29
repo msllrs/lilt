@@ -45,8 +45,24 @@ enum SearchParser {
             durationText: duration,
             artworkURL: thumbnail(in: item, size: 240),
             artistId: artistRuns.first.flatMap(browseId(of:)),
-            albumId: albumRun.flatMap(browseId(of:))
+            albumId: albumRun.flatMap(browseId(of:)),
+            isLiked: likeState(of: item)
         )
+    }
+
+    /// A row's like state. Playlist rows carry a like button with its status; search and other
+    /// rows only carry the menu's liked-songs toggle, whose default action is what a click does:
+    /// LIKE for a song you haven't liked, INDIFFERENT for one you have.
+    static func likeState(of item: [String: Any]) -> Bool? {
+        if let status = JSON.string(JSON.findAll(key: "likeButtonRenderer", in: item).first?["likeStatus"]) {
+            return status == "LIKE"
+        }
+        for toggle in JSON.findAll(key: "toggleMenuServiceItemRenderer", in: item) {
+            if let status = JSON.string(JSON.value(at: ["defaultServiceEndpoint", "likeEndpoint", "status"], in: toggle)) {
+                return status != "LIKE"
+            }
+        }
+        return nil
     }
 
     // MARK: Mixed search

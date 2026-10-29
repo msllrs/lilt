@@ -32,7 +32,7 @@ enum RowAction: Hashable {
     /// make so far. They show greyed out until they do.
     var isStub: Bool {
         switch self {
-        case .addToPlaylist, .removeFromPlaylist, .like, .unlike, .saveToLibrary, .subscribe: true
+        case .addToPlaylist, .removeFromPlaylist, .saveToLibrary, .subscribe: true
         default: false
         }
     }
@@ -41,15 +41,13 @@ enum RowAction: Hashable {
 /// What a row's right-click menu offers: groups of actions, split by dividers. Depends on what
 /// the row is and on the list it sits in (a playlist's own tracks can come out of it).
 enum RowMenu {
-    /// Liked Music's browse id. Its tracks leave it by being unliked, not by playlist edits.
-    static let likedMusicId = "VLLM"
-
-    static func track(_ track: Track, in source: BrowseItem?) -> [[RowAction]] {
+    /// `isLiked`: the song's like state as far as Lilt knows; nil when the response didn't say.
+    static func track(_ track: Track, in source: BrowseItem?, isLiked: Bool? = nil) -> [[RowAction]] {
         var playlist: [RowAction] = [.addToPlaylist]
-        var library: [RowAction] = [.like]
-        if source?.id == likedMusicId {
-            library = [.unlike]
-        } else if source?.kind == .playlist {
+        // Liked Music's songs leave it by being unliked, not by playlist edits.
+        let inLikedMusic = source.map(BrowseScreen.isLikedMusic) ?? false
+        let library: [RowAction] = inLikedMusic || isLiked == true ? [.unlike] : [.like]
+        if source?.kind == .playlist, !inLikedMusic {
             playlist.append(.removeFromPlaylist)
         }
         var go: [RowAction] = []

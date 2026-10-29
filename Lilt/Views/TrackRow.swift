@@ -10,6 +10,7 @@ struct TrackRow: View {
 
     @Environment(PlayerService.self) private var player
     @Environment(NavigationModel.self) private var navigation
+    @Environment(YTMusicClient.self) private var music
     @State private var isHovering = false
     /// The add-to-queue button shows a tick for a moment after a click.
     @State private var showsTick = false
@@ -87,7 +88,7 @@ struct TrackRow: View {
         }
         .buttonStyle(.plain)
         .contextMenu {
-            RowMenuItems(groups: RowMenu.track(track, in: source), perform: perform)
+            RowMenuItems(groups: RowMenu.track(track, in: source, isLiked: music.isLiked(track)), perform: perform)
         }
         .onHover { hovering in
             isHovering = hovering
@@ -134,10 +135,22 @@ struct TrackRow: View {
             player.playNext([track])
             AppDelegate.shared?.queueDidChange()
         case .addToQueue: enqueue()
+        case .like, .unlike: setLiked(menuAction == .like)
         case .goToArtist: if let artist = track.artistItem { navigation.open(artist) }
         case .goToAlbum: if let album = track.albumItem { navigation.open(album) }
         case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))
         default: break
+        }
+    }
+
+    /// The playing song is liked through the player's own heart, so the platter stays in step
+    /// with the web player; any other song through the API.
+    private func setLiked(_ liked: Bool) {
+        if player.current?.id == track.id {
+            if player.isLiked != liked { player.toggleLike() }
+            music.noteLiked(liked, track: track)
+        } else {
+            Task { try? await music.setLiked(liked, track: track) }
         }
     }
 

@@ -108,7 +108,12 @@ struct BrowseScreen: View {
     private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
 
     /// Liked Music is YouTube's automatic playlist: always in the library, never saved or removed.
-    static func isLikedMusic(_ item: BrowseItem) -> Bool { item.id == "VLLM" || item.id == "LM" }
+    nonisolated static func isLikedMusic(_ item: BrowseItem) -> Bool { item.id == "VLLM" || item.id == "LM" }
+
+    /// A song unliked in Lilt leaves Liked Music at once, without waiting for a refetch.
+    private func shownTracks(_ page: BrowsePage) -> [Track] {
+        Self.isLikedMusic(page.item) ? page.tracks.filter { music.isLiked($0) != false } : page.tracks
+    }
 
     /// Play, save and shuffle all share this height so the row reads as one set of controls.
     static let heroControlHeight: CGFloat = 38
@@ -259,7 +264,7 @@ struct BrowseScreen: View {
                 }
                 if !page.tracks.isEmpty {
                     SectionHeader(page.item.kind == .artist ? "Top songs" : "Tracks")
-                    TrackRows(tracks: page.tracks, source: page.item)
+                    TrackRows(tracks: shownTracks(page), source: page.item)
                     if let allSongsId = page.allSongsId {
                         BrowseRow(item: BrowseItem(
                             id: allSongsId, kind: .playlist, title: "All songs",

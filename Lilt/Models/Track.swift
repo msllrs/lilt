@@ -20,6 +20,8 @@ struct Track: Identifiable, Hashable, Codable, Sendable {
     var artistId: String?
     /// Browse id of the album (MPREb…), when known.
     var albumId: String?
+    /// Whether you've liked it, when the response said.
+    var isLiked: Bool?
 
     var artistItem: BrowseItem? {
         guard let artistId else { return nil }

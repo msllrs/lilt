@@ -12,6 +12,8 @@ final class YTMusicClient {
     @ObservationIgnored private let client: InnerTubeClient
     /// Fetches a browse page's raw response. Tests stand in for the network here.
     @ObservationIgnored private let fetchPage: @MainActor (_ browseId: String) async throws -> JSONObject
+    /// Calls that change the account (likes, playlist edits), standable in for by tests.
+    @ObservationIgnored private let write: @MainActor (_ endpoint: String, _ body: [String: Any]) async throws -> JSONObject
     @ObservationIgnored private var pageCache: [String: BrowsePage] = [:]
     @ObservationIgnored private var homeCache: (sections: [HomeSection], fetched: Date)?
     @ObservationIgnored private var libraryCache: (content: LibraryContent, fetched: Date)?
@@ -49,10 +51,15 @@ final class YTMusicClient {
     }
     private static let homeTTL: TimeInterval = 5 * 60
 
-    init(auth: AuthService, fetchPage: (@MainActor (_ browseId: String) async throws -> JSONObject)? = nil) {
+    init(
+        auth: AuthService,
+        fetchPage: (@MainActor (_ browseId: String) async throws -> JSONObject)? = nil,
+        write: (@MainActor (_ endpoint: String, _ body: [String: Any]) async throws -> JSONObject)? = nil
+    ) {
         let client = InnerTubeClient(auth: auth)
         self.client = client
         self.fetchPage = fetchPage ?? { browseId in try await client.post("browse", body: ["browseId": browseId]) }
+        self.write = write ?? { endpoint, body in try await client.post(endpoint, body: body) }
         restore()
     }
 
@@ -196,7 +203,7 @@ final class YTMusicClient {
     /// without a refetch.
     func setSaved(_ saved: Bool, page: BrowsePage) async throws {
         guard let playlistId = page.playlistId else { throw URLError(.badURL) }
-        _ = try await client.post(saved ? "like/like" : "like/removelike", body: ["target": ["playlistId": playlistId]])
+        _ = try await write(saved ? "like/like" : "like/removelike", ["target": ["playlistId": playlistId]])
         var content = libraryCache?.content ?? LibraryContent()
         let remove: (inout [BrowseItem]) -> Void = { $0.removeAll { $0.id == page.item.id } }
         remove(&content.albums); remove(&content.playlists)
@@ -206,6 +213,27 @@ final class YTMusicClient {
         libraryCache = (content, libraryCache?.fetched ?? .now)
         persist()
     }
+
+    /// Likes changed in Lilt since the pages showing them were fetched, by video id.
+    private(set) var likeChanges: [String: Bool] = [:]
+
+    /// Whether a song is liked, counting changes made since its row was fetched.
+    func isLiked(_ track: Track) -> Bool? { likeChanges[track.id] ?? track.isLiked }
+
+    /// Likes or unlikes a song. Rows answer at once; a failed call puts them back.
+    func setLiked(_ liked: Bool, track: Track) async throws {
+        let before = likeChanges[track.id]
+        likeChanges[track.id] = liked
+        do {
+            _ = try await write(liked ? "like/like" : "like/removelike", ["target": ["videoId": track.id]])
+        } catch {
+            likeChanges[track.id] = before
+            throw error
+        }
+    }
+
+    /// Records a like made another way (the playing track's own heart), so rows agree.
+    func noteLiked(_ liked: Bool, track: Track) { likeChanges[track.id] = liked }
 
     /// Always asks the server: a playlist can change elsewhere (a song liked on the phone), and
     /// the cached copy is only for `cachedPage(for:)` to draw a first frame from.
