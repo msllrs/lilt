@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         Self.shared = self
         NSApp.setActivationPolicy(.regular)
         player.linkResolver = { [music] videoId in try await music.links(forVideoId: videoId) }
+        player.onLikeToggled = { [music] track, liked in music.noteLiked(liked, track: track) }
         player.recents = recents
         navigation.recents = recents
         if let url = player.displayArtworkURL { ImageCache.shared.restoreForLaunch(url) }

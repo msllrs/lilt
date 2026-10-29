@@ -60,6 +60,8 @@ final class PlayerService {
     let bridge: PlayerBridge
     /// Looks up artist/album ids for a track that arrived without them. Wired by the app.
     @ObservationIgnored var linkResolver: ((String) async throws -> TrackLinks?)?
+    /// Reports each like the player makes, so rows elsewhere agree. Wired by the app.
+    @ObservationIgnored var onLikeToggled: (@MainActor (Track, Bool) -> Void)?
     /// Receives every track that starts, for the recents menu. Wired by the app.
     @ObservationIgnored weak var recents: RecentsStore?
     @ObservationIgnored private var resolvingLinksFor: String?
@@ -183,8 +185,9 @@ final class PlayerService {
     /// Likes or unlikes the playing track through the page's own button. Flipped at once so the
     /// heart answers the click; the next state update confirms it.
     func toggleLike() {
-        guard current != nil else { return }
+        guard let current else { return }
         isLiked.toggle()
+        onLikeToggled?(current, isLiked)
         bridge.toggleLike()
     }
 

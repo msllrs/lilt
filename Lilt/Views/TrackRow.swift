@@ -156,7 +156,6 @@ struct TrackRow: View {
     private func setLiked(_ liked: Bool) {
         if player.current?.id == track.id {
             if player.isLiked != liked { player.toggleLike() }
-            music.noteLiked(liked, track: track)
         } else {
             Task { try? await music.setLiked(liked, track: track) }
         }
