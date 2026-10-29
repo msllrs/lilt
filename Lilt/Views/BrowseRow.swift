@@ -40,13 +40,21 @@ struct BrowseRow: View {
         }
         .buttonStyle(.plain)
         .contextMenu {
-            RowMenuItems(groups: RowMenu.item(item), perform: perform)
+            RowMenuItems(
+                groups: RowMenu.item(item),
+                playlists: music.ownPlaylists,
+                addedTo: music.addedTo[item.id] ?? [],
+                perform: perform,
+                add: { playlist in Task { try? await music.add(item, to: playlist) } }
+            )
         }
         .onHover { hovering in
             isHovering = hovering
             // Warm the cache so the page is ready by the time it's clicked. Only once: opening
             // the page fetches it fresh anyway, so a warm copy needn't be fetched again here.
             if hovering, music.cachedPage(for: item) == nil { Task { _ = try? await music.page(for: item) } }
+            // Your playlists, for Add to Playlist; any song will do to ask for them.
+            if hovering, let song = music.cachedPage(for: item)?.tracks.first { music.warmOwnPlaylists(videoId: song.id) }
         }
     }
 

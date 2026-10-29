@@ -59,11 +59,4 @@ struct RowMenuTests {
         #expect(RowMenu.webURL(for: page("VLPLmine", .playlist))?.absoluteString == "https://music.youtube.com/playlist?list=PLmine")
         #expect(RowMenu.webURL(for: page("MPREb-x", .album))?.absoluteString == "https://music.youtube.com/browse/MPREb-x")
     }
-
-    @Test func onlyWiredActionsAreEnabled() {
-        #expect(!RowAction.play.isStub && !RowAction.playNext.isStub && !RowAction.addToQueue.isStub && !RowAction.copyLink.isStub)
-        #expect(!RowAction.like.isStub && !RowAction.unlike.isStub)
-        #expect(!RowAction.removeFromPlaylist.isStub)
-        #expect(RowAction.addToPlaylist.isStub)
-    }
 }

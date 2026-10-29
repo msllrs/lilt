@@ -235,6 +235,46 @@ final class YTMusicClient {
     /// Records a like made another way (the playing track's own heart), so rows agree.
     func noteLiked(_ liked: Bool, track: Track) { likeChanges[track.id] = liked }
 
+    /// Your own playlists, for Add to Playlist. Fetched once, ahead of the first menu that
+    /// needs them (a menu can't wait on the network while it's open).
+    private(set) var ownPlaylists: [OwnPlaylist] = []
+    @ObservationIgnored private var ownPlaylistsTask: Task<Void, Never>?
+
+    /// Starts fetching your playlists if nothing has yet. The dialog's request is keyed by a
+    /// song, but the playlists it lists are the same for any song.
+    func warmOwnPlaylists(videoId: String) {
+        guard ownPlaylists.isEmpty, ownPlaylistsTask == nil else { return }
+        ownPlaylistsTask = Task {
+            if let response = try? await write("playlist/get_add_to_playlist", ["videoIds": [videoId]]) {
+                ownPlaylists = SearchParser.ownPlaylists(from: response.value)
+            }
+            ownPlaylistsTask = nil
+        }
+    }
+
+    /// Playlists each song or list has been added to from Lilt (or turned out to be in already),
+    /// by video or browse id, so the menu can tick them.
+    private(set) var addedTo: [String: Set<String>] = [:]
+
+    /// Adds a song to one of your playlists. YouTube refuses a song that's already there; that
+    /// counts as done too.
+    func add(_ track: Track, to playlist: OwnPlaylist) async throws {
+        try await add(["action": "ACTION_ADD_VIDEO", "addedVideoId": track.id, "dedupeOption": "DEDUPE_OPTION_CHECK"], key: track.id, to: playlist)
+    }
+
+    /// Adds every song of an album or playlist to one of yours.
+    func add(_ item: BrowseItem, to playlist: OwnPlaylist) async throws {
+        var page = cachedPage(for: item)
+        if page == nil { page = try await self.page(for: item) }
+        guard let listId = page?.playlistId else { throw URLError(.badURL) }
+        try await add(["action": "ACTION_ADD_PLAYLIST", "addedFullListId": listId, "dedupeOption": "DEDUPE_OPTION_CHECK"], key: item.id, to: playlist)
+    }
+
+    private func add(_ action: [String: Any], key: String, to playlist: OwnPlaylist) async throws {
+        _ = try await write("browse/edit_playlist", ["playlistId": playlist.id, "actions": [action]])
+        addedTo[key, default: []].insert(playlist.id)
+    }
+
     /// Playlist entries removed in Lilt since their pages were fetched.
     private(set) var removedEntries: Set<PlaylistEntry> = []
 

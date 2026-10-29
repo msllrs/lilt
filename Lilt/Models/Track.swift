@@ -8,6 +8,13 @@ struct TrackLinks: Sendable {
     var albumId: String?
 }
 
+/// A playlist of yours that songs can be added to.
+struct OwnPlaylist: Identifiable, Hashable, Sendable {
+    /// The playlist id (PL…), without the browse id's "VL".
+    let id: String
+    var title: String
+}
+
 /// One song's place in a playlist, which is what removing it from the playlist names.
 struct PlaylistEntry: Hashable, Codable, Sendable {
     var playlistId: String

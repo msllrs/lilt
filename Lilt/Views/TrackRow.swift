@@ -88,10 +88,17 @@ struct TrackRow: View {
         }
         .buttonStyle(.plain)
         .contextMenu {
-            RowMenuItems(groups: RowMenu.track(track, in: source, isLiked: music.isLiked(track)), perform: perform)
+            RowMenuItems(
+                groups: RowMenu.track(track, in: source, isLiked: music.isLiked(track)),
+                playlists: music.ownPlaylists,
+                addedTo: music.addedTo[track.id] ?? [],
+                perform: perform,
+                add: { playlist in Task { try? await music.add(track, to: playlist) } }
+            )
         }
         .onHover { hovering in
             isHovering = hovering
+            if hovering { music.warmOwnPlaylists(videoId: track.id) }
         }
         .onChange(of: isCurrent) { _, current in
             withAnimation(Theme.Motion.standard) { disc = current ? 1 : 0 }

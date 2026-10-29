@@ -51,6 +51,16 @@ enum SearchParser {
         )
     }
 
+    /// The playlists YouTube Music's "Save to playlist" dialog offers: the ones you can edit.
+    /// "Episodes for Later" (SE) is for podcasts, so it's left out.
+    static func ownPlaylists(from response: [String: Any]) -> [OwnPlaylist] {
+        JSON.findAll(key: "playlistAddToOptionRenderer", in: response).compactMap { option in
+            guard let id = JSON.string(option["playlistId"]), id != "SE",
+                  let title = runsText(JSON.value(at: ["title", "runs"], in: option)), !title.isEmpty else { return nil }
+            return OwnPlaylist(id: id, title: title)
+        }
+    }
+
     /// Rows of a playlist you can edit carry their own "Remove from playlist" call; other
     /// playlists' rows don't, so its presence is what makes a song removable.
     static func playlistEntry(of item: [String: Any]) -> PlaylistEntry? {

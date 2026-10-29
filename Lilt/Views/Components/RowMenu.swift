@@ -15,22 +15,13 @@ enum RowAction: Hashable {
         case .shuffle: "Shuffle"
         case .playNext: "Play Next"
         case .addToQueue: "Add to Queue"
-        case .addToPlaylist: "Add to Playlist…"
+        case .addToPlaylist: "Add to Playlist"
         case .removeFromPlaylist: "Remove from Playlist"
         case .like: "Like"
         case .unlike: "Remove from Liked Music"
         case .goToArtist: "Go to Artist"
         case .goToAlbum: "Go to Album"
         case .copyLink: "Copy Link"
-        }
-    }
-
-    /// Shown but not wired up yet: these need write calls to YouTube Music that Lilt doesn't
-    /// make so far. They show greyed out until they do.
-    var isStub: Bool {
-        switch self {
-        case .addToPlaylist: true
-        default: false
         }
     }
 }
@@ -85,17 +76,37 @@ enum RowMenu {
     }
 }
 
-/// Renders a row's actions as menu items; `perform` handles the live ones.
+/// Renders a row's actions as menu items. Add to Playlist opens a submenu of your playlists,
+/// ticking the ones the row has been added to.
 struct RowMenuItems: View {
     let groups: [[RowAction]]
+    var playlists: [OwnPlaylist] = []
+    var addedTo: Set<String> = []
     let perform: (RowAction) -> Void
+    var add: (OwnPlaylist) -> Void = { _ in }
 
     var body: some View {
         ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
             if index > 0 { Divider() }
             ForEach(group, id: \.self) { action in
-                Button(action.title) { perform(action) }
-                    .disabled(action.isStub)
+                if action == .addToPlaylist {
+                    playlistMenu
+                } else {
+                    Button(action.title) { perform(action) }
+                }
+            }
+        }
+    }
+
+    private var playlistMenu: some View {
+        Menu(RowAction.addToPlaylist.title) {
+            if playlists.isEmpty {
+                Button("Loading Playlists…") {}.disabled(true)
+            }
+            ForEach(playlists) { playlist in
+                Button { add(playlist) } label: {
+                    if addedTo.contains(playlist.id) { Label(playlist.title, systemImage: "checkmark") } else { Text(playlist.title) }
+                }
             }
         }
     }
