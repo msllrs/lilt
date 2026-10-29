@@ -142,22 +142,12 @@ struct TrackRow: View {
             player.playNext([track])
             AppDelegate.shared?.queueDidChange()
         case .addToQueue: enqueue()
-        case .like, .unlike: setLiked(menuAction == .like)
+        case .like, .unlike: RowMenu.setLiked(menuAction == .like, track, player: player, music: music)
         case .removeFromPlaylist: Task { try? await music.removeFromPlaylist(track) }
-        case .goToArtist: if let artist = track.artistItem { navigation.open(artist) }
-        case .goToAlbum: if let album = track.albumItem { navigation.open(album) }
+        case .goToArtist: RowMenu.open(track.artistItem, navigation: navigation)
+        case .goToAlbum: RowMenu.open(track.albumItem, navigation: navigation)
         case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))
         default: break
-        }
-    }
-
-    /// The playing song is liked through the player's own heart, so the platter stays in step
-    /// with the web player; any other song through the API.
-    private func setLiked(_ liked: Bool) {
-        if player.current?.id == track.id {
-            if player.isLiked != liked { player.toggleLike() }
-        } else {
-            Task { try? await music.setLiked(liked, track: track) }
         }
     }
 

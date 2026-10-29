@@ -60,3 +60,26 @@ struct RowMenuTests {
         #expect(RowMenu.webURL(for: page("MPREb-x", .album))?.absoluteString == "https://music.youtube.com/browse/MPREb-x")
     }
 }
+
+/// The up-next list's rows and the now-playing bar have menus of their own.
+struct QueueAndPlatterMenuTests {
+    private let song = Track(id: "v1", title: "Schism", artist: "Tool", album: "Lateralus", artistId: "UCtool", albumId: "MPREb-lateralus")
+
+    @Test func onlyHandQueuedSongsComeOutOfTheQueue() {
+        #expect(RowMenu.queued(song, removable: true, isLiked: nil).flatMap { $0 }.contains(.removeFromQueue))
+        #expect(!RowMenu.queued(song, removable: false, isLiked: nil).flatMap { $0 }.contains(.removeFromQueue))
+    }
+
+    @Test func queuedSongsOfferTheSongsOwnActions() {
+        let actions = RowMenu.queued(song, removable: false, isLiked: true).flatMap { $0 }
+        #expect(actions.contains(.play) && actions.contains(.addToPlaylist) && actions.contains(.unlike))
+        #expect(actions.contains(.goToArtist) && actions.contains(.goToAlbum) && actions.contains(.copyLink))
+        #expect(!actions.contains(.addToQueue), "it's already queued")
+    }
+
+    @Test func theBarIsAboutTheSong() {
+        let actions = RowMenu.nowPlaying(song, isLiked: false).flatMap { $0 }
+        #expect(actions == [.like, .addToPlaylist, .goToArtist, .goToAlbum, .copyLink])
+        #expect(RowMenu.nowPlaying(song, isLiked: true).flatMap { $0 }.first == .unlike)
+    }
+}

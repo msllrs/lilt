@@ -209,6 +209,9 @@ private struct QueueRow: View {
     /// Nil for the automatic group, which can't be edited.
     let remove: (() -> Void)?
 
+    @Environment(PlayerService.self) private var player
+    @Environment(YTMusicClient.self) private var music
+    @Environment(NavigationModel.self) private var navigation
     @State private var isHovering = false
 
     var body: some View {
@@ -258,8 +261,30 @@ private struct QueueRow: View {
                 .fill(.fill.quaternary)
                 .opacity(isHovering ? 0.6 : 0)
         }
+        .contextMenu {
+            RowMenuItems(
+                groups: RowMenu.queued(track, removable: remove != nil, isLiked: music.isLiked(track)),
+                playlists: music.ownPlaylists,
+                addedTo: music.addedTo[track.id] ?? [],
+                perform: perform,
+                add: { playlist in Task { try? await music.add(track, to: playlist) } }
+            )
+        }
         .onHover { hovering in
             isHovering = hovering
+            if hovering { music.warmOwnPlaylists(videoId: track.id) }
+        }
+    }
+
+    private func perform(_ action: RowAction) {
+        switch action {
+        case .play: play()
+        case .removeFromQueue: remove?()
+        case .like, .unlike: RowMenu.setLiked(action == .like, track, player: player, music: music)
+        case .goToArtist: RowMenu.open(track.artistItem, navigation: navigation)
+        case .goToAlbum: RowMenu.open(track.albumItem, navigation: navigation)
+        case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))
+        default: break
         }
     }
 }

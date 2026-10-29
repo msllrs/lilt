@@ -3,6 +3,7 @@ import SwiftUI
 struct NowPlayingBar: View {
     @Environment(PlayerService.self) private var player
     @Environment(NavigationModel.self) private var navigation
+    @Environment(YTMusicClient.self) private var music
     @Environment(ScrollTracker.self) private var scrollTracker
     @Environment(\.colorScheme) private var colorScheme
 
@@ -226,11 +227,24 @@ struct NowPlayingBar: View {
                 .onTapGesture(count: 2) { AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer) }
         }
         .contentShape(shape)
+        // Right-click anywhere on the platter: the playing song's own actions.
+        .contextMenu {
+            if let track = player.current {
+                RowMenuItems(
+                    groups: RowMenu.nowPlaying(track, isLiked: player.isLiked),
+                    playlists: music.ownPlaylists,
+                    addedTo: music.addedTo[track.id] ?? [],
+                    perform: { perform($0, on: track) },
+                    add: { playlist in Task { try? await music.add(track, to: playlist) } }
+                )
+            }
+        }
         .onHover { hovering in
             // While the native frame animates, the platter moves under a still pointer and AppKit
             // reports exits and enters that mean nothing; hover is settled once it stops.
             guard !navigation.isFrameAnimating else { return }
             withAnimation(Theme.Motion.quick) { isHoveringPlatter = hovering }
+            if hovering, let track = player.current { music.warmOwnPlaylists(videoId: track.id) }
         }
         // Border slider scales the rim; 0.10 default reads as a subtle glass edge.
         // The rim as on the play capsule: the cover's colour on the lit top edge, and a soft wash
@@ -391,6 +405,16 @@ struct NowPlayingBar: View {
         }
 
         scrubber
+    }
+
+    private func perform(_ action: RowAction, on track: Track) {
+        switch action {
+        case .like, .unlike: RowMenu.setLiked(action == .like, track, player: player, music: music)
+        case .goToArtist: RowMenu.open(track.artistItem, navigation: navigation)
+        case .goToAlbum: RowMenu.open(track.albumItem, navigation: navigation)
+        case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))
+        default: break
+        }
     }
 
     /// Artwork opens the album when we know which one it is.

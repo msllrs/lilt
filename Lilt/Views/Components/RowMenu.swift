@@ -3,7 +3,7 @@ import SwiftUI
 
 /// One entry in a row's right-click menu.
 enum RowAction: Hashable {
-    case play, shuffle, playNext, addToQueue
+    case play, shuffle, playNext, addToQueue, removeFromQueue
     case addToPlaylist, removeFromPlaylist
     case like, unlike
     case goToArtist, goToAlbum
@@ -15,6 +15,7 @@ enum RowAction: Hashable {
         case .shuffle: "Shuffle"
         case .playNext: "Play Next"
         case .addToQueue: "Add to Queue"
+        case .removeFromQueue: "Remove from Queue"
         case .addToPlaylist: "Add to Playlist"
         case .removeFromPlaylist: "Remove from Playlist"
         case .like: "Like"
@@ -38,11 +39,27 @@ enum RowMenu {
         if track.playlistEntry != nil, !inLikedMusic {
             playlist.append(.removeFromPlaylist)
         }
+        return [[.play, .playNext, .addToQueue], playlist, library, links(track, except: source), [.copyLink]].filter { !$0.isEmpty }
+    }
+
+    /// A row in the up-next list. Only songs you queued by hand can come out of it.
+    static func queued(_ track: Track, removable: Bool, isLiked: Bool?) -> [[RowAction]] {
+        [[.play], removable ? [.removeFromQueue] : [], [.addToPlaylist], [isLiked == true ? .unlike : .like], links(track), [.copyLink]]
+            .filter { !$0.isEmpty }
+    }
+
+    /// The now-playing bar. Playing, queueing and its place in the queue are the bar's own
+    /// controls, so the menu is about the song itself.
+    static func nowPlaying(_ track: Track, isLiked: Bool) -> [[RowAction]] {
+        [[isLiked ? .unlike : .like], [.addToPlaylist], links(track), [.copyLink]].filter { !$0.isEmpty }
+    }
+
+    private static func links(_ track: Track, except source: BrowseItem? = nil) -> [RowAction] {
         var go: [RowAction] = []
         if track.artistItem != nil { go.append(.goToArtist) }
         // On the album's own page, going to the album goes nowhere.
         if let albumId = track.albumId, albumId != source?.id { go.append(.goToAlbum) }
-        return [[.play, .playNext, .addToQueue], playlist, library, go, [.copyLink]].filter { !$0.isEmpty }
+        return go
     }
 
     static func item(_ item: BrowseItem) -> [[RowAction]] {
@@ -67,6 +84,26 @@ enum RowMenu {
         case .playlist: URL(string: "https://music.youtube.com/playlist?list=\(item.id.hasPrefix("VL") ? String(item.id.dropFirst(2)) : item.id)")
         case .library: nil
         }
+    }
+
+    /// Likes or unlikes a song from a menu. The playing song goes through the player's own
+    /// button, so the bar stays in step with the web player; any other song through the API.
+    @MainActor
+    static func setLiked(_ liked: Bool, _ track: Track, player: PlayerService, music: YTMusicClient) {
+        if player.current?.id == track.id {
+            if player.isLiked != liked { player.toggleLike() }
+        } else {
+            Task { try? await music.setLiked(liked, track: track) }
+        }
+    }
+
+    /// Opens an artist or album from a menu. The mini player has no column to show it in, so it
+    /// expands first, as clicking the cover does.
+    @MainActor
+    static func open(_ item: BrowseItem?, navigation: NavigationModel) {
+        guard let item else { return }
+        if navigation.isMiniPlayer { AppDelegate.shared?.setMiniPlayer(false) }
+        navigation.open(item)
     }
 
     static func copy(_ url: URL?) {
