@@ -18,6 +18,17 @@ struct AddToPlaylistTests {
                 "podcast episodes aren't a playlist for songs")
     }
 
+    /// The dialog's first slot is one of YouTube's own lists, marked KEEP: sometimes Episodes for
+    /// Later, sometimes Liked Music. Songs go into Liked Music by being liked, not added.
+    @Test func likedMusicIsNotOffered() {
+        let response: [String: Any] = ["contents": [["addToPlaylistRenderer": ["playlists": [
+            ["playlistAddToOptionRenderer": ["playlistId": "LM", "title": ["runs": [["text": "Liked Music"]]], "additionalIcons": [["iconType": "KEEP"]]]],
+            ["playlistAddToOptionRenderer": ["playlistId": "PLkept", "title": ["runs": [["text": "Kept"]]], "additionalIcons": [["iconType": "KEEP"]]]],
+            ["playlistAddToOptionRenderer": ["playlistId": "PLa", "title": ["runs": [["text": "run"]]]]],
+        ]]]]]
+        #expect(SearchParser.ownPlaylists(from: response).map(\.id) == ["PLa"])
+    }
+
     private let playlist = OwnPlaylist(id: "PLmine", title: "run")
 
     @Test func aSongGoesInByVideoId() async throws {
@@ -34,7 +45,9 @@ struct AddToPlaylistTests {
         let action = try #require(JSON.array(body["actions"])?.first.flatMap(JSON.dict))
         #expect(JSON.string(action["action"]) == "ACTION_ADD_VIDEO")
         #expect(JSON.string(action["addedVideoId"]) == "v1")
-        #expect(JSON.string(action["dedupeOption"]) == "DEDUPE_OPTION_CHECK", "YouTube won't add it twice")
+        // CHECK only asks YouTube's web page to show a "Already added" prompt, which Lilt never
+        // sees, and the song goes in again; SKIP leaves a song that's already there alone.
+        #expect(JSON.string(action["dedupeOption"]) == "DEDUPE_OPTION_SKIP", "a song already in the playlist isn't added again")
         #expect(music.addedTo["v1"] == ["PLmine"])
     }
 
@@ -59,6 +72,7 @@ struct AddToPlaylistTests {
         let action = try #require(JSON.array(body["actions"])?.first.flatMap(JSON.dict))
         #expect(JSON.string(action["action"]) == "ACTION_ADD_PLAYLIST")
         #expect(JSON.string(action["addedFullListId"]) == "OLAK5uy_lateralus")
+        #expect(JSON.string(action["dedupeOption"]) == "DEDUPE_OPTION_SKIP", "songs already in the playlist aren't added again")
         #expect(music.addedTo[album.id] == ["PLmine"])
     }
 

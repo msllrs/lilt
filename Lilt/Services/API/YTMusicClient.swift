@@ -256,10 +256,10 @@ final class YTMusicClient {
     /// by video or browse id, so the menu can tick them.
     private(set) var addedTo: [String: Set<String>] = [:]
 
-    /// Adds a song to one of your playlists. YouTube refuses a song that's already there; that
+    /// Adds a song to one of your playlists. A song that's already there is left alone; that
     /// counts as done too.
     func add(_ track: Track, to playlist: OwnPlaylist) async throws {
-        try await add(["action": "ACTION_ADD_VIDEO", "addedVideoId": track.id, "dedupeOption": "DEDUPE_OPTION_CHECK"], key: track.id, to: playlist)
+        try await add(["action": "ACTION_ADD_VIDEO", "addedVideoId": track.id, "dedupeOption": "DEDUPE_OPTION_SKIP"], key: track.id, to: playlist)
     }
 
     /// Adds every song of an album or playlist to one of yours.
@@ -267,7 +267,7 @@ final class YTMusicClient {
         var page = cachedPage(for: item)
         if page == nil { page = try await self.page(for: item) }
         guard let listId = page?.playlistId else { throw URLError(.badURL) }
-        try await add(["action": "ACTION_ADD_PLAYLIST", "addedFullListId": listId, "dedupeOption": "DEDUPE_OPTION_CHECK"], key: item.id, to: playlist)
+        try await add(["action": "ACTION_ADD_PLAYLIST", "addedFullListId": listId, "dedupeOption": "DEDUPE_OPTION_SKIP"], key: item.id, to: playlist)
     }
 
     private func add(_ action: [String: Any], key: String, to playlist: OwnPlaylist) async throws {
