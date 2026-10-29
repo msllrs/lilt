@@ -4,9 +4,12 @@ struct TrackRow: View {
     let track: Track
     let isCurrent: Bool
     let isPlaying: Bool
+    /// The page this row's list belongs to, which decides what its right-click menu offers.
+    var source: BrowseItem? = nil
     let action: () -> Void
 
     @Environment(PlayerService.self) private var player
+    @Environment(NavigationModel.self) private var navigation
     @State private var isHovering = false
     /// The add-to-queue button shows a tick for a moment after a click.
     @State private var showsTick = false
@@ -15,10 +18,11 @@ struct TrackRow: View {
     /// same curve as the artwork's own disc transition.
     @State private var disc: CGFloat
 
-    init(track: Track, isCurrent: Bool, isPlaying: Bool, action: @escaping () -> Void) {
+    init(track: Track, isCurrent: Bool, isPlaying: Bool, source: BrowseItem? = nil, action: @escaping () -> Void) {
         self.track = track
         self.isCurrent = isCurrent
         self.isPlaying = isPlaying
+        self.source = source
         self.action = action
         _disc = State(initialValue: isCurrent ? 1 : 0)
     }
@@ -82,6 +86,9 @@ struct TrackRow: View {
             }
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            RowMenuItems(groups: RowMenu.track(track, in: source), perform: perform)
+        }
         .onHover { hovering in
             isHovering = hovering
         }
@@ -120,6 +127,22 @@ struct TrackRow: View {
         .buttonStyle(.plain)
     }
 
+    private func perform(_ menuAction: RowAction) {
+        switch menuAction {
+        case .play: action()
+        case .addToQueue: enqueue()
+        case .goToArtist: if let artist = track.artistItem { navigation.open(artist) }
+        case .goToAlbum: if let album = track.albumItem { navigation.open(album) }
+        case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))
+        default: break
+        }
+    }
+
+    private func enqueue() {
+        player.enqueue(track)
+        AppDelegate.shared?.queueDidChange()
+    }
+
     private static let queueButtonSize: CGFloat = 22
 
     /// Fades the text out under the hover button; full width otherwise. When a duration is
@@ -147,8 +170,7 @@ struct TrackRow: View {
     private var queueButton: some View {
         Group {
             Button {
-                player.enqueue(track)
-                AppDelegate.shared?.queueDidChange()
+                enqueue()
                 // A tick to confirm, then back to the queue glyph so it can be added again.
                 justQueued?.cancel()
                 justQueued = Task {

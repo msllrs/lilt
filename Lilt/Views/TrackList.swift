@@ -16,7 +16,8 @@ struct TrackRows: View {
                 TrackRow(
                     track: track,
                     isCurrent: player.current?.id == track.id,
-                    isPlaying: player.isPlaying
+                    isPlaying: player.isPlaying,
+                    source: source
                 ) {
                     player.play(tracks, startingAt: index, source: source)
                 }

@@ -39,11 +39,37 @@ struct BrowseRow: View {
             }
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            RowMenuItems(groups: RowMenu.item(item), perform: perform)
+        }
         .onHover { hovering in
             isHovering = hovering
             // Warm the cache so the page is ready by the time it's clicked. Only once: opening
             // the page fetches it fresh anyway, so a warm copy needn't be fetched again here.
             if hovering, music.cachedPage(for: item) == nil { Task { _ = try? await music.page(for: item) } }
+        }
+    }
+
+    private func perform(_ action: RowAction) {
+        switch action {
+        case .play: withTracks { player.play($0, startingAt: 0, source: item) }
+        case .shuffle: withTracks { player.playShuffled($0, source: item) }
+        case .addToQueue:
+            withTracks { tracks in
+                tracks.forEach(player.enqueue)
+                AppDelegate.shared?.queueDidChange()
+            }
+        case .goToArtist: if let artist = item.artistItem { navigation.open(artist) }
+        case .copyLink: RowMenu.copy(RowMenu.webURL(for: item))
+        default: break
+        }
+    }
+
+    /// The page's tracks, fetched if need be, for playing it without opening it.
+    private func withTracks(_ use: @escaping ([Track]) -> Void) {
+        Task {
+            guard let page = try? await music.page(for: item), !page.tracks.isEmpty else { return }
+            use(page.tracks)
         }
     }
 
@@ -59,10 +85,7 @@ struct BrowseRow: View {
             if playingHere {
                 player.togglePlayPause()
             } else {
-                Task {
-                    guard let page = try? await music.page(for: item), !page.tracks.isEmpty else { return }
-                    player.play(page.tracks, startingAt: 0, source: item)
-                }
+                perform(.play)
             }
         } label: {
             // The album or playlist that's playing wears the same spinning record, and the same
