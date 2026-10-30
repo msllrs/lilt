@@ -231,7 +231,7 @@ struct NowPlayingBar: View {
         .contextMenu {
             if let track = player.current {
                 RowMenuItems(
-                    groups: RowMenu.nowPlaying(track, isLiked: player.isLiked),
+                    groups: RowMenu.nowPlaying(music.withLinks(track), isLiked: player.isLiked),
                     playlists: music.ownPlaylists,
                     addedTo: music.addedTo[track.id] ?? [],
                     perform: { perform($0, on: track) },
@@ -246,6 +246,7 @@ struct NowPlayingBar: View {
             withAnimation(Theme.Motion.quick) { isHoveringPlatter = hovering }
             if hovering, let track = player.current { music.warmOwnPlaylists(videoId: track.id) }
         }
+        .warmsLinks(for: player.current, whileHovering: isHoveringPlatter)
         // Border slider scales the rim; 0.10 default reads as a subtle glass edge.
         // The rim as on the play capsule: the cover's colour on the lit top edge, and a soft wash
         // of it inside falling off from the top. Both optional, both interpolated between songs.
@@ -410,8 +411,9 @@ struct NowPlayingBar: View {
     private func perform(_ action: RowAction, on track: Track) {
         switch action {
         case .like, .unlike: RowMenu.setLiked(action == .like, track, player: player, music: music)
-        case .goToArtist: RowMenu.open(track.artistItem, navigation: navigation)
-        case .goToAlbum: RowMenu.open(track.albumItem, navigation: navigation)
+        // The player resolves the playing song's links itself, but a lookup may land first.
+        case .goToArtist: RowMenu.open(music.withLinks(track).artistItem, navigation: navigation)
+        case .goToAlbum: RowMenu.open(music.withLinks(track).albumItem, navigation: navigation)
         case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))
         default: break
         }

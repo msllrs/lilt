@@ -89,7 +89,7 @@ struct TrackRow: View {
         .buttonStyle(.plain)
         .contextMenu {
             RowMenuItems(
-                groups: RowMenu.track(track, in: source, isLiked: music.isLiked(track)),
+                groups: RowMenu.track(music.withLinks(track), in: source, isLiked: music.isLiked(track)),
                 playlists: music.ownPlaylists,
                 addedTo: music.addedTo[track.id] ?? [],
                 perform: perform,
@@ -100,6 +100,7 @@ struct TrackRow: View {
             isHovering = hovering
             if hovering { music.warmOwnPlaylists(videoId: track.id) }
         }
+        .warmsLinks(for: track, whileHovering: isHovering)
         .onChange(of: isCurrent) { _, current in
             withAnimation(Theme.Motion.standard) { disc = current ? 1 : 0 }
         }
@@ -144,8 +145,9 @@ struct TrackRow: View {
         case .addToQueue: enqueue()
         case .like, .unlike: RowMenu.setLiked(menuAction == .like, track, player: player, music: music)
         case .removeFromPlaylist: Task { try? await music.removeFromPlaylist(track) }
-        case .goToArtist: RowMenu.open(track.artistItem, navigation: navigation)
-        case .goToAlbum: RowMenu.open(track.albumItem, navigation: navigation)
+        // The row may have arrived without its links; the menu offered them from a lookup.
+        case .goToArtist: RowMenu.open(music.withLinks(track).artistItem, navigation: navigation)
+        case .goToAlbum: RowMenu.open(music.withLinks(track).albumItem, navigation: navigation)
         case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))
         default: break
         }

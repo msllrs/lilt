@@ -263,7 +263,7 @@ private struct QueueRow: View {
         }
         .contextMenu {
             RowMenuItems(
-                groups: RowMenu.queued(track, removable: remove != nil, isLiked: music.isLiked(track)),
+                groups: RowMenu.queued(music.withLinks(track), removable: remove != nil, isLiked: music.isLiked(track)),
                 playlists: music.ownPlaylists,
                 addedTo: music.addedTo[track.id] ?? [],
                 perform: perform,
@@ -274,6 +274,7 @@ private struct QueueRow: View {
             isHovering = hovering
             if hovering { music.warmOwnPlaylists(videoId: track.id) }
         }
+        .warmsLinks(for: track, whileHovering: isHovering)
     }
 
     private func perform(_ action: RowAction) {
@@ -281,8 +282,9 @@ private struct QueueRow: View {
         case .play: play()
         case .removeFromQueue: remove?()
         case .like, .unlike: RowMenu.setLiked(action == .like, track, player: player, music: music)
-        case .goToArtist: RowMenu.open(track.artistItem, navigation: navigation)
-        case .goToAlbum: RowMenu.open(track.albumItem, navigation: navigation)
+        // Radio continuation arrives without links; the menu offered them from a lookup.
+        case .goToArtist: RowMenu.open(music.withLinks(track).artistItem, navigation: navigation)
+        case .goToAlbum: RowMenu.open(music.withLinks(track).albumItem, navigation: navigation)
         case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))
         default: break
         }
