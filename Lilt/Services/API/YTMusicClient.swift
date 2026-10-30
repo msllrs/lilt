@@ -14,6 +14,8 @@ final class YTMusicClient {
     @ObservationIgnored private let fetchPage: @MainActor (_ browseId: String) async throws -> JSONObject
     /// Calls that change the account (likes, playlist edits), standable in for by tests.
     @ObservationIgnored private let write: @MainActor (_ endpoint: String, _ body: [String: Any]) async throws -> JSONObject
+    /// Fetches the up-next panel for a video, which names its artist and album. Tests stand in here.
+    @ObservationIgnored private let fetchNext: @MainActor (_ videoId: String) async throws -> JSONObject
     @ObservationIgnored private var pageCache: [String: BrowsePage] = [:]
     @ObservationIgnored private var homeCache: (sections: [HomeSection], fetched: Date)?
     @ObservationIgnored private var libraryCache: (content: LibraryContent, fetched: Date)?
@@ -54,12 +56,16 @@ final class YTMusicClient {
     init(
         auth: AuthService,
         fetchPage: (@MainActor (_ browseId: String) async throws -> JSONObject)? = nil,
-        write: (@MainActor (_ endpoint: String, _ body: [String: Any]) async throws -> JSONObject)? = nil
+        write: (@MainActor (_ endpoint: String, _ body: [String: Any]) async throws -> JSONObject)? = nil,
+        fetchNext: (@MainActor (_ videoId: String) async throws -> JSONObject)? = nil
     ) {
         let client = InnerTubeClient(auth: auth)
         self.client = client
         self.fetchPage = fetchPage ?? { browseId in try await client.post("browse", body: ["browseId": browseId]) }
         self.write = write ?? { endpoint, body in try await client.post(endpoint, body: body) }
+        self.fetchNext = fetchNext ?? { videoId in
+            try await client.post("next", body: ["videoId": videoId, "enablePersistentPlaylistPanel": true, "isAudioOnly": true])
+        }
         restore()
     }
 
@@ -177,12 +183,46 @@ final class YTMusicClient {
 
     /// Artist/album links for a track that arrived without them (home feed, radio continuation).
     func links(forVideoId videoId: String) async throws -> TrackLinks? {
-        let response = try await client.post("next", body: [
-            "videoId": videoId,
-            "enablePersistentPlaylistPanel": true,
-            "isAudioOnly": true,
-        ])
-        return SearchParser.links(from: response.value, videoId: videoId)
+        SearchParser.links(from: try await fetchNext(videoId).value, videoId: videoId)
+    }
+
+    /// Links looked up for rows that arrived without them, by video id. A lookup that found
+    /// nothing is kept too (all nil), so the same song isn't asked about again.
+    private(set) var resolvedLinks: [String: TrackLinks] = [:]
+    @ObservationIgnored private var linkTasks: [String: Task<Void, Never>] = [:]
+
+    /// Looks up a song's artist and album ahead of its menu, which can't wait on the network
+    /// while it's open. Once per song: nothing happens if the row already has both ids or the
+    /// lookup is done or in flight. A failed request isn't kept, so a later hover tries again.
+    /// Returns the lookup in flight, if any, for tests to wait on.
+    @discardableResult
+    func warmLinks(for track: Track) -> Task<Void, Never>? {
+        guard track.artistId == nil || track.albumId == nil, resolvedLinks[track.id] == nil else { return nil }
+        if let inFlight = linkTasks[track.id] { return inFlight }
+        let task = Task {
+            do {
+                resolvedLinks[track.id] = try await links(forVideoId: track.id) ?? TrackLinks()
+            } catch {}
+            linkTasks[track.id] = nil
+        }
+        linkTasks[track.id] = task
+        return task
+    }
+
+    /// The song with any ids its row lacked filled in from a finished lookup, so its menu
+    /// offers Go to Artist and Go to Album and they lead somewhere.
+    func withLinks(_ track: Track) -> Track {
+        guard let links = resolvedLinks[track.id] else { return track }
+        var filled = track
+        if filled.artistId == nil, let artistId = links.artistId {
+            filled.artistId = artistId
+            if filled.artist.isEmpty, let artist = links.artist { filled.artist = artist }
+        }
+        if filled.albumId == nil, let albumId = links.albumId {
+            filled.albumId = albumId
+            if filled.album == nil { filled.album = links.album }
+        }
+        return filled
     }
 
     /// The library changes rarely and is bounded, so every cover is fetched and decoded ahead
