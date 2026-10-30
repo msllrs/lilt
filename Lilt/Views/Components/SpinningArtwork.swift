@@ -20,7 +20,7 @@ struct SpinningArtwork: View {
     @State private var resumedAt: Date?
 
     /// One full turn every eight seconds.
-    private static let degreesPerSecond: Double = 45
+    static let degreesPerSecond: Double = 45
 
     init(url: URL?, size: CGFloat, restRadius: CGFloat, context: ArtworkContext = .row, isDisc: Bool, isSpinning: Bool) {
         self.url = url

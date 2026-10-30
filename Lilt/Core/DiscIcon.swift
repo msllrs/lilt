@@ -15,16 +15,20 @@ enum DiscIcon {
 
     /// - Parameter side: 512 keeps the cover crisp at the largest Dock tile and in ⌘-Tab.
     /// - Parameter accent: the cover's colour, for the plate wash and the disc's ambient shadow.
+    /// - Parameter scale: pixels per point. The spinning tile draws 128pt at 2x, the same pixels
+    ///   as 256pt at 1x for half the cost of handing each frame to the Dock.
+    /// - Parameter angle: how far the cover has turned, in degrees clockwise. Only the cover
+    ///   turns; the light on it, the hub and the plate stay put.
     @MainActor
-    static func tile(artwork: NSImage, edgeLuminance: CGFloat, accent: NSColor?, side: CGFloat = 512) -> NSImage {
+    static func tile(artwork: NSImage, edgeLuminance: CGFloat, accent: NSColor?, side: CGFloat = 512, scale: CGFloat = 1, angle: CGFloat = 0) -> NSImage {
         // A single, already rasterised bitmap. A drawing-handler image gets re-rendered at every
         // size AppKit wants when it hands the icon to the Dock.
-        let pixels = Int(side)
+        let pixels = Int(side * scale)
         let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
                                    samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
                                    bytesPerRow: 0, bitsPerPixel: 0)!
-        // Points equal pixels here: the bitmap context's user space is the rep's point size, and
-        // everything below draws in `side` units. The Dock scales a 512pt image to its tile.
+        // The bitmap context's user space is the rep's point size, so everything below draws in
+        // `side` units whatever the scale. The Dock scales the image to its tile.
         rep.size = NSSize(width: side, height: side)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
@@ -37,7 +41,7 @@ enum DiscIcon {
             drawPlateTint(accent, in: plate)
             drawDiscShadow(accent, under: disc)
         }
-        drawArtworkDisc(artwork, in: disc, edgeLuminance: edgeLuminance, side: side)
+        drawArtworkDisc(artwork, in: disc, edgeLuminance: edgeLuminance, side: side, angle: angle)
         NSGraphicsContext.restoreGraphicsState()
         let image = NSImage(size: rep.size)
         image.addRepresentation(rep)
@@ -47,12 +51,20 @@ enum DiscIcon {
     /// The cover on the disc with the same finish as artwork in the app (see ArtworkView): the
     /// spotlight from the top edge in plus-lighter, and the adaptive hairline keyline.
     @MainActor
-    private static func drawArtworkDisc(_ artwork: NSImage, in rect: NSRect, edgeLuminance: CGFloat, side: CGFloat) {
+    private static func drawArtworkDisc(_ artwork: NSImage, in rect: NSRect, edgeLuminance: CGFloat, side: CGFloat, angle: CGFloat) {
         let style = ArtworkStyle.shared
         let face = NSBezierPath(ovalIn: rect)
         NSGraphicsContext.saveGraphicsState()
         face.addClip()
+        NSGraphicsContext.saveGraphicsState()
+        // This context's y runs up, so clockwise is a negative rotation.
+        let turn = NSAffineTransform()
+        turn.translateX(by: rect.midX, yBy: rect.midY)
+        turn.rotate(byDegrees: -angle)
+        turn.translateX(by: -rect.midX, yBy: -rect.midY)
+        turn.concat()
         artwork.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+        NSGraphicsContext.restoreGraphicsState()
         if style.spotlightOpacity > 0, let cg = NSGraphicsContext.current?.cgContext {
             cg.saveGState()
             cg.setBlendMode(blendMode(style.spotlightBlend))

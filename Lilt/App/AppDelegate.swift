@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         observeArtworkForLaunch()
         observeLoginPresentation()
         observeDockIcon()
+        observeDockSpin()
         observeWindowTitle()
         observeQueue()
         remoteCommands = RemoteCommandBridge(player: player)
@@ -333,6 +334,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// The Dock tile is a disc: generic when idle, the current cover when a track is loaded.
     private var dockArtworkURL: URL?
     private var dockTileStyle: DockTileStyle?
+    private let dockSpinner = DockSpinner()
+
+    private func observeDockSpin() {
+        withObservationTracking {
+            _ = player.isPlaying
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.observeDockSpin()
+            }
+        }
+        dockSpinner.setPlaying(player.isPlaying)
+    }
 
     private func observeDockIcon() {
         withObservationTracking {
@@ -371,6 +384,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         dockTileStyle = style
         guard let url else {
             // Nothing playing: the app icon from the bundle, not a redrawn stand-in.
+            dockSpinner.clear()
             NSApp.applicationIconImage = nil
             return
         }
@@ -381,12 +395,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             var image = await ImageCache.shared.load(large, maxPixels: 512)
             if image == nil { image = await ImageCache.shared.load(url) }
             guard let image, self?.dockArtworkURL == url else { return }
-            let accent = ImageCache.shared.accent(for: large, saturationBoost: 1) ?? ImageCache.shared.tint(for: large, saturationBoost: 1)
-            NSApp.applicationIconImage = DiscIcon.tile(
-                artwork: image,
-                edgeLuminance: ImageCache.shared.edgeLuminance(for: large),
-                accent: accent.map { NSColor($0) }
-            )
+            let accent = (ImageCache.shared.accent(for: large, saturationBoost: 1) ?? ImageCache.shared.tint(for: large, saturationBoost: 1)).map { NSColor($0) }
+            let edgeLuminance = ImageCache.shared.edgeLuminance(for: large)
+            guard DockSpinner.framesPerSecond > 0 else {
+                self?.dockSpinner.clear()
+                NSApp.applicationIconImage = DiscIcon.tile(artwork: image, edgeLuminance: edgeLuminance, accent: accent)
+                return
+            }
+            self?.dockSpinner.show { angle in
+                DiscIcon.tile(artwork: image, edgeLuminance: edgeLuminance, accent: accent, side: 128, scale: 2, angle: angle)
+            }
         }
     }
 
