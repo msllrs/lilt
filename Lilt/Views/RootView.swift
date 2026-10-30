@@ -99,9 +99,12 @@ private struct NavigationColumn: View {
 
     var body: some View {
         let path = navigation.path
+        // In mini the column is still mounted behind the platter, only faded out, so its discs
+        // and notes would turn on unseen.
+        let outOfSight = navigation.isPanelOutOfSight || navigation.isMiniPlayer
         ZStack {
             SearchScreen()
-                .parked(path.isEmpty ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path, outOfSight: navigation.isPanelOutOfSight)
+                .parked(path.isEmpty ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path, outOfSight: outOfSight)
             ForEach(Array(path.enumerated()), id: \.element.id) { index, item in
                 let isTop = index == path.count - 1
                 Group {
@@ -111,7 +114,7 @@ private struct NavigationColumn: View {
                         BrowseScreen(item: item)
                     }
                 }
-                .parked(isTop ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path, outOfSight: navigation.isPanelOutOfSight)
+                .parked(isTop ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path, outOfSight: outOfSight)
                 .transition(.offset(x: Self.travel).combined(with: .opacity).animation(Self.enter))
             }
         }
