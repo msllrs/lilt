@@ -544,7 +544,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // start hidden.
         window.setFrame(Self.onScreen(window.frame, near: window.screen ?? screen), display: false)
         window.setFrameAutosaveName(PanelWindow.autosaveName)
+        panelOcclusion = Self.followOcclusion(of: window, into: navigation)
         panel = window
+    }
+
+    private var panelOcclusion: NSObjectProtocol?
+
+    /// Keeps `isPanelOccluded` in step with whether any of `window` is on screen. Lilt's own
+    /// hide parks the panel already, but the app hidden (⌘H), a window covering it or another
+    /// Space leave `isPanelHidden` false, and the window's timelines tick on regardless.
+    static func followOcclusion(of window: NSWindow, into navigation: NavigationModel) -> NSObjectProtocol {
+        NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main) { [weak window, weak navigation] _ in
+            MainActor.assumeIsolated {
+                guard let window else { return }
+                navigation?.isPanelOccluded = !window.occlusionState.contains(.visible)
+            }
+        }
     }
 
     /// No close button on the panel; ⌘W hides it and playback carries on.

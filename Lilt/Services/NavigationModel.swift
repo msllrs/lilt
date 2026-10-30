@@ -21,6 +21,13 @@ final class NavigationModel {
     /// the view tree pauses on it: a hidden window keeps its hosting view, and timelines in it
     /// kept ticking. Not persisted.
     var isPanelHidden = false
+    /// The window server reports no part of the panel on screen: hidden with the app (⌘H),
+    /// covered by other windows, on another Space, or the display asleep. Not persisted.
+    var isPanelOccluded = false
+    /// Nobody can see the panel, so its clocks pause. `isPanelHidden` counts at once, before
+    /// the window server's report arrives. An ordered-out or covered window keeps ticking just
+    /// like a transparent one.
+    var isPanelOutOfSight: Bool { isPanelHidden || isPanelOccluded }
     /// The native frame's current corner radius while it eases between the panel's and the
     /// platter's. Behind-window surfaces mask themselves to it, since the frame's own clip
     /// doesn't reach them. Not persisted.
