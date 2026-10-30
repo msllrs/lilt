@@ -167,6 +167,14 @@ struct DiscSpinTests {
         view.subviews.flatMap { ($0 as? SpinningPictureView).map { [$0] } ?? pictures(in: $0) }
     }
 
+    @Test func plainArtworkStaysASwiftUIImage() async {
+        let hosting = CountingHostingView(rootView: Harness(disc: Disc(isDisc: false, isSpinning: false), url: Self.cachedCoverURL()))
+        let window = window(hosting)
+        defer { window.close() }
+        await settle(0.1)
+        #expect(Self.pictures(in: hosting).isEmpty)
+    }
+
     @Test func theDiscSpinsPausesAndSettlesBackToArtwork() async throws {
         let disc = Disc(isDisc: true, isSpinning: true)
         let hosting = CountingHostingView(rootView: Harness(disc: disc, url: Self.cachedCoverURL()))
@@ -188,8 +196,9 @@ struct DiscSpinTests {
         disc.isDisc = false
         await settle(0.05)
         #expect(picture.picture.animation(forKey: SpinningPictureView.spinKey) is CAKeyframeAnimation)
+        // Once upright, the plain image takes over again.
         await settle(0.8)
-        #expect(abs(picture.displayedDegrees.truncatingRemainder(dividingBy: 360)) < 0.01 || picture.displayedDegrees > 359.99)
+        #expect(Self.pictures(in: hosting).isEmpty)
     }
 
     /// The disc is the label of the row's play/pause button; the layer under it mustn't take the

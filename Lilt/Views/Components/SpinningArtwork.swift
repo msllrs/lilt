@@ -18,6 +18,10 @@ struct SpinningArtwork: View {
     /// Angle held when the spin last stopped, and when it resumed.
     @State private var baseAngle: Double = 0
     @State private var resumedAt: Date?
+    /// True from becoming a disc until it has settled upright again. Only then is the picture a
+    /// Core Animation layer; a row that is plain artwork stays a plain SwiftUI image, which is
+    /// cheaper to build by the screenful.
+    @State private var turning: Bool
 
     /// One full turn every eight seconds.
     static let degreesPerSecond: Double = 45
@@ -30,6 +34,7 @@ struct SpinningArtwork: View {
         self.isDisc = isDisc
         self.isSpinning = isSpinning
         _disc = State(initialValue: isDisc ? 1 : 0)
+        _turning = State(initialValue: isDisc)
         // A view that mounts already spinning must start its clock straight away.
         _resumedAt = State(initialValue: isSpinning ? .now : nil)
     }
@@ -37,7 +42,7 @@ struct SpinningArtwork: View {
     var body: some View {
         ArtworkView(
             url: url, size: size, radius: radius, context: context,
-            spin: ArtworkSpin(baseAngle: baseAngle, resumedAt: resumedAt, degreesPerSecond: Self.degreesPerSecond, paused: !isSpinning || parked)
+            spin: turning ? ArtworkSpin(baseAngle: baseAngle, resumedAt: resumedAt, degreesPerSecond: Self.degreesPerSecond, paused: !isSpinning || parked) : nil
         )
         // A real hole through the middle, so the background shows like a CD's centre.
         .mask {
@@ -62,11 +67,16 @@ struct SpinningArtwork: View {
             }
         }
         .onChange(of: isDisc) { _, on in
-            withAnimation(Theme.Motion.standard) {
+            if on { turning = true }
+            withAnimation(Theme.Motion.standard, completionCriteria: .removed) {
                 disc = on ? 1 : 0
                 // Back to artwork: settle upright by the shorter way round. The picture eases
                 // there from wherever it is on screen (see SpinningPictureView.apply).
                 if !on { baseAngle = baseAngle > 180 ? 360 : 0 }
+            } completion: {
+                // Upright again, so the plain image can take over; unless it became a disc
+                // again meanwhile.
+                if disc == 0 { turning = false }
             }
             if !on { resumedAt = nil }
         }
