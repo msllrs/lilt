@@ -23,6 +23,9 @@ struct PanelOcclusionTests {
 
         window.orderFrontRegardless()
         await settle { window.occlusionState.contains(.visible) }
+        // Whether it can be seen depends on the real screen (another Space, a full-screen app);
+        // without a sighting first, ordering it out changes nothing and proves nothing.
+        try #require(window.occlusionState.contains(.visible), "the window server never showed the test window")
         #expect(!navigation.isPanelOutOfSight)
 
         // What hiding the app does to its windows.
