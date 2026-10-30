@@ -61,6 +61,8 @@ enum Theme {
     enum Motion {
         static let quick: Animation = .easeOut(duration: 0.18)
         static let standard: Animation = .snappy(duration: 0.28)
+        /// `standard` for motion SwiftUI doesn't drive, like a Core Animation layer settling.
+        static let standardCurve: FrameCurve = .spring(.snappy(duration: 0.28))
         /// For a container changing size: `snappy` carries a little bounce, and a frame that
         /// overshoots smaller than its content squeezes the content for a few frames.
         static let settle: Animation = .smooth(duration: 0.3)

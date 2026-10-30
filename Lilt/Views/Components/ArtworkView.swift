@@ -4,8 +4,8 @@ import SwiftUI
 /// border and an ambient shadow in the artwork's own colours. Images come from `ImageCache`, so
 /// revisiting a row never flashes a placeholder, and a smaller cached rendition stands in,
 /// blurred, while a larger one loads.
-/// How a picture turns inside its sleeve: an angle that is a function of time, so a tick of the
-/// clock changes the picture's transform and nothing else.
+/// How a picture turns inside its sleeve: an angle that is a function of time, which Core
+/// Animation plays out (see `SpinningPicture`), so the clock never ticks through SwiftUI.
 struct ArtworkSpin: Equatable {
     /// The angle when the clock last started, or where the picture rests.
     var baseAngle: Double
@@ -19,6 +19,9 @@ struct ArtworkSpin: Equatable {
         guard let resumedAt else { return .degrees(baseAngle) }
         return .degrees(baseAngle + date.timeIntervalSince(resumedAt) * degreesPerSecond)
     }
+
+    /// True while the picture should be moving.
+    var isTurning: Bool { resumedAt != nil && !paused }
 }
 
 struct ArtworkView: View {
@@ -94,7 +97,7 @@ struct ArtworkView: View {
     var body: some View {
         ZStack {
             if let image {
-                sleeve(Image(nsImage: image))
+                sleeve(image)
                     .transition(.opacity)
             } else {
                 placeholder
@@ -106,22 +109,25 @@ struct ArtworkView: View {
         .task(id: url) { await load() }
     }
 
-    private func sleeve(_ picture: Image) -> some View {
-        let flat = picture.resizable().aspectRatio(contentMode: .fill)
-            .frame(width: size, height: size)
-            // A genuinely undersized stand-in is blurred to hide the resampling until the real
-            // one lands; a near-enough one is shown as is.
-            .blur(radius: standInBlur)
+    private func sleeve(_ image: NSImage) -> some View {
+        let picture = Image(nsImage: image)
         return Group {
             if let spin {
-                // The clock sits right at the picture: a tick changes this one transform, and
-                // nothing in the sleeve, the shadow or the row around it is touched. Wrapped
-                // around the whole artwork, every tick re-ran the layout of all of them.
-                TimelineView(.animation(minimumInterval: 1 / 30, paused: spin.paused)) { context in
-                    flat.rotationEffect(spin.angle(at: context.date))
-                }
+                // Turned by Core Animation: once it is going, nothing here, in the sleeve or in
+                // the row around it is re-evaluated until the spin changes.
+                SpinningPicture(image: image, spin: spin, scale: displayScale)
+                    .frame(width: size, height: size)
+                    .blur(radius: standInBlur)
+                    // Swapping in for the flat picture (both upright, the same pixels) must
+                    // not cross-fade, or the cover dims for a moment as the disc starts.
+                    .transition(.identity)
             } else {
-                flat
+                picture.resizable().aspectRatio(contentMode: .fill)
+                    .frame(width: size, height: size)
+                    // A genuinely undersized stand-in is blurred to hide the resampling until
+                    // the real one lands; a near-enough one is shown as is.
+                    .blur(radius: standInBlur)
+                    .transition(.identity)
             }
         }
             .overlay(spotlight)

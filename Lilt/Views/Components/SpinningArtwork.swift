@@ -64,7 +64,8 @@ struct SpinningArtwork: View {
         .onChange(of: isDisc) { _, on in
             withAnimation(Theme.Motion.standard) {
                 disc = on ? 1 : 0
-                // Back to artwork: settle upright by the shorter way round.
+                // Back to artwork: settle upright by the shorter way round. The picture eases
+                // there from wherever it is on screen (see SpinningPictureView.apply).
                 if !on { baseAngle = baseAngle > 180 ? 360 : 0 }
             }
             if !on { resumedAt = nil }
