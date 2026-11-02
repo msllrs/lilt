@@ -2,6 +2,9 @@ import SwiftUI
 
 /// A tappable artist, album or playlist.
 struct BrowseRow: View {
+    static let horizontalPadding = Theme.Space.rowPadding
+    static let verticalPadding = Theme.Space.rowPadding
+
     let item: BrowseItem
 
     @Environment(NavigationModel.self) private var navigation
@@ -29,12 +32,12 @@ struct BrowseRow: View {
                     .foregroundStyle(.tertiary)
                     .padding(.leading, Theme.Space.sm)
             }
-            .padding(.horizontal, Theme.Space.sm)
-            .padding(.vertical, Theme.Space.xs + 2)
+            .padding(.horizontal, Self.horizontalPadding)
+            .padding(.vertical, Self.verticalPadding)
             // Concentric with the artwork: its radius plus the padding between them.
-            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.rowArtwork + Theme.Space.sm, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.rowArtwork + Self.horizontalPadding, style: .continuous))
             .background {
-                RoundedRectangle(cornerRadius: Theme.Radius.rowArtwork + Theme.Space.sm, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.rowArtwork + Self.horizontalPadding, style: .continuous)
                     .fill(.fill.quaternary)
                     .opacity(isHovering ? 0.6 : 0)
             }

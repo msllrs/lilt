@@ -34,8 +34,7 @@ enum Skeleton {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, Theme.Space.sm)
-            .padding(.vertical, Theme.Space.xs + 2)
+            .padding(Theme.Space.rowPadding)
         }
     }
 
@@ -48,7 +47,7 @@ enum Skeleton {
             VStack(alignment: .leading, spacing: 0) {
                 if header {
                     Bar(width: 72, height: 9)
-                        .padding(.horizontal, Theme.Space.sm)
+                        .padding(.horizontal, Theme.Space.rowPadding)
                         .padding(.top, Theme.Space.lg)
                         .padding(.bottom, Theme.Space.sm)
                 }

@@ -14,8 +14,12 @@ enum Theme {
 
         /// Gap between the window edge and the first content shape (search field, bar).
         static let panelInset: CGFloat = 12
-        /// Gap between the window edge and list rows.
-        static let rowInset: CGFloat = 8
+        /// Gap between the window edge and list rows. With `rowPadding` it puts a row's cover
+        /// 16pt from the window edge.
+        static let rowInset: CGFloat = 10
+        /// Padding inside a list row, the same on every side so its highlight is concentric with
+        /// the cover.
+        static let rowPadding: CGFloat = xs + 2
         /// Padding inside the now-playing bar.
         static let barPadding: CGFloat = 10
     }
@@ -26,7 +30,7 @@ enum Theme {
         /// Shapes inset by `panelInset`: search field, now-playing bar.
         static let panel: CGFloat = window - Space.panelInset   // 16
         /// Row highlight, inset by `rowInset`.
-        static let row: CGFloat = window - Space.rowInset       // 20
+        static let row: CGFloat = window - Space.rowInset       // 18
         /// Artwork is a sleeve, not a nested panel: it keeps one proportional roundness wherever
         /// it appears instead of inheriting its container's corner.
         static func artwork(_ size: CGFloat) -> CGFloat { (size * 0.2).rounded() }
@@ -52,7 +56,7 @@ enum Theme {
         static let headerArtwork: CGFloat = headerRow
         static let rowArtwork: CGFloat = 40
         /// Every list row (track, album, artist, playlist): the artwork plus its vertical padding.
-        static let row: CGFloat = rowArtwork + (Space.xs + 2) * 2
+        static let row: CGFloat = rowArtwork + Space.rowPadding * 2
         static let barArtwork: CGFloat = 48
         static let controlIcon: CGFloat = 16
         static let playIcon: CGFloat = 22

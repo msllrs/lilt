@@ -89,7 +89,7 @@ struct CollapsibleSection<Item: Identifiable, Row: View, Empty: View>: View {
                     Spacer(minLength: 0)
                 }
                 .foregroundStyle(coverTint.style(\.secondary, or: .secondary))
-                .padding(.horizontal, Theme.Space.sm)
+                .padding(.horizontal, Theme.Space.rowPadding)
                 .padding(.top, Theme.Space.lg)
                 .padding(.bottom, Theme.Space.xs)
                 .contentShape(Rectangle())

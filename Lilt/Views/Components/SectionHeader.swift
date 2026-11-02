@@ -12,7 +12,7 @@ struct SectionHeader: View {
             .foregroundStyle(coverTint.style(\.secondary, or: .secondary))
             .textCase(.uppercase)
             .kerning(0.6)
-            .padding(.horizontal, Theme.Space.sm)
+            .padding(.horizontal, Theme.Space.rowPadding)
             .padding(.top, Theme.Space.lg)
             .padding(.bottom, Theme.Space.xs)
             .frame(maxWidth: .infinity, alignment: .leading)

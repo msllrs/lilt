@@ -34,8 +34,8 @@ struct TrackRow: View {
     private var isSpinning: Bool { isCurrent && isPlaying }
     private var artworkRadius: CGFloat { lerp(Theme.Radius.rowArtwork, Theme.Size.rowArtwork / 2, disc) }
 
-    private static let horizontalPadding = Theme.Space.sm
-    private static let verticalPadding = Theme.Space.xs + 2
+    static let horizontalPadding = Theme.Space.rowPadding
+    static let verticalPadding = Theme.Space.rowPadding
     private static let rowHeight = Theme.Size.rowArtwork + verticalPadding * 2
 
     /// Row highlight corners are concentric with the artwork: its radius plus the padding

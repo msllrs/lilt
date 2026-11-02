@@ -162,7 +162,7 @@ struct LibraryScreen: View {
                 : "Playlists you create or save will show here.")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
-                .padding(.horizontal, Theme.Space.sm)
+                .padding(.horizontal, Theme.Space.rowPadding)
                 .padding(.vertical, Theme.Space.xs)
         }
     }
