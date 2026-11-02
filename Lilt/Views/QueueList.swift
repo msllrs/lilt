@@ -49,6 +49,12 @@ struct QueueList: View {
     /// the one beside the covers.
     static let rowGutter: CGFloat = (rowHeight - 28) / 2
 
+    /// A row reaches as far past its cover on each side as above and below it, so the hover
+    /// highlight is concentric with the cover. The list is pulled out by the same amount, so
+    /// the covers stay lined up with the platter's artwork.
+    static let rowPadding: CGFloat = rowGutter
+    static let rowHighlightRadius: CGFloat = Theme.Radius.artwork(28) + rowPadding
+
     /// The list's height for the two groups (one row's worth when both are empty, for the
     /// placeholder), so the mini window can be sized before the list has laid out. The label
     /// counts as part of the visible rows, which are capped at `maxRows`; past the cap, half of
@@ -118,6 +124,7 @@ struct QueueList: View {
                     // Flush with the covers below it, and the main lists' gap above them.
                     .frame(height: Self.labelHeight(manual: entries.count) - Theme.Space.xs, alignment: .bottom)
                     .padding(.bottom, Theme.Space.xs)
+                    .padding(.horizontal, Self.rowPadding)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
@@ -180,10 +187,11 @@ struct QueueList: View {
         .frame(height: listHeight, alignment: .top)
         .clipped()
         // AppKit's table still insets rows by 8pt a side after the margins are zeroed;
-        // pull it back so rows line up with the platter's artwork and controls. Outside the
+        // pull it back, and past it by the rows' own padding, so the covers line up with the
+        // platter's artwork and controls while each highlight reaches beyond them. Outside the
         // clip above, so that cuts the gutter below the last row but leaves the covers'
         // shadows the inset's room to the left; flush with the covers, it squared them off.
-        .padding(.horizontal, -Self.tableInset)
+        .padding(.horizontal, -(Self.tableInset + Self.rowPadding))
         .overlay {
             if entries.isEmpty, automatic.isEmpty {
                 Text("Nothing up next")
@@ -236,6 +244,7 @@ private struct QueueRow: View {
                 // Room for the remove button.
                 Color.clear.frame(width: 22, height: 22)
             }
+            .padding(.horizontal, QueueList.rowPadding)
             .frame(height: QueueList.rowHeight)
             .contentShape(Rectangle())
         }
@@ -253,10 +262,11 @@ private struct QueueRow: View {
                 .opacity(isHovering ? 1 : 0)
                 .allowsHitTesting(isHovering)
                 .help("Remove from queue")
+                .padding(.trailing, QueueList.rowPadding)
             }
         }
         .background {
-            RoundedRectangle(cornerRadius: Theme.Radius.artwork(28) + Theme.Space.xs, style: .continuous)
+            RoundedRectangle(cornerRadius: QueueList.rowHighlightRadius, style: .continuous)
                 .fill(.fill.quaternary)
                 .opacity(isHovering ? 0.6 : 0)
         }

@@ -100,7 +100,10 @@ struct NowPlayingBar: View {
                 InterpolatedColor(accent) { QueueList(accent: $0) }
                     .padding(.top, Theme.Space.sm)
                     .frame(height: QueueList.extent(manual: player.upcoming.count, automatic: player.automaticUpcoming.count) * reveal, alignment: .top)
-                    .clipped()
+                    // Cut off below as it's revealed, but not at the sides: the rows' highlights
+                    // and the covers' shadows reach into the platter's padding, and the platter's
+                    // own shape bounds them there.
+                    .clipShape(BleedingRect(dx: Theme.Space.barPadding))
                     .opacity(reveal)
                     .allowsHitTesting(reveal > 0.5)
             }
@@ -543,4 +546,11 @@ private struct TransportButton: View {
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.35)
     }
+}
+
+/// A rectangle that reaches `dx` past its frame on the left and right: a clip that cuts only at
+/// the top and bottom.
+private struct BleedingRect: Shape {
+    let dx: CGFloat
+    func path(in rect: CGRect) -> Path { Path(rect.insetBy(dx: -dx, dy: 0)) }
 }
