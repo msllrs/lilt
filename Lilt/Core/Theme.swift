@@ -131,6 +131,24 @@ enum Theme {
         /// Reduce Motion: kept, a few percent of scale under the pointer.
         static var press: Animation { .easeOut(duration: scaled(0.08)) }
         static var release: Animation { .spring(duration: scaled(0.3), bounce: 0.35) }
+        /// A control's hop to confirm itself (see `AttentionStyle`), from the tweak panel's
+        /// dials. Reduce Motion: no hop, nothing moves or grows; a short dip in opacity.
+        static func attention(_ style: AttentionStyle) -> Attention {
+            if reducesMotion { return .pulse(duration: scaled(style.pulse), opacity: style.pulseOpacity) }
+            return .hop(
+                rise: scaled(style.rise),
+                settle: Spring(response: scaled(style.response), dampingRatio: style.damping),
+                jump: style.jump,
+                scale: style.scale
+            )
+        }
+
+        enum Attention: Equatable {
+            /// Up by `jump` and to `scale` over `rise` seconds, then back on `settle`.
+            case hop(rise: TimeInterval, settle: Spring, jump: Double, scale: Double)
+            /// Down to `opacity` and back, `duration` each way.
+            case pulse(duration: TimeInterval, opacity: Double)
+        }
     }
 }
 
