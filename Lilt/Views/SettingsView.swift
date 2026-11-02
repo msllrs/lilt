@@ -52,17 +52,28 @@ struct SettingsView: View {
     }
 }
 
-/// The disc in lists and page headers. With Reduce Motion on it rests whatever this says.
+/// The panel's surface, and the disc in lists and page headers. The window style edits the same
+/// `ArtworkStyle.panel` the panel draws from (and saves), so the open panel restyles at once.
+/// With Reduce Motion on the disc rests whatever this says; with Reduce Transparency on, Glass
+/// shows as Solid.
 private struct AppearanceSection: View {
     @AppStorage(SpinningArtwork.spinsKey) private var spinsPlayingCover = true
+    private var style = ArtworkStyle.shared
 
     var body: some View {
         Section {
+            Picker("Window style", selection: Binding(
+                get: { WindowStyle(style.panel) },
+                set: { style.panel = $0.panelStyle }
+            )) {
+                ForEach(WindowStyle.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
             Toggle("Spin the cover of the playing song", isOn: $spinsPlayingCover)
         } header: {
             Text("Appearance")
         } footer: {
-            Text("With Reduce Motion on, the cover stays still here and in the Dock.")
+            Text("With Reduce Transparency on, Glass shows as Solid. With Reduce Motion on, the cover stays still here and in the Dock.")
                 .foregroundStyle(.secondary)
         }
     }
