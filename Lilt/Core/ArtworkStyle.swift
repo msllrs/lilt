@@ -236,6 +236,56 @@ struct PanelStyle: Equatable {
     static let standard = PanelStyle()
 }
 
+/// Settings ▸ Appearance ▸ Window style: the three looks `PanelStyle` can actually produce
+/// (glass ignores `translucent`, so it has no solid twin). Stored by name; the debug tweak panel
+/// edits the same `ArtworkStyle.panel`, so the two stay in step.
+enum WindowStyle: String, CaseIterable, Identifiable {
+    /// Window-wide Liquid Glass.
+    case glass
+    /// The Finder sidebar material, with the desktop showing through.
+    case normal
+    /// The same material, flat and opaque.
+    case solid
+
+    static let key = "windowStyle"
+    /// Today's look; nothing changes until someone picks another.
+    static let standard = WindowStyle.normal
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .glass: "Glass"
+        case .normal: "Normal"
+        case .solid: "Solid"
+        }
+    }
+
+    var panelStyle: PanelStyle {
+        switch self {
+        case .glass: PanelStyle(surface: .glass, translucent: true)
+        case .normal: PanelStyle(surface: .sidebar, translucent: true)
+        case .solid: PanelStyle(surface: .sidebar, translucent: false)
+        }
+    }
+
+    init(_ panel: PanelStyle) {
+        switch panel.surface {
+        case .glass: self = .glass
+        case .sidebar: self = panel.translucent ? .normal : .solid
+        }
+    }
+
+    /// The stored choice; a missing or unknown name is today's look.
+    static func stored(in defaults: UserDefaults = .standard) -> WindowStyle {
+        defaults.string(forKey: key).flatMap(WindowStyle.init(rawValue:)) ?? standard
+    }
+
+    func store(in defaults: UserDefaults = .standard) {
+        defaults.set(rawValue, forKey: Self.key)
+    }
+}
+
 /// The header controls' surface (see `HeaderControlMode`), with AppKit's private glass dials.
 struct HeaderControlStyle: Equatable {
     var mode: HeaderControlMode = .clear
@@ -422,7 +472,11 @@ final class ArtworkStyle {
     var pageAmbient: PageAmbientStyle = .standard
     var dockTile: DockTileStyle = .standard
     var headerControls: HeaderControlStyle = .standard
-    var panel: PanelStyle = .standard
+    /// Starts from Settings ▸ Appearance ▸ Window style and saves every change back there, so
+    /// the tweak panel and Settings edit one value and the open panel restyles at once.
+    var panel: PanelStyle = WindowStyle.stored().panelStyle {
+        didSet { WindowStyle(panel).store() }
+    }
     var leadingCast: LeadingCastStyle = .standard
     /// Library title centred between the back button and the avatar, rather than leading.
     var centredLibraryTitle: Bool = true
