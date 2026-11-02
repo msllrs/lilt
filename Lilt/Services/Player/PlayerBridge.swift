@@ -174,7 +174,7 @@ final class PlayerBridge: NSObject, PlayerBridging {
             onEvent?(.ready)
         case "NAV":
             #if DEBUG
-            NSLog("Lilt navigation via %@ for %@", body["method"] as? String ?? "?", body["id"] as? String ?? "?")
+            DebugLog.player("Lilt navigation via \(body["method"] as? String ?? "?") for \(body["id"] as? String ?? "?")")
             #endif
         case "REMOTE":
             if let action = (body["action"] as? String).flatMap(RemoteAction.init(rawValue:)) {

@@ -535,7 +535,7 @@ final class PlayerService {
             gap = nil
             #if DEBUG
             let ms = Int((Date.now.timeIntervalSince(trace.endedAt) * 1000).rounded())
-            NSLog("Lilt gap %ldms %@→%@ (%@)", ms, trace.old.title, trace.new.title, trace.mode)
+            DebugLog.player("Lilt gap \(ms)ms \(trace.old.title)→\(trace.new.title) (\(trace.mode))")
             #endif
         case .state(let s):
             apply(s)
