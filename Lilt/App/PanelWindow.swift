@@ -79,6 +79,7 @@ final class PanelWindow: NSPanel {
         unsafeBitCast(imp, to: Setter.self)(self, selector, radius)
         AppDelegate.shared?.navigation.frameCornerRadius = radius
         SidebarBackground.applyLiveCornerRadius(radius)
+        GlassBackground.applyLiveCornerRadius(radius)
     }
 
     private var frameFrom = NSRect.zero, frameTo = NSRect.zero

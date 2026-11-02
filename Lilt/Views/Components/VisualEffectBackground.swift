@@ -15,7 +15,17 @@ struct GlassBackground: NSViewRepresentable {
         view.style = .regular
         view.cornerRadius = cornerRadius
         view.isHidden = isHidden
+        Self.live.add(view)
         return view
+    }
+
+    /// Every mounted glass surface, re-cornered by the native frame in the same display link tick
+    /// that moves the window's corner, as `SidebarBackground` is; through SwiftUI state the glass
+    /// would trail the window's corner by a frame on the way into and out of mini.
+    nonisolated(unsafe) private static let live = NSHashTable<NSGlassEffectView>.weakObjects()
+
+    @MainActor static func applyLiveCornerRadius(_ radius: CGFloat) {
+        for view in live.allObjects { view.cornerRadius = radius }
     }
 
     func updateNSView(_ view: NSGlassEffectView, context: Context) {
