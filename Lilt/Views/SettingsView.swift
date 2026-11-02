@@ -1,4 +1,5 @@
 import ServiceManagement
+import Sparkle
 import SwiftUI
 
 struct SettingsView: View {
@@ -33,6 +34,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
             DockSection()
+            UpdatesSection()
         }
         .formStyle(.grouped)
         .frame(width: 380)
@@ -54,6 +56,50 @@ private struct DockSection: View {
             }
         }
     }
+}
+
+/// Sparkle's own settings, read from and written to the updater so the menu's Check for
+/// Updates… and this agree. Check Now is greyed while a check is already under way.
+private struct UpdatesSection: View {
+    @State private var updates = UpdaterState(AppDelegate.shared?.updater)
+
+    var body: some View {
+        @Bindable var updates = updates
+        Section("Updates") {
+            Toggle("Check for updates automatically", isOn: $updates.checksAutomatically)
+            LabeledContent("Lilt \(updates.version)") {
+                Button("Check Now") { updates.checkNow() }
+                    .disabled(!updates.canCheck)
+            }
+        }
+    }
+}
+
+/// Mirrors the parts of `SPUUpdater` Settings shows. `canCheckForUpdates` is key-value
+/// observed: it goes false while a check (or an update) is in progress.
+@MainActor
+@Observable
+private final class UpdaterState {
+    @ObservationIgnored private let controller: SPUStandardUpdaterController?
+    @ObservationIgnored private var observation: NSKeyValueObservation?
+    private(set) var canCheck = false
+    var checksAutomatically: Bool {
+        didSet { controller?.updater.automaticallyChecksForUpdates = checksAutomatically }
+    }
+    let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+
+    init(_ controller: SPUStandardUpdaterController?) {
+        self.controller = controller
+        checksAutomatically = controller?.updater.automaticallyChecksForUpdates ?? false
+        observation = controller?.updater.observe(\.canCheckForUpdates, options: [.initial, .new]) { [weak self] _, change in
+            let can = change.newValue ?? false
+            Task { @MainActor in self?.canCheck = can }
+        }
+    }
+
+    /// The same check as the menu's, with Sparkle's own window for the answer (or the error, if
+    /// the feed can't be read).
+    func checkNow() { controller?.checkForUpdates(nil) }
 }
 
 /// Open at login, as the system has it. The switch reads `SMAppService` rather than a flag of
