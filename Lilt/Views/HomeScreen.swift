@@ -26,11 +26,11 @@ struct HomeScreen: View {
     }
 
     var body: some View {
-        Group {
+        // A feed that lands quickly comes straight in; only a slow one shows the skeleton first.
+        DelayedPlaceholder(isLoading: phase == .loading) {
             switch phase {
             case .loading:
-                ScrollView { Skeleton.Rows(count: 7, header: true) }
-                    .scrollDisabled(true)
+                EmptyView()
             case .failed(let message):
                 EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load Home", detail: message)
             case .loaded where sections.isEmpty:
@@ -38,6 +38,9 @@ struct HomeScreen: View {
             case .loaded:
                 feed
             }
+        } placeholder: {
+            ScrollView { Skeleton.Rows(count: 7, header: true) }
+                .scrollDisabled(true)
         }
         .task { await load() }
         // ⌘R, while the feed is the screen on top (no page opened over it).

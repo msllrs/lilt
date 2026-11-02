@@ -55,18 +55,22 @@ struct LibraryScreen: View {
         .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
     }
 
-    @ViewBuilder
+    /// A library that lands quickly comes straight in; only a slow one shows the skeleton first.
     private var body_: some View {
-        switch phase {
-        case .loading:
+        DelayedPlaceholder(isLoading: phase == .loading) {
+            switch phase {
+            case .loading:
+                EmptyView()
+            case .failed(let message):
+                EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load your library", detail: message)
+            case .loaded where content.isEmpty:
+                EmptyHint(symbol: "books.vertical", title: "Nothing saved yet", detail: "Albums, playlists and artists you save on YouTube Music appear here.")
+            case .loaded:
+                list
+            }
+        } placeholder: {
             ScrollView { Skeleton.Rows(count: 7, header: true) }
                 .scrollDisabled(true)
-        case .failed(let message):
-            EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load your library", detail: message)
-        case .loaded where content.isEmpty:
-            EmptyHint(symbol: "books.vertical", title: "Nothing saved yet", detail: "Albums, playlists and artists you save on YouTube Music appear here.")
-        case .loaded:
-            list
         }
     }
 
