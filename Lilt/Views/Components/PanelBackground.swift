@@ -32,6 +32,9 @@ struct SidebarBackground: NSViewRepresentable {
     var cornerRadius: CGFloat
     var translucent: Bool
     var isHidden: Bool
+    /// The panel's own surface follows the window's live corner (see `live`). A preview of it
+    /// elsewhere (Settings ▸ Appearance) keeps the radius it was given.
+    var followsWindowCorner: Bool = true
 
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
@@ -39,11 +42,11 @@ struct SidebarBackground: NSViewRepresentable {
         view.blendingMode = .behindWindow
         view.maskImage = cornerRadius > 0 ? Self.mask(cornerRadius: cornerRadius) : nil
         view.isHidden = isHidden
-        Self.live.add(view)
+        if followsWindowCorner { Self.live.add(view) }
         return view
     }
 
-    /// Every mounted sidebar surface, so the native frame can re-mask them in the same display
+    /// Every mounted sidebar surface that follows the window's corner, so the native frame can re-mask them in the same display
     /// link tick that moves the window's corner; going through SwiftUI state lands a frame late,
     /// and for that frame rows show past the material's corner.
     nonisolated(unsafe) private static let live = NSHashTable<NSVisualEffectView>.weakObjects()
@@ -51,6 +54,9 @@ struct SidebarBackground: NSViewRepresentable {
     @MainActor static func applyLiveCornerRadius(_ radius: CGFloat) {
         for view in live.allObjects { view.maskImage = radius > 0 ? mask(cornerRadius: radius) : nil }
     }
+
+    /// Whether the native frame re-masks `view` as the window's corner moves.
+    @MainActor static func followsLiveCorner(_ view: NSVisualEffectView) -> Bool { live.contains(view) }
 
     func updateNSView(_ view: NSVisualEffectView, context: Context) {
         // Inactive is the material's flat, opaque rendering: the look Reduce Transparency gives.

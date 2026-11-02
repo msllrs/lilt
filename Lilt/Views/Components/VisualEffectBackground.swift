@@ -9,17 +9,20 @@ struct GlassBackground: NSViewRepresentable {
     /// reliably switch it off. When `isHidden`, the view is hidden for real once the fade has
     /// had time to finish.
     var isHidden: Bool = false
+    /// The panel's own glass follows the window's live corner (see `live`). A preview of it
+    /// elsewhere (Settings ▸ Appearance) keeps the radius it was given.
+    var followsWindowCorner: Bool = true
 
     func makeNSView(context: Context) -> NSGlassEffectView {
         let view = NSGlassEffectView()
         view.style = .regular
         view.cornerRadius = cornerRadius
         view.isHidden = isHidden
-        Self.live.add(view)
+        if followsWindowCorner { Self.live.add(view) }
         return view
     }
 
-    /// Every mounted glass surface, re-cornered by the native frame in the same display link tick
+    /// Every mounted glass surface that follows the window's corner, re-cornered by the native frame in the same display link tick
     /// that moves the window's corner, as `SidebarBackground` is; through SwiftUI state the glass
     /// would trail the window's corner by a frame on the way into and out of mini.
     nonisolated(unsafe) private static let live = NSHashTable<NSGlassEffectView>.weakObjects()
@@ -27,6 +30,9 @@ struct GlassBackground: NSViewRepresentable {
     @MainActor static func applyLiveCornerRadius(_ radius: CGFloat) {
         for view in live.allObjects { view.cornerRadius = radius }
     }
+
+    /// Whether the native frame re-corners `view` as the window's corner moves.
+    @MainActor static func followsLiveCorner(_ view: NSGlassEffectView) -> Bool { live.contains(view) }
 
     func updateNSView(_ view: NSGlassEffectView, context: Context) {
         view.cornerRadius = cornerRadius
