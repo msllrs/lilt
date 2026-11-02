@@ -26,13 +26,11 @@ struct SettingsView: View {
                 }
             }
             Section {
-                Picker("Gapless", selection: $player.gaplessMode) {
-                    ForEach(PlayerService.GaplessMode.allCases) { Text($0.title).tag($0) }
-                }
+                Toggle("Gapless playback", isOn: $player.isGapless)
             } header: {
                 Text("Playback")
             } footer: {
-                Text(player.gaplessMode.footer)
+                Text("Keeps the next song loaded in the background so it starts the moment the current one ends. Uses more memory.")
                     .foregroundStyle(.secondary)
             }
             AppearanceSection()
@@ -213,16 +211,5 @@ private struct GeneralSection: View {
             failure = error.localizedDescription
         }
         status = SMAppService.mainApp.status
-    }
-}
-
-private extension PlayerService.GaplessMode {
-    var footer: String {
-        switch self {
-        case .off:
-            "Each song loads when the one before it ends."
-        case .secondPlayer:
-            "Keeps the next song loaded in a second player, so it starts the moment the current one ends. Uses more memory."
-        }
     }
 }

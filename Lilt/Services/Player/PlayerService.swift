@@ -69,45 +69,31 @@ final class PlayerService {
 
     // MARK: Gapless state
 
-    /// How one song runs into the next when it ends by itself.
-    enum GaplessMode: String, CaseIterable, Identifiable {
-        /// Every change is a load, on one web player.
-        case off
-        /// A second web player holds the next song muted and paused at 0:00, and takes over.
-        case secondPlayer
-
-        var id: Self { self }
-
-        var title: String {
-            switch self {
-            case .off: "Off"
-            case .secondPlayer: "Second player (pre-load)"
-            }
-        }
-    }
-
-    static let gaplessModeKey = "gaplessMode"
-    /// The switch this setting replaced; read once, so turning it off is kept.
     static let gaplessKey = "gaplessPlayback"
+    /// Where Settings ▸ Playback's gapless picker kept its mode, for a while; `storedGapless`
+    /// moves it onto `gaplessKey` and removes it.
+    static let legacyGaplessModeKey = "gaplessMode"
 
-    /// The stored mode; off stays off, and anything else (the old switch on, or a mode that's
-    /// gone) is the second player.
-    static func storedGaplessMode(_ defaults: UserDefaults = .standard) -> GaplessMode {
-        if let raw = defaults.string(forKey: gaplessModeKey) { return raw == GaplessMode.off.rawValue ? .off : .secondPlayer }
-        if defaults.object(forKey: gaplessKey) as? Bool == false { return .off }
-        return .secondPlayer
+    /// The stored switch, on when nothing is stored. A mode left by the old picker is moved onto
+    /// it first: off stays off, and any other (YouTube's own queue, Chrome mode or the second
+    /// player) is on, the second player being all that's left of them.
+    static func storedGapless(_ defaults: UserDefaults = .standard) -> Bool {
+        if let mode = defaults.string(forKey: legacyGaplessModeKey) {
+            defaults.set(mode != "off", forKey: gaplessKey)
+            defaults.removeObject(forKey: legacyGaplessModeKey)
+        }
+        return defaults.object(forKey: gaplessKey) as? Bool ?? true
     }
 
     /// Gapless playback: a second web player, signed in on the same data store, holds the song
     /// that plays next muted and paused at 0:00, and takes over the instant the current one
     /// ends. Off, there is one web player and every change is a load, exactly as before.
-    var gaplessMode: GaplessMode = PlayerService.storedGaplessMode() {
+    var isGapless = PlayerService.storedGapless() {
         didSet {
-            UserDefaults.standard.set(gaplessMode.rawValue, forKey: Self.gaplessModeKey)
+            UserDefaults.standard.set(isGapless, forKey: Self.gaplessKey)
             syncStandby()
         }
     }
-    private var isGapless: Bool { gaplessMode == .secondPlayer }
     /// The web player waiting with the next song; nil with gapless off or before the first play.
     @ObservationIgnored private(set) var standby: (any PlayerBridging)?
     /// The song the standby is cueing or holding, and whether it's buffered and ready to start.

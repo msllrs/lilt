@@ -47,14 +47,14 @@ final class FakePlayers {
 }
 
 /// A player resumed on `queue[0]` (seeded through the saved `playbackState`) with fake web
-/// players and the gapless mode given, or the old switch's value to migrate from. The real
-/// app's saved playback and setting are put back afterwards.
+/// players and gapless set as given, alongside the old picker's mode to migrate from if one is
+/// given. The real app's saved playback and setting are put back afterwards.
 @MainActor
 func withFakePlayer(
-    _ queue: [Track], gapless: PlayerService.GaplessMode, legacySwitch: Bool? = nil,
+    _ queue: [Track], gapless: Bool, legacyMode: String? = nil,
     _ body: (PlayerService, FakePlayers) async throws -> Void
 ) async throws {
-    let keys = ["playbackState", PlayerService.gaplessKey, PlayerService.gaplessModeKey]
+    let keys = ["playbackState", PlayerService.gaplessKey, PlayerService.legacyGaplessModeKey]
     let saved = keys.map { UserDefaults.standard.object(forKey: $0) }
     defer {
         for (key, value) in zip(keys, saved) {
@@ -63,11 +63,11 @@ func withFakePlayer(
     }
     let state: [String: Any] = ["queue": try JSONSerialization.jsonObject(with: JSONEncoder().encode(queue)), "index": 0, "time": 0]
     UserDefaults.standard.set(try JSONSerialization.data(withJSONObject: state), forKey: "playbackState")
-    if let legacySwitch {
-        UserDefaults.standard.removeObject(forKey: PlayerService.gaplessModeKey)
-        UserDefaults.standard.set(legacySwitch, forKey: PlayerService.gaplessKey)
+    UserDefaults.standard.set(gapless, forKey: PlayerService.gaplessKey)
+    if let legacyMode {
+        UserDefaults.standard.set(legacyMode, forKey: PlayerService.legacyGaplessModeKey)
     } else {
-        UserDefaults.standard.set(gapless.rawValue, forKey: PlayerService.gaplessModeKey)
+        UserDefaults.standard.removeObject(forKey: PlayerService.legacyGaplessModeKey)
     }
     let fakes = FakePlayers()
     let player = PlayerService(auth: AuthService(), makeBridge: {

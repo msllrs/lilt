@@ -13,10 +13,10 @@ struct GaplessTests {
     private var lateralus: [Track] { ["grudge", "eon", "patient", "mantra"].map(song) }
 
     private func withPlayer(
-        _ queue: [Track], gapless: PlayerService.GaplessMode = .secondPlayer, legacySwitch: Bool? = nil,
+        _ queue: [Track], gapless: Bool = true, legacyMode: String? = nil,
         _ body: (PlayerService, FakePlayers) async throws -> Void
     ) async throws {
-        try await withFakePlayer(queue, gapless: gapless, legacySwitch: legacySwitch, body)
+        try await withFakePlayer(queue, gapless: gapless, legacyMode: legacyMode, body)
     }
 
     private func startPlaying(_ player: PlayerService, _ fakes: FakePlayers) { fakes.startPlaying(player) }
@@ -197,7 +197,7 @@ struct GaplessTests {
     // MARK: The setting
 
     @Test func offThereIsOnlyOneWebPlayer() async throws {
-        try await withPlayer(lateralus, gapless: .off) { player, fakes in
+        try await withPlayer(lateralus, gapless: false) { player, fakes in
             startPlaying(player, fakes)
             fakes.first.onEvent?(.ended(videoId: "grudge"))
             #expect(fakes.all.count == 1)
@@ -210,12 +210,12 @@ struct GaplessTests {
             startPlaying(player, fakes)
             let standby = try #require(fakes.second)
             standby.onEvent?(.cued(videoId: "eon"))
-            player.gaplessMode = .off
+            player.isGapless = false
             #expect(player.standby == nil)
             #expect(standby.calls.last == "unload")
             fakes.first.onEvent?(.ended(videoId: "grudge"))
             #expect(fakes.first.calls.last == "load:eon")
-            player.gaplessMode = .secondPlayer
+            player.isGapless = true
             fakes.first.report("eon")
             #expect(fakes.all.count == 3)
             #expect(fakes.all[2].calls == ["cue:patient"])
@@ -229,22 +229,41 @@ struct GaplessTests {
             standby.onEvent?(.cued(videoId: "eon"))
             fakes.first.onEvent?(.ended(videoId: "grudge"))
             #expect(player.bridge === standby)
-            player.gaplessMode = .off
+            player.isGapless = false
             #expect(player.bridge === standby, "the song you hear was torn down")
             #expect(player.standby == nil)
             #expect(fakes.first.calls.last == "unload")
         }
     }
 
-    @Test func theModeIsStoredAndTheOldSwitchIsMigrated() async throws {
-        try await withPlayer(lateralus, legacySwitch: false) { player, _ in
-            #expect(player.gaplessMode == .off, "the old switch turned off came back on")
-            player.gaplessMode = .secondPlayer
-            #expect(UserDefaults.standard.string(forKey: PlayerService.gaplessModeKey) == "secondPlayer")
-            #expect(PlayerService.storedGaplessMode() == .secondPlayer)
+    @Test func thePickersModeMovesOntoTheSwitch() async throws {
+        let modeKey = PlayerService.legacyGaplessModeKey
+        // The picker wrote only its own key, so the switch's is whatever was left from before it.
+        try await withPlayer(lateralus, gapless: true, legacyMode: "off") { player, fakes in
+            #expect(!player.isGapless, "a mode of off came back on")
+            #expect(UserDefaults.standard.object(forKey: PlayerService.gaplessKey) as? Bool == false)
+            #expect(UserDefaults.standard.object(forKey: modeKey) == nil)
+            startPlaying(player, fakes)
+            #expect(fakes.all.count == 1)
         }
-        try await withPlayer(lateralus, legacySwitch: true) { player, _ in
-            #expect(player.gaplessMode == .secondPlayer)
+        for mode in ["nativeQueue", "chromeQueue", "secondPlayer", "somethingNewer"] {
+            try await withPlayer(lateralus, gapless: false, legacyMode: mode) { player, fakes in
+                #expect(player.isGapless, "\(mode) didn't become the second player")
+                #expect(UserDefaults.standard.object(forKey: PlayerService.gaplessKey) as? Bool == true)
+                #expect(UserDefaults.standard.object(forKey: modeKey) == nil)
+                startPlaying(player, fakes)
+                #expect(fakes.second != nil)
+            }
+        }
+    }
+
+    @Test func theSwitchIsStoredAndOnUntilTurnedOff() async throws {
+        try await withPlayer(lateralus, gapless: false) { player, _ in
+            #expect(!player.isGapless)
+            player.isGapless = true
+            #expect(PlayerService.storedGapless())
+            UserDefaults.standard.removeObject(forKey: PlayerService.gaplessKey)
+            #expect(PlayerService.storedGapless(), "gapless isn't on by default")
         }
     }
 }
