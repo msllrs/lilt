@@ -14,7 +14,9 @@ enum DockMenu {
         @MainActor static let none = Actions(open: { _ in }, show: {})
     }
 
-    static func build(player: PlayerService, music: YTMusicClient, recents: RecentsStore, actions: Actions) -> NSMenu {
+    /// `notices` confirms the song's actions in the panel; it stays silent while the panel is
+    /// out of sight, which it often is when the Dock menu is used.
+    static func build(player: PlayerService, music: YTMusicClient, recents: RecentsStore, actions: Actions, notices: NoticeCenter? = nil) -> NSMenu {
         let menu = NSMenu()
         if let current = player.current {
             let track = music.withLinks(current)
@@ -28,7 +30,7 @@ enum DockMenu {
             menu.addItem(next)
             menu.addItem(ActionItem("Previous") { player.previous() })
             menu.addItem(.separator())
-            addSongActions(for: track, to: menu, player: player, music: music, actions: actions)
+            addSongActions(for: track, to: menu, player: player, music: music, actions: actions, notices: notices)
             menu.addItem(.separator())
             addPlaybackModes(to: menu, player: player)
             menu.addItem(.separator())
@@ -41,19 +43,19 @@ enum DockMenu {
     }
 
     /// The bar's right-click menu for the playing song, as Dock menu items.
-    private static func addSongActions(for track: Track, to menu: NSMenu, player: PlayerService, music: YTMusicClient, actions: Actions) {
+    private static func addSongActions(for track: Track, to menu: NSMenu, player: PlayerService, music: YTMusicClient, actions: Actions, notices: NoticeCenter?) {
         for action in RowMenu.nowPlaying(track, isLiked: player.isLiked).joined() {
             switch action {
             case .addToPlaylist:
-                menu.addItem(playlistMenu(for: track, music: music))
+                menu.addItem(playlistMenu(for: track, music: music, notices: notices))
             case .like, .unlike:
-                menu.addItem(ActionItem(action.title) { RowMenu.setLiked(action == .like, track, player: player, music: music) })
+                menu.addItem(ActionItem(action.title) { RowMenu.setLiked(action == .like, track, player: player, music: music, notices: notices) })
             case .goToArtist:
                 menu.addItem(ActionItem(action.title) { if let item = track.artistItem { actions.open(item) } })
             case .goToAlbum:
                 menu.addItem(ActionItem(action.title) { if let item = track.albumItem { actions.open(item) } })
             case .copyLink:
-                menu.addItem(ActionItem(action.title) { RowMenu.copy(RowMenu.webURL(for: track)) })
+                menu.addItem(ActionItem(action.title) { RowMenu.copyLink(RowMenu.webURL(for: track), notices: notices) })
             default:
                 break
             }
@@ -122,7 +124,7 @@ enum DockMenu {
     /// Your playlists, ticking the ones the song was added to. The Dock shows a snapshot of the
     /// menu, so a list still loading can't fill in while it's open; the app warms it as each
     /// song starts.
-    private static func playlistMenu(for track: Track, music: YTMusicClient) -> NSMenuItem {
+    private static func playlistMenu(for track: Track, music: YTMusicClient, notices: NoticeCenter?) -> NSMenuItem {
         let item = NSMenuItem(title: RowAction.addToPlaylist.title, action: nil, keyEquivalent: "")
         let submenu = NSMenu()
         if music.ownPlaylists.isEmpty {
@@ -132,7 +134,7 @@ enum DockMenu {
         }
         let added = music.addedTo[track.id] ?? []
         for playlist in music.ownPlaylists {
-            let entry = ActionItem(playlist.title) { Task { try? await music.add(track, to: playlist) } }
+            let entry = ActionItem(playlist.title) { RowMenu.add(track, to: playlist, music: music, notices: notices) }
             entry.state = added.contains(playlist.id) ? .on : .off
             submenu.addItem(entry)
         }

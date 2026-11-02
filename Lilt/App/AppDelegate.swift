@@ -328,7 +328,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 RowMenu.open(item, navigation: navigation)
             },
             show: { [weak self] in self?.showPanel() }
-        ))
+        ), notices: notices)
     }
 
     /// The Dock menu can't wait for anything once it's open, so what it offers for a song is
