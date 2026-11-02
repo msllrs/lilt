@@ -22,6 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// The panel's notices (Added to queue, Undo). Silent while nobody can see the panel, and in
     /// the mini player, where the window is the platter and has no room for one.
     let notices = NoticeCenter()
+    /// Settings ▸ Appearance ▸ Fade when not in use: when the browse column recedes.
+    let rest = PanelRest()
     /// Settings ▸ Notifications: a banner when the song changes.
     private lazy var songNotifier = SongNotifier(player: player, panel: { [weak self] in self?.panel })
     /// The system-wide shortcut that shows or hides the panel; set up at launch.
@@ -528,14 +530,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .environment(collapsedSections)
             .environment(ambience)
             .environment(notices)
+            .environment(rest)
         let hosting = NSHostingView(rootView: root)
         hosting.sizingOptions = []
         panelHosting = hosting
         // The hidden title bar still counts as a safe area; the column fills the whole window.
         hosting.safeAreaRegions = []
 
-        let container = NSView(frame: window.contentLayoutRect)
+        // The container tells the rest when the pointer crosses the panel's edge: one tracking
+        // area, so the window server reports the crossing and nothing runs in between.
+        let container = PointerTrackingView(frame: window.contentLayoutRect)
         container.autoresizingMask = [.width, .height]
+        container.onEnter = { [rest] in rest.pointerEntered() }
+        container.onExit = { [rest] in rest.pointerExited() }
 
         hosting.frame = container.bounds
         hosting.autoresizingMask = [.width, .height]
@@ -561,6 +568,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.setFrameAutosaveName(PanelWindow.autosaveName)
         panelOcclusion = Self.followOcclusion(of: window, into: navigation)
         panel = window
+        followUse(of: window)
+    }
+
+    private var restObservers: [NSObjectProtocol] = []
+
+    /// What the rest can't see from the pointer: a menu open anywhere in Lilt (a row's, a context
+    /// menu, the menu bar) holds it awake, and typing stops counting once the panel loses the
+    /// keyboard. Keys and focus changes come from `PanelWindow` itself.
+    private func followUse(of window: PanelWindow) {
+        rest.pointerIsInside = { [weak window] in window.map { $0.frame.contains(NSEvent.mouseLocation) } }
+        let center = NotificationCenter.default
+        restObservers = [
+            center.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: .main) { [rest] _ in
+                MainActor.assumeIsolated { rest.setHold(.menu, true) }
+            },
+            center.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: .main) { [rest] _ in
+                MainActor.assumeIsolated { rest.setHold(.menu, false) }
+            },
+            center.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [rest] _ in
+                MainActor.assumeIsolated { rest.setHold(.typing, false) }
+            },
+        ]
     }
 
     private var panelOcclusion: NSObjectProtocol?

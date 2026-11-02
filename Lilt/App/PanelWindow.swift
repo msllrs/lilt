@@ -1,6 +1,26 @@
 import AppKit
 import SwiftUI
 
+/// The panel's content view, which reports the pointer crossing the panel's edge from one
+/// tracking area. The window server sends the crossings; nothing runs while the pointer stays
+/// on one side.
+final class PointerTrackingView: NSView {
+    var onEnter: (() -> Void)?
+    var onExit: (() -> Void)?
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        // In the visible rect, so it follows the window's size by itself; always, since the
+        // panel works without Lilt being the active app.
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override func mouseEntered(with event: NSEvent) { onEnter?() }
+    override func mouseExited(with event: NSEvent) { onExit?() }
+}
+
 /// A narrow, translucent column that lives on the edge of the screen.
 ///
 /// Borderless so we own the shape (the system radius on a panel is fixed at 15pt, too tight for
@@ -148,9 +168,23 @@ final class PanelWindow: NSPanel {
     /// state the menu bar (and its shortcuts) still belong to the previous app. Handle Lilt's own
     /// shortcuts here so they work straight from the panel.
     override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown { noteKey() }
         if event.type == .keyDown, performsNoticeAction(event) || handleShortcut(event) { return }
         if event.type == .leftMouseDown { endEditingIfClickedAway(event) }
         super.sendEvent(event)
+    }
+
+    /// A key in the panel wakes it (Fade when not in use). Into the search field it's typing,
+    /// which holds the panel awake until the field gives up the keyboard.
+    private func noteKey() {
+        guard let rest = AppDelegate.shared?.rest else { return }
+        if firstResponder is NSTextView { rest.setHold(.typing, true) } else { rest.keyPressed() }
+    }
+
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        let made = super.makeFirstResponder(responder)
+        if !(firstResponder is NSTextView) { AppDelegate.shared?.rest.setHold(.typing, false) }
+        return made
     }
 
     /// While Lilt is active the Edit menu's Undo would answer ⌘Z first; the window is asked

@@ -4,6 +4,11 @@ struct RootView: View {
     @Environment(PlayerService.self) private var player
     @Environment(NavigationModel.self) private var navigation
     @Environment(NoticeCenter.self) private var notices
+    @Environment(PanelRest.self) private var rest
+    /// Settings ▸ Appearance ▸ Fade when not in use, and the surface's step for it.
+    @AppStorage(PanelRest.enabledKey) private var fadesWhenNotInUse = PanelRest.enabledByDefault
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     /// The column's height while expanded. In mini the window is only as tall as the platter, so
     /// the (invisible) column keeps this size instead of reflowing, and reports none of it.
     @State private var columnHeight: CGFloat = 0
@@ -24,6 +29,12 @@ struct RootView: View {
         // the header and the platter.
         let holdsExpandedLayout = mini || navigation.isFrameAnimating
         let heldHeight = columnHeight > 0 ? columnHeight : navigation.expandedFrameHeight
+        // At rest the column recedes a step as one layer; the platter, Up Next and notices
+        // sit outside it and keep their strength.
+        let resting = rest.isResting && !mini
+        let restingOpacity = ArtworkStyle.shared.surface(colorScheme, reduceTransparency: reduceTransparency).atRest.contentOpacity
+        // Rests only where there's a column to recede and someone could see it.
+        let canRest = fadesWhenNotInUse && !mini && !navigation.isPanelOutOfSight
         ZStack(alignment: .bottom) {
             // The panel's surface, always mounted. It never fades or resizes: it stays at the
             // expanded height, bottom-anchored like the column, and the window's own frame
@@ -56,7 +67,9 @@ struct RootView: View {
                 // above the platter's glass, so rows showed through it mid-move). It fades with
                 // the move: in mini it would otherwise still be there behind the platter's glass,
                 // since the hosting view stays full height.
-                .opacity(mini ? 0 : 1)
+                .opacity(mini ? 0 : resting ? restingOpacity : 1)
+                // Recedes slowly, comes back quickly.
+                .animation(resting ? Theme.Motion.rest : Theme.Motion.wake, value: resting)
                 .allowsHitTesting(!mini)
                 // In mini the window is shorter than the column's minimum; laid out at its
                 // expanded size but reporting zero height, it can't push the platter down.
@@ -88,6 +101,7 @@ struct RootView: View {
         // A notice is about what you just did in the panel; once it's hidden or folded to the
         // platter, it's done with.
         .onChange(of: mini) { _, _ in notices.dismiss() }
+        .onChange(of: canRest, initial: true) { _, can in rest.setAvailable(can) }
         .onChange(of: navigation.isPanelHidden) { _, hidden in if hidden { notices.dismiss() } }
         // Everything outside a screen (the platter's marquee and disc) pauses while nobody can
         // see the panel too; screens combine this with their own parked state above.
