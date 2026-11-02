@@ -13,7 +13,7 @@ struct SurfaceMatrixTests {
         let dark = scheme == .dark
         return SurfaceStyle(
             platter: .init(shadowOpacity: 0.18, shadowRadius: 16, shadowOffsetY: 8, borderOpacity: 0.40, tintOpacity: 0.20, tintSaturation: 4.0, tintBlur: 160, hoverBrightness: 0.80, washOpacity: 0.32),
-            glassEdge: .init(topOpacity: dark ? 0.45 : 0.9, middleOpacity: dark ? 0.12 : 0.35, bottomOpacity: dark ? 0.35 : 0.10, lineWidth: 1),
+            glassEdge: .init(topOpacity: dark ? 0.45 : 0.9, middleOpacity: dark ? 0.12 : 0.35, bottomOpacity: dark ? 0.35 : 0.10, lineWidth: 1, hairline: false, hairlineWidth: 0.75, hairlineOpacity: 0.07),
             headerBlur: .init(radius: 24, saturation: 1.0, brightness: 0.0, reach: 32, rimOpacity: 0.45),
             pageAmbient: .init(opacity: 0.28, saturation: 3.0, blur: 120),
             headerControls: .init(rim: false, rimOpacity: 0.5, tintOpacity: 0.6)
@@ -56,6 +56,17 @@ struct SurfaceMatrixTests {
     @Test func aMissingValueDoesNotDecode() throws {
         let json = try SurfaceMatrix.defaults.json().replacingOccurrences(of: "\"washOpacity\"", with: "\"wash\"")
         #expect(throws: DecodingError.self) { try SurfaceMatrix.decode(Data(json.utf8)) }
+    }
+
+    /// The hairline experiment adds light on dark glass and takes it away on light.
+    @Test func theHairlineLightensDarkAndDarkensLight() {
+        var edge = Self.today(.dark).glassEdge
+        #expect(!edge.hairline, "the hairline is an experiment, off by default")
+        edge.hairlineOpacity = 0.07
+        let dark = GlassEdge<Circle>.hairline(edge, dark: true)
+        let light = GlassEdge<Circle>.hairline(edge, dark: false)
+        #expect(dark.color == Color.white.opacity(0.07) && dark.blend == .plusLighter)
+        #expect(light.color == Color.black.opacity(0.07) && light.blend == .plusDarker)
     }
 
     /// Views read the cell for the style on screen: with Reduce Transparency on, glass is solid.

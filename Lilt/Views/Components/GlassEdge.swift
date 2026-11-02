@@ -24,23 +24,41 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
     func body(content: Content) -> some View {
         let edge = edge
         content.overlay {
-            shape.inset(by: -0.5).stroke(
-                LinearGradient(
-                    stops: [
-                        .init(color: topColor(edge), location: 0),
-                        .init(color: .white.opacity(edge.middleOpacity), location: Self.middleLocation),
-                        .init(color: .black.opacity(edge.bottomOpacity), location: 1),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                ),
-                lineWidth: edge.lineWidth + blur * 0.5
-            )
-            .blur(radius: blur)
-            .blendMode(blend)
+            Group {
+                if edge.hairline {
+                    // An even hairline that lightens dark glass and darkens light glass, rather
+                    // than a lit top and a shadowed bottom.
+                    let hairline = Self.hairline(edge, dark: colorScheme == .dark)
+                    shape.inset(by: -edge.hairlineWidth / 2)
+                        .stroke(cast.map { hairline.color.mix(with: $0, by: castMix) } ?? hairline.color, lineWidth: edge.hairlineWidth + blur * 0.5)
+                        .blur(radius: blur)
+                        .blendMode(hairline.blend)
+                } else {
+                    shape.inset(by: -0.5).stroke(
+                        LinearGradient(
+                            stops: [
+                                .init(color: topColor(edge), location: 0),
+                                .init(color: .white.opacity(edge.middleOpacity), location: Self.middleLocation),
+                                .init(color: .black.opacity(edge.bottomOpacity), location: 1),
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: edge.lineWidth + blur * 0.5
+                    )
+                    .blur(radius: blur)
+                    .blendMode(blend)
+                }
+            }
             .opacity(opacity)
             .allowsHitTesting(false)
         }
+    }
+
+    /// The hairline's colour and blend: white added as light on dark glass, black multiplied
+    /// down on light glass (white under plus-darker would leave it untouched).
+    static func hairline(_ edge: SurfaceStyle.Edge, dark: Bool) -> (color: Color, blend: BlendMode) {
+        dark ? (Color.white.opacity(edge.hairlineOpacity), .plusLighter) : (Color.black.opacity(edge.hairlineOpacity), .plusDarker)
     }
 
     private func topColor(_ edge: SurfaceStyle.Edge) -> Color {

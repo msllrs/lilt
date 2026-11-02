@@ -3,6 +3,9 @@
     "dark": {
       "glassEdge": {
         "bottomOpacity": 0.35,
+        "hairline": false,
+        "hairlineOpacity": 0.07,
+        "hairlineWidth": 0.75,
         "lineWidth": 1,
         "middleOpacity": 0.12,
         "topOpacity": 0.45
@@ -39,6 +42,9 @@
     "light": {
       "glassEdge": {
         "bottomOpacity": 0.1,
+        "hairline": false,
+        "hairlineOpacity": 0.07,
+        "hairlineWidth": 0.75,
         "lineWidth": 1,
         "middleOpacity": 0.35,
         "topOpacity": 0.9
@@ -77,6 +83,9 @@
     "dark": {
       "glassEdge": {
         "bottomOpacity": 0.35,
+        "hairline": false,
+        "hairlineOpacity": 0.07,
+        "hairlineWidth": 0.75,
         "lineWidth": 1,
         "middleOpacity": 0.12,
         "topOpacity": 0.45
@@ -113,6 +122,9 @@
     "light": {
       "glassEdge": {
         "bottomOpacity": 0.1,
+        "hairline": false,
+        "hairlineOpacity": 0.07,
+        "hairlineWidth": 0.75,
         "lineWidth": 1,
         "middleOpacity": 0.35,
         "topOpacity": 0.9
@@ -151,6 +163,9 @@
     "dark": {
       "glassEdge": {
         "bottomOpacity": 0.35,
+        "hairline": false,
+        "hairlineOpacity": 0.07,
+        "hairlineWidth": 0.75,
         "lineWidth": 1,
         "middleOpacity": 0.12,
         "topOpacity": 0.45
@@ -187,6 +202,9 @@
     "light": {
       "glassEdge": {
         "bottomOpacity": 0.1,
+        "hairline": false,
+        "hairlineOpacity": 0.07,
+        "hairlineWidth": 0.75,
         "lineWidth": 1,
         "middleOpacity": 0.35,
         "topOpacity": 0.9

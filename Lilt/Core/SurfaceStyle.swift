@@ -43,6 +43,12 @@ struct SurfaceStyle: Codable, Equatable {
         var bottomOpacity: Double
         /// Points, before any blur widens it.
         var lineWidth: Double
+        /// Instead of the lit gradient, an even hairline of `hairlineWidth` points: white at
+        /// `hairlineOpacity` added as light in dark mode (plus-lighter), black darkening in light
+        /// (plus-darker). An experiment; off everywhere by default.
+        var hairline: Bool
+        var hairlineWidth: Double
+        var hairlineOpacity: Double
     }
 
     /// The blur behind floating headers (see `HeaderBlurStyle` for which blur).

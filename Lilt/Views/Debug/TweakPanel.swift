@@ -233,6 +233,12 @@ struct TweakPanel: View {
             slider("Glass edge: middle", $style.surfaces[shown, scheme].glassEdge.middleOpacity, 0...1)
             slider("Glass edge: bottom", $style.surfaces[shown, scheme].glassEdge.bottomOpacity, 0...1)
             slider("Glass edge: width", $style.surfaces[shown, scheme].glassEdge.lineWidth, 0.25...3)
+            // Rex's rim: an even hairline, plus-lighter in dark and plus-darker in light.
+            Toggle("Glass edge: blended hairline", isOn: $style.surfaces[shown, scheme].glassEdge.hairline)
+            slider("Hairline width", $style.surfaces[shown, scheme].glassEdge.hairlineWidth, 0.25...2)
+                .disabled(!style.surfaces[shown, scheme].glassEdge.hairline)
+            slider("Hairline opacity", $style.surfaces[shown, scheme].glassEdge.hairlineOpacity, 0...0.3)
+                .disabled(!style.surfaces[shown, scheme].glassEdge.hairline)
             slider("Header blur: radius", $style.surfaces[shown, scheme].headerBlur.radius, 0...60)
             slider("Header blur: saturation", $style.surfaces[shown, scheme].headerBlur.saturation, 0...3)
                 .disabled(style.headerBlur.ownContentOnly)
