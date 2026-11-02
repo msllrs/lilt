@@ -3,11 +3,14 @@ import AppKit
 import SwiftUI
 
 /// Debug-only sliders for the artwork finish. Changes apply live to every artwork in the column;
-/// "Copy values" puts a Swift snippet on the clipboard to paste back into `ArtworkStyle.reset()`.
+/// "Copy values" puts a Swift snippet on the clipboard to paste back into `ArtworkStyle.reset()`,
+/// and "Export JSON" the surface values for every window style, to paste over
+/// `SurfaceDefaults.json`.
 struct TweakPanel: View {
     @State private var style = ArtworkStyle.shared
     @State private var shadowContext: ArtworkContext = .player
     @State private var copied = false
+    @State private var exported = false
     @State private var motion = MotionSettings.shared
     @Environment(ScrollTracker.self) private var scrollTracker
     @Environment(\.colorScheme) private var colorScheme
@@ -18,7 +21,6 @@ struct TweakPanel: View {
     var body: some View {
         @Bindable var style = style
         @Bindable var motion = motion
-        let cell = (shownStyle, colorScheme)
         Form {
             Section("Live") {
                 LabeledContent("Content under platter", value: String(format: "%.0f pt", scrollTracker.activeRemainingBelow))
@@ -87,16 +89,8 @@ struct TweakPanel: View {
                 slider("Light comp.", shadow(\.lightCompensation), 0...1)
                 slider("Neutral base", shadow(\.baseOpacity), 0...0.6)
             }
+            surfaceSection
             Section("Now playing platter") {
-                slider("Shadow opacity", $style.surfaces[cell.0, cell.1].platter.shadowOpacity, 0...0.6)
-                slider("Shadow radius", $style.surfaces[cell.0, cell.1].platter.shadowRadius, 0...40)
-                slider("Shadow offset", $style.surfaces[cell.0, cell.1].platter.shadowOffsetY, 0...24)
-                slider("Border", $style.surfaces[cell.0, cell.1].platter.borderOpacity, 0...0.4)
-                slider("Ambient opacity", $style.surfaces[cell.0, cell.1].platter.tintOpacity, 0...1)
-                slider("Ambient saturation", $style.surfaces[cell.0, cell.1].platter.tintSaturation, 0...8)
-                slider("Ambient blur", $style.surfaces[cell.0, cell.1].platter.tintBlur, 0...300)
-                slider("Hover brighten", $style.surfaces[cell.0, cell.1].platter.hoverBrightness, 0...1)
-                slider("Wash", $style.surfaces[cell.0, cell.1].platter.washOpacity, 0...0.8)
                 slider("Wash reach", $style.platter.cornerAccentRadius, 0.2...1.5)
                 Picker("Wash placement", selection: $style.platter.accentPlacement) {
                     ForEach(AccentPlacement.allCases) { Text($0.label).tag($0) }
@@ -107,9 +101,6 @@ struct TweakPanel: View {
             }
             coverPalette
             Section("Page ambient") {
-                slider("Opacity", $style.surfaces[cell.0, cell.1].pageAmbient.opacity, 0...1)
-                slider("Saturation", $style.surfaces[cell.0, cell.1].pageAmbient.saturation, 0...8)
-                slider("Blur", $style.surfaces[cell.0, cell.1].pageAmbient.blur, 0...300)
                 slider("Reach", $style.pageAmbient.reach, 80...800)
                 slider("Cover band (h/w)", $style.pageAmbient.band, 0.2...1)
             }
@@ -133,9 +124,6 @@ struct TweakPanel: View {
                 }
                 Toggle("Search field too", isOn: $style.headerControls.appliesToSearch)
                 Toggle("Interactive (SwiftUI glass)", isOn: $style.headerControls.interactive)
-                Toggle("Our lit rim", isOn: $style.surfaces[cell.0, cell.1].headerControls.rim)
-                slider("Rim opacity", $style.surfaces[cell.0, cell.1].headerControls.rimOpacity, 0...1)
-                slider("Cover tint", $style.surfaces[cell.0, cell.1].headerControls.tintOpacity, 0...0.6)
                 Toggle("AppKit: clear base", isOn: $style.headerControls.clearBase)
                 intSlider("AppKit: variant", $style.headerControls.variant, HeaderControlStyle.variantRange)
                 TextField("AppKit: subvariant", text: $style.headerControls.subvariant, prompt: Text("unset"))
@@ -162,12 +150,6 @@ struct TweakPanel: View {
                     .disabled(!ProgressiveBlurBackdrop.isAvailable)
                 LabeledContent("Available", value: ProgressiveBlurBackdrop.isAvailable ? "yes" : "no")
                 Toggle("Own content only (ignore windows behind)", isOn: $style.headerBlur.ownContentOnly)
-                slider("Radius", $style.surfaces[cell.0, cell.1].headerBlur.radius, 0...60)
-                slider("Saturation", $style.surfaces[cell.0, cell.1].headerBlur.saturation, 0...3)
-                    .disabled(style.headerBlur.ownContentOnly)
-                slider("Brightness", $style.surfaces[cell.0, cell.1].headerBlur.brightness, -0.5...0.5)
-                slider("Reach", $style.surfaces[cell.0, cell.1].headerBlur.reach, 0...96)
-                slider("Rim", $style.surfaces[cell.0, cell.1].headerBlur.rimOpacity, 0...1)
             }
             Section("Play capsule cast") {
                 slider("Glass tint", $style.playCast.tintOpacity, 0...0.6)
@@ -212,6 +194,7 @@ struct TweakPanel: View {
                 HStack {
                     Button("Reset") { style.reset() }
                     Spacer()
+                    Button(exported ? "Copied" : "Export JSON") { exportSurfaces() }
                     Button(copied ? "Copied" : "Copy values") {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(style.swiftSnippet, forType: .string)
@@ -227,6 +210,63 @@ struct TweakPanel: View {
         }
         .formStyle(.grouped)
         .frame(width: 360, height: 900)
+    }
+
+    /// The surface values for the window style on screen in this appearance (`SurfaceMatrix`):
+    /// switch the style in Settings or the appearance in System Settings to edit another cell.
+    @ViewBuilder private var surfaceSection: some View {
+        @Bindable var style = style
+        let shown = shownStyle
+        let scheme = colorScheme
+        Section {
+            LabeledContent("Editing", value: "\(shown.title) · \(scheme == .dark ? "Dark" : "Light")")
+            slider("Platter: shadow opacity", $style.surfaces[shown, scheme].platter.shadowOpacity, 0...0.6)
+            slider("Platter: shadow radius", $style.surfaces[shown, scheme].platter.shadowRadius, 0...40)
+            slider("Platter: shadow offset", $style.surfaces[shown, scheme].platter.shadowOffsetY, 0...24)
+            slider("Platter: border", $style.surfaces[shown, scheme].platter.borderOpacity, 0...0.4)
+            slider("Platter: ambient opacity", $style.surfaces[shown, scheme].platter.tintOpacity, 0...1)
+            slider("Platter: ambient saturation", $style.surfaces[shown, scheme].platter.tintSaturation, 0...8)
+            slider("Platter: ambient blur", $style.surfaces[shown, scheme].platter.tintBlur, 0...300)
+            slider("Platter: hover brighten", $style.surfaces[shown, scheme].platter.hoverBrightness, 0...1)
+            slider("Platter: wash", $style.surfaces[shown, scheme].platter.washOpacity, 0...0.8)
+            slider("Glass edge: top", $style.surfaces[shown, scheme].glassEdge.topOpacity, 0...1)
+            slider("Glass edge: middle", $style.surfaces[shown, scheme].glassEdge.middleOpacity, 0...1)
+            slider("Glass edge: bottom", $style.surfaces[shown, scheme].glassEdge.bottomOpacity, 0...1)
+            slider("Glass edge: width", $style.surfaces[shown, scheme].glassEdge.lineWidth, 0.25...3)
+            slider("Header blur: radius", $style.surfaces[shown, scheme].headerBlur.radius, 0...60)
+            slider("Header blur: saturation", $style.surfaces[shown, scheme].headerBlur.saturation, 0...3)
+                .disabled(style.headerBlur.ownContentOnly)
+            slider("Header blur: brightness", $style.surfaces[shown, scheme].headerBlur.brightness, -0.5...0.5)
+            slider("Header blur: reach", $style.surfaces[shown, scheme].headerBlur.reach, 0...96)
+            slider("Header blur: rim", $style.surfaces[shown, scheme].headerBlur.rimOpacity, 0...1)
+            slider("Page ambient: opacity", $style.surfaces[shown, scheme].pageAmbient.opacity, 0...1)
+            slider("Page ambient: saturation", $style.surfaces[shown, scheme].pageAmbient.saturation, 0...8)
+            slider("Page ambient: blur", $style.surfaces[shown, scheme].pageAmbient.blur, 0...300)
+            Toggle("Header controls: our lit rim", isOn: $style.surfaces[shown, scheme].headerControls.rim)
+            slider("Header controls: rim opacity", $style.surfaces[shown, scheme].headerControls.rimOpacity, 0...1)
+            slider("Header controls: cover tint", $style.surfaces[shown, scheme].headerControls.tintOpacity, 0...0.6)
+            HStack {
+                Button("Reset this cell") { style.surfaces[shown, scheme] = SurfaceMatrix.defaults[shown, scheme] }
+                Spacer()
+                Button(exported ? "Copied" : "Export JSON") { exportSurfaces() }
+            }
+        } header: {
+            Text("Surface: \(shown.title) · \(scheme == .dark ? "Dark" : "Light")")
+        } footer: {
+            Text("Export JSON copies every style and appearance, ready to paste over Lilt/Resources/SurfaceDefaults.json.")
+        }
+    }
+
+    /// The whole matrix on the pasteboard, as the resource file is written.
+    private func exportSurfaces() {
+        guard let json = try? style.surfaces.json() else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(json, forType: .string)
+        exported = true
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            exported = false
+        }
     }
 
     /// Every surface that wears the cover reads its colours from one `CoverPalette`; these are
