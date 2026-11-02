@@ -86,7 +86,7 @@ struct BrowseScreen: View {
                 .allowsHitTesting(collapse > 0.5)
             }
             Spacer()
-            pageMenu(page ?? BrowsePage(item: item))
+            pageMenu(page ?? BrowsePage(item: item), coverTint: coverTint)
         }
         .frame(height: Theme.Size.headerRow)
         .padding(.top, Theme.Space.panelInset)
@@ -107,7 +107,10 @@ struct BrowseScreen: View {
             publishLeadingCast()
             coverLoads += 1
         }
-        .onDisappear { if navigation.path.last?.id == item.id || navigation.path.isEmpty { navigation.leadingCastAmount = 0 } }
+        .onDisappear {
+            if navigation.path.last?.id == item.id || navigation.path.isEmpty { navigation.leadingCastAmount = 0 }
+            if navigation.path.isEmpty { navigation.leadingTintAccent = nil }
+        }
     }
 
     private func publishLeadingCast() {
@@ -115,6 +118,9 @@ struct BrowseScreen: View {
         let current = page ?? BrowsePage(item: item)
         navigation.leadingCast = current.item.artworkURL.flatMap { ImageCache.shared.tint(for: $0, saturationBoost: ArtworkStyle.shared.leadingCast.saturation) }
         navigation.leadingCastAmount = Double(collapse)
+        // The back button's glyph wears the album's colour like the page's own controls; any
+        // other page on top hands it back to plain.
+        navigation.leadingTintAccent = pageAccent
     }
 
     private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
@@ -199,7 +205,7 @@ struct BrowseScreen: View {
     }
 
     /// Opposite the back button: a place for page actions as they arrive.
-    private func pageMenu(_ page: BrowsePage) -> some View {
+    private func pageMenu(_ page: BrowsePage, coverTint: CoverTint?) -> some View {
         Menu {
             // The same refresh as pulling the list down or ⌘R.
             if isRefreshable {
@@ -216,7 +222,7 @@ struct BrowseScreen: View {
             Image(systemName: "ellipsis")
                 .font(.body.weight(.semibold))
                 .rotationEffect(.degrees(90))
-                .foregroundStyle(.primary)
+                .foregroundStyle(coverTint.style(\.control, or: .primary))
                 .headerControl()
         }
         .menuStyle(.button)

@@ -156,17 +156,26 @@ private struct LeadingButton: View {
 
     private var symbol: String { isBack ? "chevron.left" : "books.vertical" }
 
+    /// On an album the chevron is one of the page's controls, so it takes the page's tint (the
+    /// same mix and contrast guard as its Play and shuffle glyphs); the library glyph stays plain.
+    private func glyphStyle(_ accent: Color?) -> AnyShapeStyle {
+        BrowseScreen.coverTint(kind: .album, accent: accent, colorScheme: colorScheme).style(\.control, or: .primary)
+    }
+
     var body: some View {
         Button {
             if isBack { navigation.pop() } else { navigation.open(NavigationModel.library) }
         } label: {
-            ZStack {
-                // Keyed by symbol so library ↔ back swaps through scale, blur and fade in place.
-                Image(systemName: symbol)
-                    .font(isBack ? .body.weight(.semibold) : .body)
-                    .foregroundStyle(.primary)
-                    .id(symbol)
-                    .transition(.blurScale)
+            // Slides between albums' colours, and to and from plain, as pages come and go.
+            InterpolatedColor(isBack ? navigation.leadingTintAccent : nil) { accent in
+                ZStack {
+                    // Keyed by symbol so library ↔ back swaps through scale, blur and fade in place.
+                    Image(systemName: symbol)
+                        .font(isBack ? .body.weight(.semibold) : .body)
+                        .foregroundStyle(glyphStyle(accent))
+                        .id(symbol)
+                        .transition(.blurScale)
+                }
             }
             .animation(.snappy(duration: 0.22), value: symbol)
             .headerControl()

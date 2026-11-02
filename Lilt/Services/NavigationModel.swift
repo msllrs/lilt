@@ -39,6 +39,9 @@ final class NavigationModel {
     /// the back button beside it can catch its light on the facing edge. Not persisted.
     var leadingCast: Color? = nil
     var leadingCastAmount: Double = 0
+    /// The album on top's cover accent, so the back button's glyph takes the same colour as the
+    /// page's own controls; nil on any other page. Not persisted.
+    var leadingTintAccent: Color? = nil
     /// Collapse the column to just the now-playing platter.
     var isMiniPlayer: Bool {
         didSet {
