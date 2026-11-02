@@ -91,30 +91,15 @@ struct TweakPanel: View {
                 slider("Ambient saturation", $style.platter.tintSaturation, 0...8)
                 slider("Ambient blur", $style.platter.tintBlur, 0...300)
                 slider("Hover brighten", $style.platter.hoverBrightness, 0...1)
-                slider("Corner accent", $style.platter.cornerAccentOpacity, 0...0.8)
-                slider("Corner reach", $style.platter.cornerAccentRadius, 0.2...1.5)
-                Picker("Accent placement", selection: $style.platter.accentPlacement) {
+                slider("Wash reach", $style.platter.cornerAccentRadius, 0.2...1.5)
+                Picker("Wash placement", selection: $style.platter.accentPlacement) {
                     ForEach(AccentPlacement.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                slider("Scrubber tint", $style.platter.scrubberTint, 0...1)
-                slider("Scrubber saturation", $style.platter.scrubberSaturation, 0...3)
-                Toggle("Scrubber coloured like controls", isOn: $style.platter.scrubberLikeControls)
-                slider("Controls tint", $style.platter.controlsTint, 0...1)
-                slider("Text tint", $style.platter.textTint, 0...1)
                 Toggle("Cast on rim (like play capsule)", isOn: $style.platter.castEdge)
                 Toggle("Cast glow inside (like play capsule)", isOn: $style.platter.castGlow)
             }
-            Section("Album page tint") {
-                Toggle("Same shares as the platter", isOn: $style.pageTint.followsPlatter)
-                slider("Text tint", $style.pageTint.textTint, 0...1)
-                    .disabled(style.pageTint.followsPlatter)
-                slider("Controls tint", $style.pageTint.controlsTint, 0...1)
-                    .disabled(style.pageTint.followsPlatter)
-                slider("Playing row (light)", $style.pageTint.highlightOpacity, 0...0.5)
-                slider("Playing row (dark)", $style.pageTint.darkHighlightOpacity, 0...0.5)
-                Toggle("Contrast guard", isOn: $style.pageTint.contrastGuard)
-            }
+            coverPalette
             Section("Page ambient") {
                 slider("Opacity", $style.pageAmbient.opacity, 0...1)
                 slider("Saturation", $style.pageAmbient.saturation, 0...8)
@@ -135,17 +120,6 @@ struct TweakPanel: View {
             }
             Section("Library header") {
                 Toggle("Centred title", isOn: $style.centredLibraryTitle)
-            }
-            Section("Back button cast") {
-                slider("Rim opacity", $style.leadingCast.rimOpacity, 0...1)
-                slider("Rim width", $style.leadingCast.rimWidth, 0.5...3)
-                slider("Rim start", $style.leadingCast.rimStart, 0...0.9)
-                slider("Wash opacity", $style.leadingCast.washOpacity, 0...0.8)
-                slider("Wash reach", $style.leadingCast.washReach, 0.1...1)
-                slider("Saturation", $style.leadingCast.saturation, 0.5...4)
-                slider("Dark: lighten", $style.leadingCast.darkLighten, 0...0.8)
-                slider("Dark: wash scale", $style.leadingCast.darkWashScale, 0...1.5)
-                slider("Dark: saturation", $style.leadingCast.darkSaturation, 0.5...3)
             }
             Section("Header controls") {
                 Picker("Surface", selection: $style.headerControls.mode) {
@@ -190,7 +164,6 @@ struct TweakPanel: View {
                 slider("Rim", $style.headerBlur.rimOpacity, 0...1)
             }
             Section("Play capsule cast") {
-                slider("Saturation", $style.playCast.saturation, 0...4)
                 slider("Glass tint", $style.playCast.tintOpacity, 0...0.6)
                 slider("Rim colour", $style.playCast.rimMix, 0...1)
                 slider("Glow opacity", $style.playCast.glowOpacity, 0...1)
@@ -248,6 +221,57 @@ struct TweakPanel: View {
         }
         .formStyle(.grouped)
         .frame(width: 360, height: 900)
+    }
+
+    /// Every surface that wears the cover reads its colours from one `CoverPalette`; these are
+    /// its dials. The overrides at the end are the few a surface keeps for itself.
+    @ViewBuilder private var coverPalette: some View {
+        @Bindable var style = style
+        Section {
+            slider("Accent saturation", $style.palette.accentSaturation, 0...3)
+            slider("Content share", $style.palette.contentShare, 0...1)
+            slider("Dim lines (× content)", $style.palette.dimContentRatio, 0...1)
+            slider("Control share", $style.palette.controlShare, 0...1)
+            slider("Platter wash", $style.palette.washOpacity, 0...0.8)
+            slider("Playing row (light)", $style.palette.highlightOpacity, 0...0.5)
+            slider("Playing row (dark)", $style.palette.darkHighlightOpacity, 0...0.5)
+            slider("Row hover", $style.palette.hoverHighlightOpacity, 0...1)
+            slider("Control hover fill", $style.palette.controlHoverOpacity, 0...0.2)
+            slider("Control pressed fill", $style.palette.controlPressedOpacity, 0...0.2)
+            Toggle("Contrast guard (pages)", isOn: $style.palette.contrastGuard)
+        } header: {
+            Text("Cover palette")
+        } footer: {
+            Text("Platter, Up Next, album pages, the back button and the Window style cards. Hover and pressed fills are roles nothing draws yet.")
+        }
+        // The cast the Play capsule, its round buttons and the back button wear.
+        Section {
+            slider("Rim opacity", $style.leadingCast.rimOpacity, 0...1)
+            slider("Rim width", $style.leadingCast.rimWidth, 0.5...3)
+            slider("Rim start", $style.leadingCast.rimStart, 0...0.9)
+            slider("Wash opacity", $style.leadingCast.washOpacity, 0...0.8)
+            slider("Wash reach", $style.leadingCast.washReach, 0.1...1)
+            slider("Dark: lighten", $style.leadingCast.darkLighten, 0...0.8)
+            slider("Dark: wash scale", $style.leadingCast.darkWashScale, 0...1.5)
+            slider("Dark: saturation", $style.leadingCast.darkSaturation, 0.5...3)
+        } header: {
+            Text("Cover palette: accent container")
+        }
+        // What a surface keeps for itself, and why.
+        Section {
+            // The cast is sampled per surface: the back button's was tuned stronger than the
+            // capsule's, since it lights only a rim beside the compact header.
+            slider("Back button cast saturation", $style.leadingCast.saturation, 0.5...4)
+            slider("Play capsule cast saturation", $style.playCast.saturation, 0...4)
+            // The scrubber is a thin line that was tuned to read at the full accent.
+            Toggle("Scrubber coloured like controls", isOn: $style.platter.scrubberLikeControls)
+            slider("Scrubber's own share", $style.platter.scrubberTint, 0...1)
+                .disabled(style.platter.scrubberLikeControls)
+        } header: {
+            Text("Cover palette: per-surface overrides")
+        } footer: {
+            Text("The platter skips the contrast guard: it sits on its own tinted glass, not the plain panel the guard measures against.")
+        }
     }
 
     /// A binding into the shadow preset currently selected in the segmented control.

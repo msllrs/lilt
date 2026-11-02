@@ -281,4 +281,11 @@ struct CoverPaletteTests {
         let raw = CoverPalette(accent: navy, colorScheme: .dark, surface: .page, style: unguarded, container: .standard, washOpacity: 0.32)
         #expect(raw.control == platter.control)
     }
+
+    /// "Copy values" carries the palette's dials, and none of the per-surface tints it replaced.
+    @Test func copyValuesCarriesThePalette() {
+        let snippet = ArtworkStyle().swiftSnippet
+        #expect(snippet.contains("palette = CoverPaletteStyle(accentSaturation: 1.30, contentShare: 0.40, dimContentRatio: 0.50, controlShare: 0.64, highlightOpacity: 0.12, darkHighlightOpacity: 0.16, hoverHighlightOpacity: 0.60, controlHoverOpacity: 0.050, controlPressedOpacity: 0.085, washOpacity: 0.32, contrastGuard: true)"))
+        #expect(!snippet.contains("pageTint") && !snippet.contains("textTint") && !snippet.contains("cornerAccentOpacity"))
+    }
 }

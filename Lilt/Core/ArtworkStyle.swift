@@ -85,23 +85,17 @@ struct PlatterStyle: Equatable {
     var tintBlur: Double = 160
     /// How much brighter the ambient fill gets while the pointer is over the platter (0 = none).
     var hoverBrightness: Double = 0.80
-    /// A wash of the artwork's dominant colour in the top-leading corner, behind the cover.
-    var cornerAccentOpacity: Double = 0.32
-    /// Reach of that wash, as a fraction of the platter's size.
+    /// Reach of the palette's wash (`CoverPalette.wash`), as a fraction of the platter's size.
+    /// Its strength is the palette's.
     var cornerAccentRadius: Double = 1.0
     /// Where the wash pools: the corner behind the cover, or the top edge's middle.
     var accentPlacement: AccentPlacement = .top
-    /// How far the scrubber's elapsed line moves from the label colour toward the artwork's
-    /// dominant colour (0 = plain black/white, 1 = fully coloured).
+    /// The platter's one override of its palette: the scrubber's elapsed line can take a share
+    /// of the accent of its own (0 = plain black/white, 1 = fully coloured) instead of being
+    /// coloured like the controls. Kept because the line is a thin mark that was tuned to read at
+    /// the full accent. It ships unused: with `scrubberLikeControls` on, the line wears `control`.
     var scrubberTint: Double = 1.0
-    var scrubberSaturation: Double = 1.3
-    /// Colour the scrubber like the glyphs instead (label colour with the controls' share of
-    /// tint), ignoring `scrubberTint`.
     var scrubberLikeControls: Bool = true
-    /// The same colour, more faintly, on the transport and mode glyphs (0 = label colour).
-    var controlsTint: Double = 0.64
-    /// And on the title and artist lines (the artist takes half of this).
-    var textTint: Double = 0.4
     /// Give the platter's rim the play capsule's treatment: the cover's colour cast onto the lit
     /// top edge (using the capsule's rim mix, blur and blend)…
     var castEdge: Bool = true
@@ -113,23 +107,6 @@ struct PlatterStyle: Equatable {
 
     /// Tuned by Matt in the tweak panel on 2026-10-01; colour dials on 2026-10-02.
     static let standard = PlatterStyle()
-}
-
-/// An album page's text and glyphs taking the cover's colour (see `CoverTint`). The page sits
-/// on the plain panel rather than the platter's tinted glass, so its shares can be tuned apart.
-struct PageTintStyle: Equatable {
-    /// Use the platter's text and controls shares, so tuning one tunes both; off uses the two
-    /// below.
-    var followsPlatter: Bool = true
-    var textTint: Double = 0.4
-    var controlsTint: Double = 0.64
-    /// The playing row's pill: how much of the cover it takes, per scheme (0 = plain).
-    var highlightOpacity: Double = 0.12
-    var darkHighlightOpacity: Double = 0.16
-    /// Lower a share where it would take a line below its contrast floor on the panel.
-    var contrastGuard: Bool = true
-
-    static let standard = PageTintStyle()
 }
 
 /// The dials `CoverPalette` builds its roles from: each role's share of the cover's accent, and
@@ -562,7 +539,6 @@ final class ArtworkStyle {
     var avatarShadow: ShadowStyle = .avatar
 
     var platter: PlatterStyle = .standard
-    var pageTint: PageTintStyle = .standard
     var palette: CoverPaletteStyle = .standard
     var notes: NotesStyle = .standard
     var playCast: PlayCastStyle = .standard
@@ -623,7 +599,6 @@ final class ArtworkStyle {
         headerShadow = .header
         avatarShadow = .avatar
         platter = .standard
-        pageTint = .standard
         palette = .standard
         notes = .standard
         playCast = .standard
@@ -660,8 +635,7 @@ final class ArtworkStyle {
         heroShadow = \(snippet(heroShadow))
         headerShadow = \(snippet(headerShadow))
         avatarShadow = \(snippet(avatarShadow))
-        platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)), hoverBrightness: \(f(platter.hoverBrightness)), cornerAccentOpacity: \(f(platter.cornerAccentOpacity)), cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberSaturation: \(f(platter.scrubberSaturation)), scrubberLikeControls: \(platter.scrubberLikeControls), controlsTint: \(f(platter.controlsTint)), textTint: \(f(platter.textTint)), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow), alwaysGlass: \(platter.alwaysGlass))
-        pageTint = PageTintStyle(followsPlatter: \(pageTint.followsPlatter), textTint: \(f(pageTint.textTint)), controlsTint: \(f(pageTint.controlsTint)), highlightOpacity: \(f(pageTint.highlightOpacity)), darkHighlightOpacity: \(f(pageTint.darkHighlightOpacity)), contrastGuard: \(pageTint.contrastGuard))
+        platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)), hoverBrightness: \(f(platter.hoverBrightness)), cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberLikeControls: \(platter.scrubberLikeControls), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow), alwaysGlass: \(platter.alwaysGlass))
         palette = CoverPaletteStyle(accentSaturation: \(f(palette.accentSaturation)), contentShare: \(f(palette.contentShare)), dimContentRatio: \(f(palette.dimContentRatio)), controlShare: \(f(palette.controlShare)), highlightOpacity: \(f(palette.highlightOpacity)), darkHighlightOpacity: \(f(palette.darkHighlightOpacity)), hoverHighlightOpacity: \(f(palette.hoverHighlightOpacity)), controlHoverOpacity: \(f3(palette.controlHoverOpacity)), controlPressedOpacity: \(f3(palette.controlPressedOpacity)), washOpacity: \(f(palette.washOpacity)), contrastGuard: \(palette.contrastGuard))
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))
