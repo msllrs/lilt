@@ -22,7 +22,7 @@ struct AccountInfo: Equatable, Codable, Sendable {
 }
 
 /// The signed-in library, gathered from several InnerTube browse endpoints.
-struct LibraryContent: Codable, Sendable {
+struct LibraryContent: Codable, Equatable, Sendable {
     var playlists: [BrowseItem] = []
     var albums: [BrowseItem] = []
     var artists: [BrowseItem] = []

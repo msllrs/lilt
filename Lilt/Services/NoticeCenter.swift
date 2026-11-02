@@ -39,6 +39,25 @@ struct Notice: Identifiable {
     var spoken: String { [label, message].compactMap { $0 }.joined(separator: " ") }
 }
 
+/// How a refresh you asked for went, for its notice.
+enum RefreshOutcome: Equatable {
+    case updated, unchanged, failed
+
+    init<T: Equatable>(old: T, new: T) { self = old == new ? .unchanged : .updated }
+}
+
+@MainActor
+extension NoticeCenter {
+    /// Confirms a refresh (⌘R, the page menu, a pull) of the page called `title`.
+    func postRefresh(_ outcome: RefreshOutcome, of title: String) {
+        switch outcome {
+        case .updated: post(title, label: "Refreshed", icon: .symbol("arrow.clockwise"))
+        case .unchanged: post(title, label: "Up to date", icon: .symbol("checkmark"))
+        case .failed: post(title, label: "Couldn't refresh", icon: .symbol("exclamationmark.triangle"))
+        }
+    }
+}
+
 /// When a notice's countdown runs out: the real clock in the app, a hand-wound one in tests.
 @MainActor
 protocol NoticeClock: AnyObject {

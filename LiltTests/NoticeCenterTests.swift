@@ -131,4 +131,15 @@ struct NoticeCenterTests {
     @Test func theShortcutReadsAsTheMenuWould() {
         #expect(Notice.Action.undo {}.shortcutLabel == "⌘Z")
     }
+
+    @Test func aRefreshSaysWhetherAnythingChanged() {
+        let center = NoticeCenter(clock: ManualNoticeClock())
+        center.postRefresh(RefreshOutcome(old: ["Schism"], new: ["Schism"]), of: "Lateralus")
+        #expect(center.current?.spoken == "Up to date Lateralus")
+        center.postRefresh(RefreshOutcome(old: ["Schism"], new: ["Schism", "Parabola"]), of: "Lateralus")
+        #expect(center.current?.spoken == "Refreshed Lateralus")
+        center.postRefresh(.failed, of: "Lateralus")
+        #expect(center.current?.spoken == "Couldn't refresh Lateralus")
+        #expect(center.current?.action == nil)
+    }
 }

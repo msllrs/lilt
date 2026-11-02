@@ -69,7 +69,7 @@ struct BrowseScreen: View {
         .loadingGate(loadingGate, isLoading: phase == .loading)
         // ⌘R takes the same path as pulling the list down.
         .onChange(of: navigation.refreshRequest) { _, _ in
-            if isRefreshable, navigation.path.last?.id == item.id { Task { await load() } }
+            if isRefreshable, navigation.path.last?.id == item.id { Task { await load(announce: true) } }
         }
     }
 
@@ -218,7 +218,7 @@ struct BrowseScreen: View {
         Menu {
             // The same refresh as pulling the list down or ⌘R.
             if isRefreshable {
-                Button("Refresh") { Task { await load() } }
+                Button("Refresh") { Task { await load(announce: true) } }
                 Divider()
             }
             Button("Open in YouTube Music") { if let url = webURL(for: page) { NSWorkspace.shared.open(url) } }
@@ -343,7 +343,7 @@ struct BrowseScreen: View {
         }
         .scrollIndicators(.never)
         .panelScrollEdge()
-        .pullToRefresh(isEnabled: isRefreshable) { await load() }
+        .pullToRefresh(isEnabled: isRefreshable) { await load(announce: true) }
         // A scroll that would end part-way through the hero's travel is steered to the nearer
         // end as the fingers lift, in the same motion, so the page never rests with a half-faded
         // hero and a half-visible compact header.
@@ -448,8 +448,10 @@ struct BrowseScreen: View {
     /// Fetches the page every time it opens, since it may have changed elsewhere. A cached copy
     /// already on screen stays put while it does: no skeleton, the scroll position kept, and a
     /// changed page eases in. If the fetch fails, the cached copy stays rather than an error.
-    private func load() async {
+    /// `announce`: a refresh you asked for, which says how it went in a notice.
+    private func load(announce: Bool = false) async {
         let showingCached = phase == .loaded
+        let before = page
         if case .failed = phase { phase = .loading }
         do {
             var loaded = try await music.page(for: item)
@@ -463,6 +465,7 @@ struct BrowseScreen: View {
                 loaded.sections.append(contentsOf: Self.relatedSections(from: artistPage, excluding: loaded))
             }
             show(loaded, animated: showingCached)
+            if announce { notices?.postRefresh(RefreshOutcome(old: before, new: page), of: loaded.item.title) }
             if let artist, music.cachedPage(for: artist) == nil,
                let artistPage = try? await music.page(for: artist), !Task.isCancelled {
                 loaded.sections.append(contentsOf: Self.relatedSections(from: artistPage, excluding: loaded))
@@ -471,6 +474,7 @@ struct BrowseScreen: View {
         } catch is CancellationError {
         } catch {
             if !showingCached { phase = .failed(error.localizedDescription) }
+            if announce { notices?.postRefresh(.failed, of: item.title) }
         }
     }
 

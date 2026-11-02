@@ -5,6 +5,7 @@ struct HomeScreen: View {
     @Environment(YTMusicClient.self) private var music
     @Environment(ScrollTracker.self) private var scrollTracker
     @Environment(NavigationModel.self) private var navigation
+    @Environment(NoticeCenter.self) private var notices: NoticeCenter?
 
     private enum Phase: Equatable {
         case loading
@@ -85,6 +86,7 @@ struct HomeScreen: View {
     private func load(refresh: Bool = false) async {
         do {
             let fresh = try await music.home(forceRefresh: refresh)
+            if refresh { notices?.postRefresh(RefreshOutcome(old: sections, new: fresh), of: "Home") }
             withAnimation(refresh ? Theme.Motion.standard : nil) {
                 sections = fresh
                 phase = .loaded
@@ -92,6 +94,7 @@ struct HomeScreen: View {
         } catch is CancellationError {
         } catch {
             if !(refresh && phase == .loaded) { phase = .failed(error.localizedDescription) }
+            if refresh { notices?.postRefresh(.failed, of: "Home") }
         }
     }
 }

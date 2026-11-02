@@ -5,6 +5,7 @@ struct LibraryScreen: View {
     @Environment(YTMusicClient.self) private var music
     @Environment(ScrollTracker.self) private var scrollTracker
     @Environment(NavigationModel.self) private var navigation
+    @Environment(NoticeCenter.self) private var notices: NoticeCenter?
 
     private enum Phase: Equatable {
         case loading
@@ -172,12 +173,14 @@ struct LibraryScreen: View {
         do {
             async let who = music.account()
             let fresh = try await music.library(forceRefresh: refresh)
+            if refresh { notices?.postRefresh(RefreshOutcome(old: content, new: fresh), of: "Library") }
             withAnimation(refresh ? Theme.Motion.standard : nil) { content = fresh }
             if let fresh = try? await who { account = fresh }
             phase = .loaded
         } catch is CancellationError {
         } catch {
             if !(refresh && phase == .loaded) { phase = .failed(error.localizedDescription) }
+            if refresh { notices?.postRefresh(.failed, of: "Library") }
         }
     }
 }
