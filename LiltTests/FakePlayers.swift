@@ -15,8 +15,6 @@ final class FakeBridge: PlayerBridging {
     func cue(videoId: String) { calls.append("cue:\(videoId)") }
     func hold() { calls.append("hold") }
     func start() { calls.append("start") }
-    func queueNext(videoId: String, after sourceId: String) { calls.append("queueNext:\(videoId)>\(sourceId)") }
-    func cancelQueueNext() { calls.append("cancelQueueNext") }
     func play() { calls.append("play") }
     func pause() { calls.append("pause") }
     func seek(to seconds: Double) { calls.append("seek") }
@@ -24,18 +22,14 @@ final class FakeBridge: PlayerBridging {
     func toggleLike() {}
     func unload() { calls.append("unload") }
 
-    /// The page reporting `id` at `time` of a song `duration` long.
-    func report(_ id: String, playing: Bool = true, time: Double = 1, duration: Double = 300) {
+    /// The page reporting `id` playing at `time`.
+    func report(_ id: String, playing: Bool = true, time: Double = 1) {
         onEvent?(.state(PlaybackSnapshot(
-            videoId: id, isPlaying: playing, currentTime: time, duration: duration,
+            videoId: id, isPlaying: playing, currentTime: time, duration: 300,
             title: id, artist: "Tool", artworkURL: nil,
             artistId: "UC1", albumId: "MPRE1", albumTitle: "Lateralus", likeStatus: nil
         )))
     }
-
-    /// The last song asked for with `queueNext`, and the `load:` calls in order.
-    var queuedNext: [String] { calls.filter { $0.hasPrefix("queueNext:") }.map { String($0.dropFirst("queueNext:".count)) } }
-    var loads: [String] { calls.filter { $0.hasPrefix("load:") }.map { String($0.dropFirst("load:".count)) } }
 }
 
 /// Every fake the player made, in order: the first is the one it starts with.

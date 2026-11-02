@@ -222,26 +222,6 @@ struct GaplessTests {
         }
     }
 
-    @Test func onlySecondPlayerMakesAStandby() async throws {
-        try await withPlayer(lateralus, gapless: .nativeQueue) { player, fakes in
-            startPlaying(player, fakes)
-            player.playNext([song("schism")])
-            #expect(fakes.all.count == 1)
-            #expect(player.standby == nil)
-        }
-    }
-
-    @Test func switchingToTheNativeQueueTearsTheStandbyDown() async throws {
-        try await withPlayer(lateralus) { player, fakes in
-            startPlaying(player, fakes)
-            let standby = try #require(fakes.second)
-            player.gaplessMode = .nativeQueue
-            #expect(player.standby == nil)
-            #expect(standby.calls.last == "unload")
-            #expect(player.bridge === fakes.first)
-        }
-    }
-
     @Test func switchingAwayAfterAHandoverKeepsThePlayerYouHear() async throws {
         try await withPlayer(lateralus) { player, fakes in
             startPlaying(player, fakes)
@@ -249,7 +229,7 @@ struct GaplessTests {
             standby.onEvent?(.cued(videoId: "eon"))
             fakes.first.onEvent?(.ended(videoId: "grudge"))
             #expect(player.bridge === standby)
-            player.gaplessMode = .nativeQueue
+            player.gaplessMode = .off
             #expect(player.bridge === standby, "the song you hear was torn down")
             #expect(player.standby == nil)
             #expect(fakes.first.calls.last == "unload")
@@ -264,7 +244,7 @@ struct GaplessTests {
             #expect(PlayerService.storedGaplessMode() == .secondPlayer)
         }
         try await withPlayer(lateralus, legacySwitch: true) { player, _ in
-            #expect(player.gaplessMode == .nativeQueue)
+            #expect(player.gaplessMode == .secondPlayer)
         }
     }
 }

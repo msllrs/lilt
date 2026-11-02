@@ -28,10 +28,6 @@ final class PlayerService {
     private var unshuffledQueue: [Track]?
     private(set) var currentTime: Double = 0
     private(set) var duration: Double = 0
-    /// The first duration the page reported for this song. In one continuous stream (YouTube's
-    /// own gapless, where the browser supports it) `duration` grows as the next song is
-    /// appended, so this is what the song's end is measured against.
-    @ObservationIgnored private var songDuration: Double = 0
 
     /// Metadata as reported by the web player; falls back to the queued track.
     private(set) var liveTitle = ""
@@ -77,9 +73,6 @@ final class PlayerService {
     enum GaplessMode: String, CaseIterable, Identifiable {
         /// Every change is a load, on one web player.
         case off
-        /// YouTube Music's own Up Next queue is kept holding the song that plays next, and the
-        /// page's player moves on to it by itself; Lilt follows along instead of loading it.
-        case nativeQueue
         /// A second web player holds the next song muted and paused at 0:00, and takes over.
         case secondPlayer
 
@@ -88,45 +81,34 @@ final class PlayerService {
         var title: String {
             switch self {
             case .off: "Off"
-            case .nativeQueue: "YouTube's own (native queue)"
             case .secondPlayer: "Second player (pre-load)"
             }
         }
-
-        /// Whether the next song waits in YouTube Music's own Up Next and the page moves on to it.
-        var usesNativeQueue: Bool { self == .nativeQueue }
     }
 
     static let gaplessModeKey = "gaplessMode"
     /// The switch this setting replaced; read once, so turning it off is kept.
     static let gaplessKey = "gaplessPlayback"
 
-    /// The stored mode; before there was one, the old switch off means off and anything else
-    /// the new default.
+    /// The stored mode; off stays off, and anything else (the old switch on, or a mode that's
+    /// gone) is the second player.
     static func storedGaplessMode(_ defaults: UserDefaults = .standard) -> GaplessMode {
-        if let raw = defaults.string(forKey: gaplessModeKey), let mode = GaplessMode(rawValue: raw) { return mode }
+        if let raw = defaults.string(forKey: gaplessModeKey) { return raw == GaplessMode.off.rawValue ? .off : .secondPlayer }
         if defaults.object(forKey: gaplessKey) as? Bool == false { return .off }
-        return .nativeQueue
+        return .secondPlayer
     }
 
+    /// Gapless playback: a second web player, signed in on the same data store, holds the song
+    /// that plays next muted and paused at 0:00, and takes over the instant the current one
+    /// ends. Off, there is one web player and every change is a load, exactly as before.
     var gaplessMode: GaplessMode = PlayerService.storedGaplessMode() {
         didSet {
             UserDefaults.standard.set(gaplessMode.rawValue, forKey: Self.gaplessModeKey)
-            guard gaplessMode != oldValue else { return }
             syncStandby()
-            if !gaplessMode.usesNativeQueue {
-                fallBackFromNativeAdvance("the gapless mode changed to \(gaplessMode.rawValue)")
-            }
-            syncNativeQueue()
         }
     }
-
-    /// Where the current song starts on the `<video>`'s timeline. Zero, except after YouTube's
-    /// own gapless appended it to the song before in the same stream.
-    @ObservationIgnored private var streamOffset: Double = 0
-    /// Second player mode: a second web player, signed in on the same data store, holds the
-    /// song that plays next muted and paused at 0:00, and takes over the instant the current one
-    /// ends. Nil in any other mode, or before the first play.
+    private var isGapless: Bool { gaplessMode == .secondPlayer }
+    /// The web player waiting with the next song; nil with gapless off or before the first play.
     @ObservationIgnored private(set) var standby: (any PlayerBridging)?
     /// The song the standby is cueing or holding, and whether it's buffered and ready to start.
     @ObservationIgnored private(set) var standbyTrackId: String?
@@ -140,30 +122,6 @@ final class PlayerService {
     @ObservationIgnored private var awaitingSound: String?
     @ObservationIgnored private var handoverWatch: Task<Void, Never>?
     @ObservationIgnored var handoverTimeout: Duration = .seconds(3)
-    /// Native queue mode: the song YouTube Music's own Up Next was asked to hold straight after
-    /// `nativeSource` (the song playing then), and whether the page's queue read it back there.
-    @ObservationIgnored private(set) var nativeTarget: String?
-    @ObservationIgnored private(set) var isNativeQueued = false
-    @ObservationIgnored private var nativeSource: String?
-    /// Failed attempts per "source>target"; a pair is left alone after `nativeAttempts`.
-    @ObservationIgnored private var nativeFailures: [String: Int] = [:]
-    static let nativeAttempts = 3
-    /// After the song ended by itself with the next one queued natively: the move the page's
-    /// player should be making on its own. Lilt follows it once it's seen, or loads the song the
-    /// ordinary way after `nativeAdvanceTimeout`, or at once if the page moves elsewhere.
-    @ObservationIgnored private(set) var nativeAdvance: NativeAdvance?
-    @ObservationIgnored private var nativeWatch: Task<Void, Never>?
-    @ObservationIgnored var nativeAdvanceTimeout: Duration = .seconds(3)
-    struct NativeAdvance {
-        let id = UUID()
-        let from: Track
-        let targetId: String
-        /// When the old song stopped sounding; nil when the page went straight on without an
-        /// `ended` (one continuous stream).
-        let endedAt: Date?
-        /// Set when the move was seen as the same `<video>` playing on past the old song's end.
-        var continuation: Continuation?
-    }
     /// "web player 1", "web player 2", in the order they were made, for the gapless trace.
     @ObservationIgnored private var bridgeNames: [ObjectIdentifier: String] = [:]
     /// Looks up artist/album ids for a track that arrived without them. Wired by the app.
@@ -385,7 +343,6 @@ final class PlayerService {
         resetLiveState()
         bridge.unload()
         tearDownStandby()
-        clearNativeQueue()
         hasWebSession = false
         save()
     }
@@ -515,9 +472,8 @@ final class PlayerService {
         )
         UserDefaults.standard.set(try? JSONEncoder().encode(saved), forKey: Self.savedKey)
         // Every change to the queue, its order or its repeat lands here, so this is where the
-        // standby and YouTube's own Up Next learn what plays next.
+        // standby learns what plays next.
         syncStandby()
-        syncNativeQueue()
     }
 
     /// Takes up the saved queue and playhead, ready to load. Internal so tests can put the app's
@@ -542,29 +498,6 @@ final class PlayerService {
     // MARK: Internals
 
     private func load(index: Int, keepingManual: Bool = false) {
-        let index = moveCurrent(to: index, keepingManual: keepingManual)
-        isLoading = true
-        // Any native move is over: this load is what plays. The page drops a queueing under way
-        // when it navigates.
-        endNativeAdvance()
-        nativeTarget = nil
-        nativeSource = nil
-        isNativeQueued = false
-        nativeFailures = [:]
-        handedOver = canHandOver(to: queue[index].id)
-        if handedOver {
-            handOver()
-        } else {
-            trace("fallback load \(queue[index].id) on \(describe(bridge)): \(whyNotHandedOver(to: queue[index].id))")
-            bridge.load(videoId: queue[index].id)
-        }
-        recents?.recordPlayed(queue[index], artwork: liveArtworkURL)
-        save()
-    }
-
-    /// Makes `index` the current song (moving the hand-queued ones along) and resets what's
-    /// shown for it, for a load or for following the page's own move. Returns where it landed.
-    private func moveCurrent(to index: Int, keepingManual: Bool) -> Int {
         var index = index
         if !keepingManual {
             adjustManual(for: index)
@@ -572,7 +505,6 @@ final class PlayerService {
         }
         currentIndex = index
         needsLoad = false
-        streamOffset = 0
         gap = nil
         failedCue = nil
         awaitingSound = nil
@@ -586,8 +518,17 @@ final class PlayerService {
         // button flip to play while the next track spins up.
         isPlaying = true
         trustWebPlayStateAfter = .now.addingTimeInterval(1.5)
+        isLoading = true
         wantsAutoplayNudge = true
-        return index
+        handedOver = canHandOver(to: queue[index].id)
+        if handedOver {
+            handOver()
+        } else {
+            trace("fallback load \(queue[index].id) on \(describe(bridge)): \(whyNotHandedOver(to: queue[index].id))")
+            bridge.load(videoId: queue[index].id)
+        }
+        recents?.recordPlayed(queue[index], artwork: liveArtworkURL)
+        save()
     }
 
     private func setPlayingOptimistically(_ playing: Bool) {
@@ -599,7 +540,6 @@ final class PlayerService {
         isPlaying = false
         currentTime = 0
         duration = 0
-        songDuration = 0
         liveTitle = ""
         liveArtist = ""
         liveArtworkURL = nil
@@ -614,14 +554,7 @@ final class PlayerService {
         case .remote(.previous):
             previous()
         case .ended(let videoId):
-            if let advance = nativeAdvance {
-                // The move from the song that ended is already under way; a second `ended`
-                // (from it, or the page's own churn) mustn't start another.
-                trace("TRACK_ENDED \(videoId ?? "nil") ignored: native move \(advance.from.id) → \(advance.targetId) under way")
-                return
-            }
             guard videoId == current?.id, let i = currentIndex else { return }
-            if beginNativeAdvance(endedAt: .now) { return }
             let old = queue[i]
             if repeatMode == .one {
                 load(index: i)
@@ -634,9 +567,6 @@ final class PlayerService {
             }
             if let new = current { gap = GapTrace(old: old, new: new, mode: handedOver ? "handover" : "single", endedAt: .now) }
         case .playing(let videoId):
-            if let advance = nativeAdvance, videoId == advance.targetId {
-                adoptNativeAdvance(advance, soundingAt: .now)
-            }
             if videoId == awaitingSound {
                 awaitingSound = nil
                 handoverWatch?.cancel()
@@ -647,11 +577,12 @@ final class PlayerService {
             }
             self.trace("gap trace matched \(trace.new.id)")
             gap = nil
-            logGap(old: trace.old, new: trace.new, mode: trace.mode, from: trace.endedAt, to: .now)
+            #if DEBUG
+            let ms = Int((Date.now.timeIntervalSince(trace.endedAt) * 1000).rounded())
+            DebugLog.player("Lilt gap \(ms)ms \(trace.old.title)→\(trace.new.title) (\(trace.mode))")
+            #endif
         case .state(let s):
             apply(s)
-        case .queuedNext(let videoId, let ok, let reason):
-            nativeQueued(videoId, ok: ok, reason: reason)
         case .playbackError(let videoId, let reason):
             trace("playback error on \(describe(bridge)) for \(videoId ?? "nil"): \(reason)")
         case .cued, .cueFailed:
@@ -663,20 +594,18 @@ final class PlayerService {
 
     /// The song that plays when the current one ends by itself, as `handle(.ended)` picks it;
     /// nil when YouTube Music's own continuation takes over.
-    var followingTrack: Track? { followingIndex.map { queue[$0] } }
-
-    private var followingIndex: Int? {
+    var followingTrack: Track? {
         guard let i = currentIndex, queue.indices.contains(i) else { return nil }
-        if repeatMode == .one { return i }
-        if i + 1 < queue.count { return i + 1 }
-        return repeatMode == .all && !queue.isEmpty ? 0 : nil
+        if repeatMode == .one { return queue[i] }
+        if i + 1 < queue.count { return queue[i + 1] }
+        return repeatMode == .all ? queue.first : nil
     }
 
     /// Points the standby at `followingTrack`, re-cueing only when that changed. It waits until
     /// the current song is under way (its first report is in), so the two don't fight for the
     /// network, and it isn't created at all until something has played.
     private func syncStandby() {
-        guard gaplessMode == .secondPlayer else { tearDownStandby(); return }
+        guard isGapless else { tearDownStandby(); return }
         guard current != nil else { parkStandby(); return }
         guard !needsLoad, !isLoading else { return }
         guard let next = followingTrack, next.id != failedCue else { parkStandby(); return }
@@ -731,7 +660,7 @@ final class PlayerService {
 
     /// A resumed position can't be handed over: the standby waits at 0:00.
     private func canHandOver(to videoId: String) -> Bool {
-        gaplessMode == .secondPlayer && standby != nil && isStandbyReady && standbyTrackId == videoId && pendingSeek == nil
+        isGapless && standby != nil && isStandbyReady && standbyTrackId == videoId && pendingSeek == nil
     }
 
     /// The standby starts its song and becomes the player you hear; the old one is silenced
@@ -759,212 +688,6 @@ final class PlayerService {
         }
     }
 
-    // MARK: Native queue
-
-    /// Native queue mode: keeps YouTube Music's own Up Next holding `followingTrack` straight
-    /// after the playing song, so the page's player moves on to it by itself when the song ends.
-    /// Asks again only when what plays next (or the song playing) changed. Not for repeat one,
-    /// which replays through Lilt's own load: a second copy of the playing song in YouTube's
-    /// queue couldn't be told from the first, and YouTube's own repeat is left alone. Nor when
-    /// the next entry is the same song again, for the same reason.
-    private func syncNativeQueue() {
-        guard gaplessMode.usesNativeQueue else { clearNativeQueue(); return }
-        if let advance = nativeAdvance {
-            // The queue changed under a move already under way: load what plays next now.
-            if followingTrack?.id != advance.targetId {
-                fallBackFromNativeAdvance("what plays next changed from \(advance.targetId) to \(followingTrack?.id ?? "nothing")")
-            }
-            return
-        }
-        guard let current else { clearNativeQueue(); return }
-        guard !needsLoad, !isLoading else { return }
-        guard repeatMode != .one, let next = followingTrack, next.id != current.id else {
-            if nativeTarget != nil { trace("native queue: nothing to hold after \(current.id) (\(whyNoNativeTarget))") }
-            clearNativeQueue()
-            return
-        }
-        guard nativeTarget != next.id || nativeSource != current.id else { return }
-        let key = "\(current.id)>\(next.id)"
-        guard nativeFailures[key, default: 0] < Self.nativeAttempts else { return }
-        if nativeTarget != nil, !isNativeQueued { bridge.cancelQueueNext() }
-        nativeTarget = next.id
-        nativeSource = current.id
-        isNativeQueued = false
-        trace("native queue: asking for \(next.id) after \(current.id) on \(describe(bridge))")
-        bridge.queueNext(videoId: next.id, after: current.id)
-    }
-
-    private var whyNoNativeTarget: String {
-        if repeatMode == .one { return "repeat one replays through a load" }
-        guard let next = followingTrack else { return "the queue ends here" }
-        return next.id == current?.id ? "the next entry is the same song" : "unknown"
-    }
-
-    private func clearNativeQueue() {
-        if nativeTarget != nil, !isNativeQueued { bridge.cancelQueueNext() }
-        nativeTarget = nil
-        nativeSource = nil
-        isNativeQueued = false
-    }
-
-    /// The page's answer to `queueNext`. One for a song or a source that's no longer the one
-    /// asked about is stale; a failure is retried at the next save, up to `nativeAttempts`.
-    private func nativeQueued(_ videoId: String, ok: Bool, reason: String) {
-        guard videoId == nativeTarget, !isNativeQueued, let source = nativeSource else {
-            trace("native queue: answer for \(videoId) (\(reason)) dropped, asking for \(nativeTarget ?? "nothing")")
-            return
-        }
-        guard ok, current?.id == source, followingTrack?.id == videoId else {
-            let key = "\(source)>\(videoId)"
-            nativeFailures[key, default: 0] += 1
-            trace("native queue: \(videoId) after \(source) failed (\(ok ? "stale" : reason)), attempt \(nativeFailures[key]!) of \(Self.nativeAttempts)")
-            nativeTarget = nil
-            nativeSource = nil
-            return
-        }
-        isNativeQueued = true
-        trace("native queue: \(videoId) confirmed after \(source) (\(reason))")
-    }
-
-    /// The song ended by itself: with what plays next confirmed in YouTube's Up Next, let the
-    /// page's player move on to it rather than loading it. False to load it the ordinary way.
-    private func beginNativeAdvance(endedAt: Date?) -> Bool {
-        guard gaplessMode.usesNativeQueue else { return false }
-        guard let current, let next = followingTrack, repeatMode != .one,
-              isNativeQueued, nativeTarget == next.id, nativeSource == current.id else {
-            trace("no native move on \(describe(bridge)): \(whyNotNativeAdvance)")
-            return false
-        }
-        let advance = NativeAdvance(from: current, targetId: next.id, endedAt: endedAt)
-        nativeAdvance = advance
-        // The old song's paused, ended reports mustn't flip the button while the page moves on.
-        trustWebPlayStateAfter = .now.addingTimeInterval(1.5)
-        trace("native move started: \(current.id) → \(next.id) on \(describe(bridge))" + (endedAt == nil ? " (no ended)" : ""))
-        nativeWatch = Task { [weak self, timeout = nativeAdvanceTimeout, token = advance.id, target = advance.targetId] in
-            try? await Task.sleep(for: timeout)
-            guard !Task.isCancelled, let self, self.nativeAdvance?.id == token else { return }
-            self.fallBackFromNativeAdvance("the page didn't reach \(target) within \(timeout)")
-        }
-        return true
-    }
-
-    private var whyNotNativeAdvance: String {
-        if repeatMode == .one { return "repeat one" }
-        guard let next = followingTrack else { return "nothing plays next" }
-        if nativeTarget != next.id || nativeSource != current?.id { return "YouTube's Up Next wasn't asked for \(next.id) after \(current?.id ?? "nil")" }
-        if !isNativeQueued { return "YouTube's Up Next hadn't confirmed \(next.id)" }
-        return "unknown"
-    }
-
-    private func endNativeAdvance() {
-        nativeAdvance = nil
-        nativeWatch?.cancel()
-        nativeWatch = nil
-    }
-
-    /// The page's player reached the song Lilt expected: it becomes the current one, with the
-    /// history, recents, Now Playing and the rest following, and nothing is loaded. With sound
-    /// already under way (`soundingAt`, or a playing snapshot), the gap is logged here.
-    private func adoptNativeAdvance(
-        _ advance: NativeAdvance, soundingAt: Date? = nil, from s: PlaybackSnapshot? = nil, continuation: Continuation? = nil
-    ) {
-        let continuation = continuation ?? advance.continuation
-        endNativeAdvance()
-        guard let index = followingIndex, queue[index].id == advance.targetId else {
-            nativeAdvance = advance
-            fallBackFromNativeAdvance("\(advance.targetId) is no longer what plays next")
-            return
-        }
-        let landed = moveCurrent(to: index, keepingManual: false)
-        let new = queue[landed]
-        isLoading = false
-        handedOver = false
-        nativeTarget = nil
-        nativeSource = nil
-        isNativeQueued = false
-        nativeFailures = [:]
-        let mode = "native"
-        recents?.recordPlayed(new, artwork: liveArtworkURL)
-        if let continuation {
-            // One stream: the new song is the same `<video>` playing on, so there was no silence
-            // to time. What's logged is from the old song's end on that timeline to the new id
-            // showing up, which is YouTube's metadata catching up.
-            streamOffset = continuation.boundary
-            trace("native move adopted: \(advance.from.id) → \(new.id) on \(describe(bridge)), same-element continuation (the <video> played on past \(advance.from.id)'s \(Int(continuation.boundary - continuation.previousOffset))s end)")
-            logGap(old: advance.from, new: new, mode: mode, from: advance.endedAt ?? .now, to: .now)
-            save()
-            return
-        }
-        trace("native move adopted: \(advance.from.id) → \(new.id) on \(describe(bridge)), new stream")
-        // When the new song started sounding: now, for its `playing`; or as far back as its
-        // position says, for a snapshot that has it playing already.
-        let sounded = soundingAt ?? s.flatMap { $0.isPlaying ? Date.now.addingTimeInterval(-$0.currentTime) : nil }
-        if let sounded {
-            logGap(old: advance.from, new: new, mode: mode, from: advance.endedAt ?? sounded, to: sounded)
-        } else {
-            gap = GapTrace(old: advance.from, new: new, mode: mode, endedAt: advance.endedAt ?? .now)
-        }
-        save()
-    }
-
-    /// One continuous stream: where the new song starts on the `<video>`'s timeline (the old
-    /// song's end), and where the old song started.
-    struct Continuation {
-        let boundary: Double
-        let previousOffset: Double
-    }
-
-    /// The page didn't make the expected move (it went elsewhere, didn't get there in time, or
-    /// what plays next changed meanwhile): load what plays next the ordinary way.
-    /// True when it loaded something.
-    @discardableResult
-    private func fallBackFromNativeAdvance(_ reason: String) -> Bool {
-        guard let advance = nativeAdvance else { return false }
-        endNativeAdvance()
-        guard let index = followingIndex else {
-            trace("native move \(advance.from.id) → \(advance.targetId) abandoned: \(reason), and nothing plays next")
-            return false
-        }
-        trace("fallback load \(queue[index].id) on \(describe(bridge)): \(reason)")
-        load(index: index)
-        if let new = current { gap = GapTrace(old: advance.from, new: new, mode: "native fallback", endedAt: advance.endedAt ?? .now) }
-        return true
-    }
-
-    /// Native queue mode, from a snapshot of the page's player: whether it is moving on (or has
-    /// moved on) from the current song by itself. True when the snapshot was dealt with here.
-    private func followNativeMove(_ s: PlaybackSnapshot, videoId: String) -> Bool {
-        guard gaplessMode.usesNativeQueue, let current else { return false }
-        if let advance = nativeAdvance {
-            if videoId == advance.targetId { adoptNativeAdvance(advance, from: s); return false }
-            if videoId == advance.from.id { return false }
-            fallBackFromNativeAdvance("the page moved to \(videoId), not \(advance.targetId)")
-            return true
-        }
-        guard !isLoading, isNativeQueued, nativeSource == current.id, let target = nativeTarget,
-              followingTrack?.id == target else { return false }
-        let time = s.currentTime - streamOffset
-        let pastEnd = songDuration > 0 && time > songDuration + 1
-        let continuation = pastEnd ? Continuation(boundary: streamOffset + songDuration, previousOffset: streamOffset) : nil
-        if videoId == target {
-            // The page went straight on to the next song without an `ended`: in the same
-            // stream when its timeline carries on past the old song's end, else a new one.
-            let endedAt = pastEnd ? Date.now.addingTimeInterval(-(time - songDuration)) : nil
-            if beginNativeAdvance(endedAt: endedAt), let advance = nativeAdvance {
-                adoptNativeAdvance(advance, from: s, continuation: continuation)
-            }
-            return false
-        }
-        // One continuous stream: the same element plays on past the old song's end.
-        if videoId == current.id, pastEnd, s.duration - streamOffset > songDuration + 1 {
-            let endedAt = Date.now.addingTimeInterval(-(time - songDuration))
-            trace("native queue: \(current.id) played on past its \(Int(songDuration))s end in the same element")
-            if beginNativeAdvance(endedAt: endedAt) { nativeAdvance?.continuation = continuation }
-            return true
-        }
-        return false
-    }
-
     // MARK: Gapless trace (DEBUG)
 
     /// `Lilt gapless: …` lines in the unified log, one per step of a handover, to see in the
@@ -972,15 +695,6 @@ final class PlayerService {
     private func trace(_ message: @autoclosure () -> String) {
         #if DEBUG
         DebugLog.player("Lilt gapless: " + message())
-        #endif
-    }
-
-    /// `Lilt gap <ms>ms old→new (mode)`: the silence between one song ending and the next
-    /// sounding, never below 0 (a continuous stream has none).
-    private func logGap(old: Track, new: Track, mode: String, from: Date, to: Date) {
-        #if DEBUG
-        let ms = max(0, Int((to.timeIntervalSince(from) * 1000).rounded()))
-        DebugLog.player("Lilt gap \(ms)ms \(old.title)→\(new.title) (\(mode))")
         #endif
     }
 
@@ -1001,8 +715,6 @@ final class PlayerService {
             trace("PLAYING from \(describe(player)): \(id ?? "nil"), current \(current?.id ?? "nil")")
         case .cued(let id):
             trace("CUED from \(describe(player)): \(id), standby holds \(standbyTrackId ?? "nil")")
-        case .queuedNext(let id, let ok, let reason):
-            trace("QUEUE_NEXT from \(describe(player)): \(id) \(ok ? "ok" : "failed") (\(reason)), asked for \(nativeTarget ?? "nil")")
         case .cueFailed(let id):
             trace("CUE_FAILED from \(describe(player)): \(id), standby holds \(standbyTrackId ?? "nil")")
         default:
@@ -1012,7 +724,7 @@ final class PlayerService {
 
     /// Which of `canHandOver`'s conditions failed.
     private func whyNotHandedOver(to videoId: String) -> String {
-        if gaplessMode != .secondPlayer { return "gapless mode is \(gaplessMode.rawValue)" }
+        if !isGapless { return "gapless is off" }
         guard standby != nil else { return "no standby yet" }
         if pendingSeek != nil { return "resuming partway through" }
         if standbyTrackId != videoId { return "standby holds \(standbyTrackId ?? "nothing"), not \(videoId)" }
@@ -1022,7 +734,6 @@ final class PlayerService {
 
     private func apply(_ s: PlaybackSnapshot) {
         guard let videoId = s.videoId else { return }
-        if followNativeMove(s, videoId: videoId) { return }
         if videoId != current?.id {
             // Stale state from the previous document while a load is in flight.
             if isLoading { return }
@@ -1038,7 +749,6 @@ final class PlayerService {
         if isLoading {
             isLoading = false
             syncStandby()
-            syncNativeQueue()
         }
         // WebKit only registers with Now Playing once the page actually plays. A snapshot of
         // YouTube's own restored (paused) player after a relaunch doesn't count, so the bridge
@@ -1052,13 +762,9 @@ final class PlayerService {
             bridge.seek(to: target)
             return
         }
-        // After a same-stream move the `<video>`'s clock runs on from the old song; times are
-        // shown from where this one starts. A clock back before that start is a new stream.
-        if streamOffset > 0, s.currentTime + 1 < streamOffset { streamOffset = 0 }
-        currentTime = max(0, s.currentTime - streamOffset)
+        currentTime = s.currentTime
         if abs(currentTime - lastSavedTime) > 5 { save() }
-        duration = max(0, s.duration - streamOffset)
-        if songDuration == 0 { songDuration = duration }
+        duration = s.duration
         liveTitle = s.title
         liveArtist = s.artist
         liveArtworkURL = s.artworkURL ?? liveArtworkURL

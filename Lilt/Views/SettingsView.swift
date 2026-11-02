@@ -221,8 +221,6 @@ private extension PlayerService.GaplessMode {
         switch self {
         case .off:
             "Each song loads when the one before it ends."
-        case .nativeQueue:
-            "Puts the next song in YouTube Music's own Up Next, so its player moves on by itself. Only this session's queue changes, never your library."
         case .secondPlayer:
             "Keeps the next song loaded in a second player, so it starts the moment the current one ends. Uses more memory."
         }
