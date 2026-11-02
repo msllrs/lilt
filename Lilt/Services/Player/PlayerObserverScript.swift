@@ -10,7 +10,7 @@ enum PlayerObserverScript {
       const post = (type, payload) => {
         try { window.webkit.messageHandlers.lilt.postMessage(Object.assign({ type }, payload || {})); } catch (e) {}
       };
-      const state = { video: null, lastTimeUpdate: 0, pendingNav: null, hold: false, cueing: null, ytVolume: null };
+      const state = { video: null, lastTimeUpdate: 0, pendingNav: null, hold: false, cueing: null, ytVolume: null, probed: false, queueing: null };
       // A standby page (gapless playback) is held silent and still. The flag outlives a reload
       // through sessionStorage, which belongs to this web view alone.
       const holdKey = '__liltHold';
@@ -110,9 +110,26 @@ enum PlayerObserverScript {
         keepHeld();
         report();
       };
+      // What the page's player offers for gapless playback, for the DEBUG log: whether YouTube
+      // would stitch songs into one stream here (it decides by browser: Chrome 74+ or Firefox
+      // 68+), and which of its queue and preload methods exist.
+      const gaplessApiNames = ['supportsGaplessAudio', 'isGaplessTransitionReady', 'queueNextVideo', 'enqueueVideoByPlayerVars',
+        'clearQueue', 'preloadVideoById', 'preloadVideoByPlayerVars', 'nextVideo', 'getPlaylist', 'getPlaylistId'];
+      const probe = (why) => {
+        const p = document.getElementById('movie_player');
+        if (!p) { post('GAPLESS_PROBE', { why, player: false }); return; }
+        const has = (o) => gaplessApiNames.filter((n) => o && typeof o[n] === 'function').join(',');
+        let supports = 'missing';
+        try { if (typeof p.supportsGaplessAudio === 'function') { supports = String(p.supportsGaplessAudio()); } } catch (e) { supports = 'threw'; }
+        let internal = 'missing';
+        try { if (typeof p.getInternalApi === 'function') { internal = has(p.getInternalApi()); } } catch (e) { internal = 'threw'; }
+        post('GAPLESS_PROBE', { why, player: true, supportsGaplessAudio: supports, apis: has(p), internalApis: internal, userAgent: navigator.userAgent });
+      };
+
       const tick = () => {
         const v = document.querySelector('video');
         if (v) { attach(v); }
+        if (!state.probed && playerApi()) { state.probed = true; probe('startup'); }
         report();
       };
       setInterval(tick, 1000);
@@ -123,6 +140,7 @@ enum PlayerObserverScript {
       // watch endpoint. We confirm via the player's video id and reload only as a last resort.
       const navigate = (id) => {
         release();
+        cancelQueueNext();
         if (state.pendingNav) { clearInterval(state.pendingNav); state.pendingNav = null; }
         const target = 'https://music.youtube.com/watch?v=' + encodeURIComponent(id);
         const fallback = (why) => {
@@ -165,6 +183,7 @@ enum PlayerObserverScript {
       // CUED says it's ready; CUE_FAILED hands the song back to the ordinary load.
       const cue = (id) => {
         hold();
+        cancelQueueNext();
         stopCueing();
         const fallback = (why) => {
           stopCueing();
@@ -219,6 +238,141 @@ enum PlayerObserverScript {
         if (r && r.catch) { r.catch(() => { try { if (p) { p.playVideo(); } } catch (e) {} }); }
       };
 
+      // Gapless, native queue: makes `target` the song right after `source` in YouTube Music's
+      // own Up Next, so the page's player moves on to it by itself when `source` ends. It goes
+      // through the player bar's "Play next" item, the way you would, with the item's
+      // queueAddEndpoint pointed at `target` for the one click (the approach Kaset ships). That
+      // endpoint only edits this session's queue; nothing is saved to the account. Reports
+      // QUEUE_NEXT { ok, reason } only once the rendered queue reads back `target` straight
+      // after the selected `source` row.
+      const playNextIcon = 'M6 2.86V5H3a1 1 0 00-1 1v12a1 1 0 102 0V7h2v2.137a.5.5 0 00.748.434L13 5.998 6.748 2.426A.5.5 0 006 2.86ZM21 5h-5a1 1 0 100 2h5a1 1 0 100-2Zm0 6H9a1 1 0 000 2h12a1 1 0 000-2Zm0 6H9a1 1 0 000 2h12a1 1 0 000-2Z';
+      const rowVideoId = (data) => {
+        if (!data || typeof data !== 'object') { return ''; }
+        if (typeof data.videoId === 'string') { return data.videoId; }
+        const seen = new Set();
+        const visit = (o, depth) => {
+          if (!o || typeof o !== 'object' || depth > 6 || seen.has(o)) { return ''; }
+          seen.add(o);
+          if (typeof o.videoId === 'string' && o.videoId) { return o.videoId; }
+          for (const k of Object.keys(o).slice(0, 60)) { const found = visit(o[k], depth + 1); if (found) { return found; } }
+          return '';
+        };
+        return visit(data, 0);
+      };
+      const queueRows = () => Array.from(document.querySelectorAll(
+        'ytmusic-player-queue-item, ytmusic-player-queue-item-renderer, ytmusic-player-queue ytmusic-responsive-list-item-renderer'
+      )).map((el) => ({
+        videoId: rowVideoId(el.data || el.__data || null),
+        selected: el.hasAttribute('selected') || el.hasAttribute('is-playlist-panel-video-renderer-selected') || el.getAttribute('aria-current') === 'true',
+      })).filter((r) => r.videoId || r.selected);
+      const selectedRow = (rows) => {
+        let found = -1;
+        for (let i = 0; i < rows.length; i++) { if (rows[i].selected) { if (found >= 0) { return -1; } found = i; } }
+        return found;
+      };
+      const isLinedUp = (rows, source, target) => {
+        const i = selectedRow(rows);
+        return i >= 0 && rows[i].videoId === source && !!rows[i + 1] && rows[i + 1].videoId === target;
+      };
+      const playerBarMenuButton = () => {
+        const bar = document.querySelector('ytmusic-player-bar') || document.querySelector('[slot="player-bar"]');
+        if (!bar) { return null; }
+        return bar.querySelector('.middle-controls-buttons ytmusic-menu-renderer button')
+          || bar.querySelector('.ytMusicMiniPlayerMenuButton button')
+          || Array.from(bar.querySelectorAll('button')).find((b) => (b.getAttribute('aria-label') || '').toLowerCase() === 'action menu')
+          || null;
+      };
+      // Only an item whose endpoint is a queueAddEndpoint is ever clicked, so a changed menu
+      // can't make this save, like or share anything.
+      const playNextItem = () => {
+        const items = Array.from(document.querySelectorAll('ytmusic-menu-popup-renderer ytmusic-menu-service-item-renderer'));
+        const endpointOf = (item) => {
+          const d = item.data || item.__data || null;
+          const e = d && (d.serviceEndpoint || d.navigationEndpoint || d.endpoint);
+          return e && e.queueAddEndpoint ? e.queueAddEndpoint : null;
+        };
+        const byIcon = items.find((i) => i.querySelector && i.querySelector('path[d="' + playNextIcon + '"]') && endpointOf(i));
+        const byPosition = items.find((i) => { const q = endpointOf(i); return q && q.queueInsertPosition === 'INSERT_AFTER_CURRENT_VIDEO'; });
+        const item = byIcon || byPosition || null;
+        return item ? { item, endpoint: endpointOf(item), count: items.length } : { item: null, endpoint: null, count: items.length };
+      };
+      const cancelQueueNext = () => {
+        const q = state.queueing;
+        if (!q) { return; }
+        state.queueing = null;
+        q.timers.forEach((t) => clearTimeout(t));
+        if (q.menuOpen) { q.menuOpen = false; try { document.body.click(); } catch (e) {} }
+      };
+      const queueNext = (target, source, attempt) => {
+        cancelQueueNext();
+        probe('queue');
+        const q = { attempt, timers: [], menuOpen: false, clicked: false };
+        state.queueing = q;
+        const started = Date.now();
+        const live = () => state.queueing === q;
+        const later = (fn, ms) => { q.timers.push(setTimeout(() => { if (live()) { fn(); } }, ms)); };
+        const finish = (ok, reason) => {
+          if (!live()) { return; }
+          cancelQueueNext();
+          post('QUEUE_NEXT', { videoId: target, source, attempt, ok, reason });
+        };
+        const retry = (reason) => {
+          if (q.menuOpen) { q.menuOpen = false; try { document.body.click(); } catch (e) {} }
+          if (Date.now() - started < 8000) { later(tryOnce, 150); } else { finish(false, reason); }
+        };
+        const verify = (before, since) => {
+          if (videoId() !== source) { finish(false, 'source-changed-before-readback'); return; }
+          const rows = queueRows();
+          const changed = rows.map((r) => r.videoId).join() !== before;
+          if (changed && isLinedUp(rows, source, target)) { finish(true, 'queue-readback-confirmed'); return; }
+          if (Date.now() - since > 6000) { finish(false, 'queue-readback-timeout'); return; }
+          later(() => verify(before, since), 100);
+        };
+        const fromMenu = () => {
+          const found = playNextItem();
+          if (!found.count) { if (Date.now() - started < 8000) { later(fromMenu, 50); } else { finish(false, 'menu-did-not-open'); } return; }
+          if (!found.item || typeof found.item.click !== 'function') { finish(false, 'play-next-item-not-found'); return; }
+          const queueTarget = found.endpoint.queueTarget;
+          if (!queueTarget || typeof queueTarget.videoId !== 'string') { finish(false, 'play-next-endpoint-unavailable'); return; }
+          // The menu still describes the song before (it re-renders a beat after a change).
+          if (queueTarget.videoId !== source) { retry('menu-source-mismatch'); return; }
+          const rows = queueRows();
+          const i = selectedRow(rows);
+          // Without the source selected in the queue, YouTube takes the endpoint's onEmptyQueue
+          // path and plays `target` at once; wait for the queue instead.
+          if (i < 0 || rows[i].videoId !== source) { retry('queue-source-not-ready'); return; }
+          if (isLinedUp(rows, source, target)) {
+            if (q.menuOpen) { q.menuOpen = false; try { document.body.click(); } catch (e) {} }
+            finish(true, 'already-next');
+            return;
+          }
+          const onEmpty = queueTarget.onEmptyQueue && queueTarget.onEmptyQueue.watchEndpoint;
+          const originalTarget = queueTarget.videoId;
+          const originalEmpty = onEmpty ? onEmpty.videoId : undefined;
+          const restore = () => { queueTarget.videoId = originalTarget; if (onEmpty) { onEmpty.videoId = originalEmpty; } };
+          const before = rows.map((r) => r.videoId).join();
+          queueTarget.videoId = target;
+          if (onEmpty) { onEmpty.videoId = target; }
+          q.clicked = true;
+          try { found.item.click(); } catch (e) { restore(); finish(false, 'play-next-click-threw'); return; }
+          setTimeout(restore, 0);
+          if (q.menuOpen) { q.menuOpen = false; try { document.body.click(); } catch (e) {} }
+          later(() => verify(before, Date.now()), 0);
+        };
+        const tryOnce = () => {
+          if (videoId() !== source) {
+            if (Date.now() - started < 8000) { later(tryOnce, 150); } else { finish(false, 'source-not-playing'); }
+            return;
+          }
+          const button = playerBarMenuButton();
+          if (!button) { retry('player-bar-menu-not-found'); return; }
+          q.menuOpen = true;
+          try { button.click(); } catch (e) { finish(false, 'menu-click-threw'); return; }
+          later(fromMenu, 0);
+        };
+        tryOnce();
+      };
+
       // WebKit publishes the page's Media Session to macOS Now Playing and media keys. Keep that
       // as the single system entry, but make next/previous drive Lilt's queue instead of the
       // page's own, and stop the page from taking those two actions back.
@@ -236,6 +390,8 @@ enum PlayerObserverScript {
       window.__lilt = {
         navigate,
         cue,
+        queueNext,
+        cancelQueueNext,
         hold,
         start,
         play: () => {

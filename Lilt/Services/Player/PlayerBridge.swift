@@ -26,6 +26,9 @@ enum PlayerEvent {
     case cued(videoId: String)
     /// A standby page couldn't get the song ready; it plays the ordinary way instead.
     case cueFailed(videoId: String)
+    /// Native queue mode: whether YouTube Music's own Up Next now has `videoId` straight after
+    /// the playing song (`ok`), read back from the page's queue, or why not.
+    case queuedNext(videoId: String, ok: Bool, reason: String)
     /// A Now Playing / media key command the page's media session forwarded to us.
     case remote(RemoteAction)
 }
@@ -50,6 +53,11 @@ protocol PlayerBridging: AnyObject {
     func hold()
     /// Plays the cued song at once, at YouTube's own volume.
     func start()
+    /// Native queue mode: puts `videoId` straight after `sourceId` (the song playing) in
+    /// YouTube Music's own Up Next, and reports `.queuedNext` once the page's queue says so.
+    func queueNext(videoId: String, after sourceId: String)
+    /// Abandons a `queueNext` still under way; its result is never reported.
+    func cancelQueueNext()
     func play()
     func pause()
     func seek(to seconds: Double)
@@ -73,6 +81,9 @@ final class PlayerBridge: NSObject, PlayerBridging {
     /// The song being cued, until it's ready. Sent again on READY, so a cue survives the shell
     /// loading or the page's reload fallback.
     private var cueVideoId: String?
+    /// The latest `queueNext`, so a result from one it replaced is dropped.
+    private var queueAttempt = 0
+    private var queueVideoId: String?
 
     private static let handlerName = "lilt"
     private static let world: WKContentWorld = .page
@@ -109,6 +120,7 @@ final class PlayerBridge: NSObject, PlayerBridging {
 
     func load(videoId: String) {
         cueVideoId = nil
+        queueVideoId = nil
         if isShellLoaded && isReady {
             call("window.__lilt && window.__lilt.navigate(\(Self.quote(videoId)))")
         } else if isShellLoaded {
@@ -132,6 +144,24 @@ final class PlayerBridge: NSObject, PlayerBridging {
     }
 
     func hold() { call("window.__lilt && window.__lilt.hold()") }
+
+    func queueNext(videoId: String, after sourceId: String) {
+        queueAttempt += 1
+        guard isShellLoaded && isReady else {
+            queueVideoId = nil
+            onEvent?(.queuedNext(videoId: videoId, ok: false, reason: "page-not-ready"))
+            return
+        }
+        queueVideoId = videoId
+        call("window.__lilt && window.__lilt.queueNext(\(Self.quote(videoId)), \(Self.quote(sourceId)), \(queueAttempt))")
+    }
+
+    func cancelQueueNext() {
+        guard queueVideoId != nil else { return }
+        queueAttempt += 1
+        queueVideoId = nil
+        call("window.__lilt && window.__lilt.cancelQueueNext()")
+    }
 
     func start() {
         cueVideoId = nil
@@ -182,6 +212,24 @@ final class PlayerBridge: NSObject, PlayerBridging {
             }
         case "TRACK_ENDED":
             onEvent?(.ended(videoId: body["videoId"] as? String))
+        case "QUEUE_NEXT":
+            guard let videoId = body["videoId"] as? String, videoId == queueVideoId,
+                  (body["attempt"] as? NSNumber)?.intValue == queueAttempt else {
+                #if DEBUG
+                DebugLog.player("Lilt gapless: page QUEUE_NEXT \(body["videoId"] as? String ?? "nil") (\(body["reason"] as? String ?? "")) dropped, queueing \(queueVideoId ?? "nothing")")
+                #endif
+                return
+            }
+            queueVideoId = nil
+            onEvent?(.queuedNext(videoId: videoId, ok: body["ok"] as? Bool ?? false, reason: body["reason"] as? String ?? ""))
+        case "GAPLESS_PROBE":
+            #if DEBUG
+            if body["player"] as? Bool == true {
+                DebugLog.player("Lilt gapless: probe (\(body["why"] as? String ?? "?")) #movie_player supportsGaplessAudio()=\(body["supportsGaplessAudio"] as? String ?? "?"), player APIs [\(body["apis"] as? String ?? "")], internal APIs [\(body["internalApis"] as? String ?? "")], UA \(body["userAgent"] as? String ?? "?")")
+            } else {
+                DebugLog.player("Lilt gapless: probe (\(body["why"] as? String ?? "?")) found no #movie_player")
+            }
+            #endif
         case "PLAYING":
             onEvent?(.playing(videoId: body["videoId"] as? String))
         case "CUED":
@@ -226,6 +274,11 @@ final class PlayerBridge: NSObject, PlayerBridging {
 extension PlayerBridge: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         isReady = false
+        // A new document: whatever `queueNext` was under way went with the old one.
+        if let videoId = queueVideoId {
+            queueVideoId = nil
+            onEvent?(.queuedNext(videoId: videoId, ok: false, reason: "document-replaced"))
+        }
     }
 }
 
