@@ -310,9 +310,9 @@ struct NowPlayingBar: View {
             artwork
             // Title and artist take a little of the cover's colour too, the artist half as much.
             InterpolatedColor(accent) { accent in
-                let mono = colorScheme == .dark ? Color.white : Color.black
-                let title = accent.map { mono.mix(with: $0, by: platter.textTint) }
-                let artist = accent.map { Color.secondary.mix(with: $0, by: platter.textTint * 0.5) }
+                let tint = CoverTint(accent: accent, colorScheme: colorScheme, platter: platter)
+                let title = tint?.title
+                let artist = tint?.secondary
                 VStack(alignment: .leading, spacing: 2) {
                     MarqueeText(
                         text: player.displayTitle,
@@ -356,8 +356,8 @@ struct NowPlayingBar: View {
                         symbol: player.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
                         isOn: player.isLiked,
                         revealed: isHoveringPlatter,
-                        tint: accent.map { mono.mix(with: $0, by: platter.controlsTint) } ?? mono,
-                        dimTint: accent.map { Color.secondary.mix(with: $0, by: platter.controlsTint) }
+                        tint: tint?.control ?? (colorScheme == .dark ? .white : .black),
+                        dimTint: tint?.dimControl
                     ) {
                         player.toggleLike()
                     }
@@ -371,9 +371,9 @@ struct NowPlayingBar: View {
         // The glyphs take a faint share of the cover's colour (less than the scrubber), and
         // it slides to the next song's like everything else.
         InterpolatedColor(accent) { accent in
-            let mono = colorScheme == .dark ? Color.white : Color.black
-            let tint = accent.map { mono.mix(with: $0, by: platter.controlsTint) } ?? mono
-            let dim = accent.map { Color.secondary.mix(with: $0, by: platter.controlsTint) }
+            let cover = CoverTint(accent: accent, colorScheme: colorScheme, platter: platter)
+            let tint = cover?.control ?? (colorScheme == .dark ? .white : .black)
+            let dim = cover?.dimControl
             HStack(spacing: 0) {
                 // Shuffle and repeat flank the transport; they appear on hover, or stay when on.
                 ModeButton(symbol: "shuffle", isOn: player.isShuffled, revealed: isHoveringPlatter, tint: tint, dimTint: dim) {
@@ -446,7 +446,7 @@ struct NowPlayingBar: View {
         InterpolatedColor(accent) { accent in
             let mono = colorScheme == .dark ? Color.white : Color.black
             let line = accent.map { mono.mix(with: $0, by: platter.scrubberLikeControls ? platter.controlsTint : platter.scrubberTint) }
-            let times = accent.map { Color(nsColor: .tertiaryLabelColor).mix(with: $0, by: platter.textTint * 0.5) }
+            let times = CoverTint(accent: accent, colorScheme: colorScheme, platter: platter)?.tertiary
             HStack(spacing: Theme.Space.xs + 2) {
                 Text(timeString(isScrubbing ? scrubValue : player.currentTime))
                     .fixedSize()

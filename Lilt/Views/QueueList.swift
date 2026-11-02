@@ -13,16 +13,10 @@ struct QueueList: View {
     var accent: Color? = nil
     @State private var scrollEdges = ScrollEdges()
 
-    private var tint: Double { ArtworkStyle.shared.platter.textTint }
-    private var titleColor: Color {
-        let mono = colorScheme == .dark ? Color.white : Color.black
-        return accent.map { mono.mix(with: $0, by: tint) } ?? mono
-    }
-    private var secondaryColor: Color { accent.map { Color.secondary.mix(with: $0, by: tint * 0.5) } ?? .secondary }
-    private var tertiaryColor: Color {
-        let base = Color(nsColor: .tertiaryLabelColor)
-        return accent.map { base.mix(with: $0, by: tint * 0.5) } ?? base
-    }
+    private var tint: CoverTint? { CoverTint(accent: accent, colorScheme: colorScheme, platter: ArtworkStyle.shared.platter) }
+    private var titleColor: Color { tint?.title ?? (colorScheme == .dark ? .white : .black) }
+    private var secondaryColor: Color { tint?.secondary ?? .secondary }
+    private var tertiaryColor: Color { tint?.tertiary ?? Color(nsColor: .tertiaryLabelColor) }
 
     /// Whether the list has content hidden past each end.
     private struct ScrollEdges: Equatable {
