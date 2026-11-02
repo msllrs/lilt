@@ -37,16 +37,6 @@ struct TweakPanel: View {
                 // Each token's Reduce Motion variant without touching System Settings.
                 Toggle("Force Reduce Motion", isOn: $motion.forcesReduceMotion)
             }
-            Section("Attention bounce") {
-                // The hop a bookmark, a row's queue button or the like gives when it acts.
-                slider("Jump (pt)", $style.attention.jump, 0...8)
-                slider("Scale", $style.attention.scale, 1...1.5)
-                slider("Rise (s)", $style.attention.rise, 0.02...0.3)
-                slider("Spring response", $style.attention.response, 0.1...1)
-                slider("Spring damping", $style.attention.damping, 0.2...1)
-                slider("Reduced: dip to", $style.attention.pulseOpacity, 0...1)
-                slider("Reduced: dip (s)", $style.attention.pulse, 0.05...0.5)
-            }
             Section("Row shine") {
                 // The sweep across a row after Copy Link, Play Next or Add to Queue from its menu.
                 slider("Duration (s)", $style.shine.duration, 0.2...1.5)

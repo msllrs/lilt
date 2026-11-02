@@ -367,8 +367,7 @@ struct NowPlayingBar: View {
                         isOn: player.isLiked,
                         revealed: isHoveringPlatter,
                         tint: palette.control ?? palette.mono,
-                        dimTint: palette.dimControl,
-                        attention: player.likeToggles
+                        dimTint: palette.dimControl
                     ) {
                         player.toggleLike()
                     }
@@ -507,8 +506,6 @@ private struct ModeButton: View {
     var tint: Color? = nil
     /// Colour when off (while revealed); nil for the secondary label colour.
     var dimTint: Color? = nil
-    /// The glyph hops each time this changes (the like, when it's asked for).
-    var attention = 0
     let action: () -> Void
 
     var body: some View {
@@ -521,8 +518,6 @@ private struct ModeButton: View {
                     .transition(.blurScale)
             }
             .animation(Theme.Motion.symbol, value: symbol)
-            // Inside the frame below, so the hit area stays put while the glyph moves.
-            .attentionBounce(trigger: attention)
             .foregroundStyle(isOn ? (tint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary)) : (dimTint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.secondary)))
             .frame(width: 28, height: 28)
             .contentShape(Circle())

@@ -218,27 +218,6 @@ struct HeroSnapStyle: Equatable {
     static let standard = HeroSnapStyle()
 }
 
-/// The hop a control gives to confirm it did what it was asked (a bookmark saving, a song
-/// queued, a like): up a little and a touch bigger, then a spring back to rest. Kept small, a
-/// nod rather than a wave. Under Reduce Motion the control doesn't move; it dips in opacity
-/// and comes back instead (see Theme.Motion.attention).
-struct AttentionStyle: Equatable, Sendable {
-    /// Points the glyph rises at the top of the hop.
-    var jump: Double = 2
-    /// The glyph's scale at the top of the hop.
-    var scale: Double = 1.12
-    /// Seconds to the top, eased out.
-    var rise: Double = 0.08
-    /// The spring back to rest: its response in seconds and damping fraction (1 lands without
-    /// overshoot).
-    var response: Double = 0.34
-    var damping: Double = 0.55
-    /// Reduce Motion's stand-in: the opacity the glyph dips to, and the seconds each way.
-    var pulseOpacity: Double = 0.55
-    var pulse: Double = 0.14
-    static let standard = AttentionStyle()
-}
-
 /// One soft band of light crossing a row once, leading edge to trailing, to confirm what its
 /// menu just did (Copy Link, Play Next, Add to Queue). Clipped to the row's highlight shape.
 /// Under Reduce Motion there's no sweep (see Theme.Motion.shine).
@@ -528,7 +507,6 @@ final class ArtworkStyle {
     /// Library title centred between the back button and the avatar, rather than leading.
     var centredLibraryTitle: Bool = true
     var heroSnap: HeroSnapStyle = .standard
-    var attention: AttentionStyle = .standard
     var shine: ShineStyle = .standard
 
     /// The window style actually on screen: with Reduce Transparency on, glass shows as solid.
@@ -594,7 +572,6 @@ final class ArtworkStyle {
         surfaces = .defaults
         centredLibraryTitle = true
         heroSnap = .standard
-        attention = .standard
         shine = .standard
     }
 
@@ -631,7 +608,6 @@ final class ArtworkStyle {
         panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent))
         centredLibraryTitle = \(centredLibraryTitle)
         heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), minFlick: \(f(heroSnap.minFlick)), deadZone: \(f(heroSnap.deadZone)))
-        attention = AttentionStyle(jump: \(f(attention.jump)), scale: \(f(attention.scale)), rise: \(f(attention.rise)), response: \(f(attention.response)), damping: \(f(attention.damping)), pulseOpacity: \(f(attention.pulseOpacity)), pulse: \(f(attention.pulse)))
         shine = ShineStyle(duration: \(f(shine.duration)), band: \(f(shine.band)), darkOpacity: \(f(shine.darkOpacity)), lightOpacity: \(f(shine.lightOpacity)))
         leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)), darkLighten: \(f(leadingCast.darkLighten)), darkWashScale: \(f(leadingCast.darkWashScale)), darkSaturation: \(f(leadingCast.darkSaturation)))
         """

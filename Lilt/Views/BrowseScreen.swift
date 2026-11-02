@@ -165,20 +165,16 @@ struct BrowseScreen: View {
     static let heroControlHeight: CGFloat = 38
     @Environment(NoticeCenter.self) private var notices: NoticeCenter?
     @State private var isSaving = false
-    /// Counts saves and unsaves that went through: the bookmark hops on each.
-    @State private var savedChanges = 0
     private var isSaved: Bool { music.isSaved(item) }
 
     /// A round glass button beside Play, with the same cast. On an album the glyph is the
     /// palette's colour on its container, dimmed while the button can't be used (an explicit
-    /// colour doesn't dim itself). The glyph hops each time `attention` changes, inside the
-    /// glass, which keeps its place.
-    private func heroRoundButton(symbol: String, help: String, palette: CoverPalette, disabled: Bool = false, attention: Int = 0, action: @escaping () -> Void) -> some View {
+    /// colour doesn't dim itself).
+    private func heroRoundButton(symbol: String, help: String, palette: CoverPalette, disabled: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.callout.weight(.semibold))
                 .foregroundStyle(palette.style(disabled ? \.dimControl : \.onContainer, or: .primary))
-                .attentionBounce(trigger: attention)
                 .frame(width: Self.heroControlHeight, height: Self.heroControlHeight)
                 .modifier(HeroGlass(shape: Circle(), palette: palette))
         }
@@ -193,8 +189,6 @@ struct BrowseScreen: View {
         Task {
             defer { isSaving = false }
             await RowMenu.setSaved(target, page: page, music: music, notices: notices)
-            // The glyph changes once YouTube has answered; it hops then, with the notice.
-            if isSaved == target { savedChanges += 1 }
         }
     }
 
@@ -415,7 +409,7 @@ struct BrowseScreen: View {
                     let glass = palette.casting(cast)
                     HStack(spacing: Theme.Space.sm) {
                         if page.item.kind != .artist, !Self.isLikedMusic(page.item) {
-                            heroRoundButton(symbol: isSaved ? "bookmark.fill" : "bookmark", help: isSaved ? "Remove from Library" : "Save to Library", palette: glass, disabled: page.playlistId == nil || isSaving, attention: savedChanges) {
+                            heroRoundButton(symbol: isSaved ? "bookmark.fill" : "bookmark", help: isSaved ? "Remove from Library" : "Save to Library", palette: glass, disabled: page.playlistId == nil || isSaving) {
                                 toggleSaved(page)
                             }
                         }

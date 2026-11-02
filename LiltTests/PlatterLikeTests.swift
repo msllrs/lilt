@@ -26,7 +26,5 @@ struct PlatterLikeTests {
         #expect(music.isLiked(schism) == true, "the row's menu now offers Unlike")
         player.toggleLike()
         #expect(music.isLiked(schism) == false)
-        // The platter's like hops once for each like asked for.
-        #expect(player.likeToggles == 2)
     }
 }
