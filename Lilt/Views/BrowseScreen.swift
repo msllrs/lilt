@@ -7,6 +7,7 @@ struct BrowseScreen: View {
     @Environment(PlayerService.self) private var player
     @Environment(NavigationModel.self) private var navigation
     @Environment(ScrollTracker.self) private var scrollTracker
+    @Environment(\.colorScheme) private var colorScheme
 
     let item: BrowseItem
 
@@ -37,25 +38,35 @@ struct BrowseScreen: View {
     @State private var extraBottom: CGFloat = 0
     @State private var isHoveringCompactArtwork = false
     @State private var isHoveringHeader = false
+    /// Bumped once the cover has loaded, so an accent measured from it is read again (the image
+    /// cache isn't observable).
+    @State private var coverLoads = 0
 
     /// Only playlists gain songs elsewhere (a song liked on the phone), so only they refresh:
     /// albums don't change once released and artist pages rarely do.
     private var isRefreshable: Bool { item.kind == .playlist }
 
     var body: some View {
-        content
-            .safeAreaBar(edge: .top, spacing: 0) { navigationHeader }
-            // The cover's light spills down from the top of the page, behind everything.
-            .background(alignment: .top) { PageAmbient(url: (page?.item.artworkURL) ?? item.artworkURL) }
-            .task(id: item.id) { await load() }
-            // ⌘R takes the same path as pulling the list down.
-            .onChange(of: navigation.refreshRequest) { _, _ in
-                if isRefreshable, navigation.path.last?.id == item.id { Task { await load() } }
-            }
+        // An album's text and glyphs take its cover's colour the way the platter's do, sliding in
+        // if the colour lands after the page. The hero and compact header are built here and take
+        // it directly; the rows and section headers below read it from the environment.
+        InterpolatedColor(pageAccent) { accent in
+            let tint = Self.coverTint(kind: (page ?? BrowsePage(item: item)).item.kind, accent: accent, colorScheme: colorScheme)
+            content(tint)
+                .safeAreaBar(edge: .top, spacing: 0) { navigationHeader(tint) }
+                .environment(\.coverTint, tint)
+        }
+        // The cover's light spills down from the top of the page, behind everything.
+        .background(alignment: .top) { PageAmbient(url: (page?.item.artworkURL) ?? item.artworkURL) }
+        .task(id: item.id) { await load() }
+        // ⌘R takes the same path as pulling the list down.
+        .onChange(of: navigation.refreshRequest) { _, _ in
+            if isRefreshable, navigation.path.last?.id == item.id { Task { await load() } }
+        }
     }
 
     /// Back button, plus a compact artwork/title/artist that fades in as the hero scrolls out.
-    private var navigationHeader: some View {
+    private func navigationHeader(_ coverTint: CoverTint?) -> some View {
         HStack(spacing: Theme.Space.sm) {
             // Slot for the back button, which the navigation column draws statically on top.
             Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
@@ -64,7 +75,7 @@ struct BrowseScreen: View {
                 HStack(spacing: Theme.Space.sm) {
                     compactArtwork(page)
                     VStack(alignment: .leading, spacing: 0) {
-                        MarqueeText(text: page.item.title, isActive: isHoveringHeader, font: .callout.weight(.medium))
+                        MarqueeText(text: page.item.title, isActive: isHoveringHeader, font: .callout.weight(.medium), color: coverTint.style(\.title, or: .primary))
                         if !page.item.subtitle.isEmpty {
                             ArtistLink(name: page.item.subtitle, item: pageArtist(page), font: .caption2)
                         }
@@ -94,6 +105,7 @@ struct BrowseScreen: View {
             guard let url = page?.item.artworkURL ?? item.artworkURL else { return }
             _ = await ImageCache.shared.load(url)
             publishLeadingCast()
+            coverLoads += 1
         }
         .onDisappear { if navigation.path.last?.id == item.id || navigation.path.isEmpty { navigation.leadingCastAmount = 0 } }
     }
@@ -106,6 +118,27 @@ struct BrowseScreen: View {
     }
 
     private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
+
+    /// Only an album wears its cover's colour: it is one cover with one palette, where a
+    /// playlist mixes covers and an artist page has an avatar.
+    nonisolated static func wearsCoverTint(_ kind: BrowseKind) -> Bool { kind == .album }
+
+    /// The page's tint: the platter's mix of the cover's accent, held to a readable contrast on
+    /// the plain panel (see `CoverTint.guarded`). Nil for every other kind of page.
+    static func coverTint(kind: BrowseKind, accent: Color?, colorScheme: ColorScheme) -> CoverTint? {
+        guard wearsCoverTint(kind) else { return nil }
+        var tint = CoverTint(accent: accent, colorScheme: colorScheme, platter: ArtworkStyle.shared.platter)?.guarded()
+        tint?.highlightOpacity = colorScheme == .dark ? 0.16 : 0.12
+        return tint
+    }
+
+    /// The album cover's own accent, measured as the platter measures the playing song's.
+    private var pageAccent: Color? {
+        _ = coverLoads
+        let current = page ?? BrowsePage(item: item)
+        guard Self.wearsCoverTint(current.item.kind), let url = current.item.artworkURL else { return nil }
+        return ImageCache.shared.accent(for: url, saturationBoost: ArtworkStyle.shared.platter.scrubberSaturation)
+    }
 
     /// Liked Music is YouTube's automatic playlist: always in the library, never saved or removed.
     nonisolated static func isLikedMusic(_ item: BrowseItem) -> Bool { item.id == "VLLM" || item.id == "LM" }
@@ -121,15 +154,18 @@ struct BrowseScreen: View {
     @State private var isSaving = false
     private var isSaved: Bool { music.isSaved(item) }
 
-    /// A round glass button beside Play, with the same cast.
-    private func heroRoundButton(symbol: String, help: String, cast: Color?, action: @escaping () -> Void) -> some View {
+    /// A round glass button beside Play, with the same cast. On an album the glyph takes the
+    /// cover tint, dimmed while the button can't be used (an explicit colour doesn't dim itself).
+    private func heroRoundButton(symbol: String, help: String, cast: Color?, coverTint: CoverTint?, disabled: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.callout.weight(.semibold))
+                .foregroundStyle(coverTint.style(disabled ? \.dimControl : \.control, or: .primary))
                 .frame(width: Self.heroControlHeight, height: Self.heroControlHeight)
                 .modifier(HeroGlass(shape: Circle(), cast: cast, playCast: playCast))
         }
         .buttonStyle(.pressable)
+        .disabled(disabled)
         .help(help)
     }
 
@@ -241,14 +277,14 @@ struct BrowseScreen: View {
 
     /// The header renders straight away from what the tapped row already knew; only the body
     /// waits for the network.
-    private var content: some View {
-        pageBody(page ?? BrowsePage(item: item))
+    private func content(_ coverTint: CoverTint?) -> some View {
+        pageBody(page ?? BrowsePage(item: item), coverTint: coverTint)
     }
 
-    private func pageBody(_ page: BrowsePage) -> some View {
+    private func pageBody(_ page: BrowsePage, coverTint: CoverTint?) -> some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                header(page)
+                header(page, coverTint: coverTint)
                 switch phase {
                 case .loading:
                     Skeleton.Rows(count: 6, header: true)
@@ -274,7 +310,9 @@ struct BrowseScreen: View {
                     }
                 }
                 ForEach(page.sections) { section in
-                    CollapsibleSection(title: section.title, scope: "page", items: section.items) { BrowseRow(item: $0) }
+                    // The header is this page's; the rows are other albums and artists, with
+                    // covers of their own, so they keep the plain colours.
+                    CollapsibleSection(title: section.title, scope: "page", items: section.items) { BrowseRow(item: $0).environment(\.coverTint, nil) }
                 }
             }
             .padding(.horizontal, Theme.Space.rowInset)
@@ -319,7 +357,7 @@ struct BrowseScreen: View {
         t * t * (3 - 2 * t)
     }
 
-    private func header(_ page: BrowsePage) -> some View {
+    private func header(_ page: BrowsePage, coverTint: CoverTint?) -> some View {
         VStack(spacing: Theme.Space.md) {
             ArtworkView(
                 url: page.item.artworkURL,
@@ -330,6 +368,7 @@ struct BrowseScreen: View {
             VStack(spacing: 2) {
                 Text(page.item.title)
                     .font(.title3.weight(.semibold))
+                    .foregroundStyle(coverTint.style(\.title, or: .primary))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                 if !page.item.subtitle.isEmpty {
@@ -338,7 +377,7 @@ struct BrowseScreen: View {
                 if let detail = page.detail {
                     Text(detail)
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(coverTint.style(\.tertiary, or: .tertiary))
                 }
             }
             if phase == .loading, page.tracks.isEmpty {
@@ -351,22 +390,22 @@ struct BrowseScreen: View {
                 InterpolatedColor(artworkCast(page)) { cast in
                     HStack(spacing: Theme.Space.sm) {
                         if page.item.kind != .artist, !Self.isLikedMusic(page.item) {
-                            heroRoundButton(symbol: isSaved ? "bookmark.fill" : "bookmark", help: isSaved ? "Remove from Library" : "Save to Library", cast: cast) {
+                            heroRoundButton(symbol: isSaved ? "bookmark.fill" : "bookmark", help: isSaved ? "Remove from Library" : "Save to Library", cast: cast, coverTint: coverTint, disabled: page.playlistId == nil || isSaving) {
                                 toggleSaved(page)
                             }
-                            .disabled(page.playlistId == nil || isSaving)
                         }
                         Button {
                             player.play(page.tracks, startingAt: 0, source: page.item)
                         } label: {
                             Label("Play", systemImage: "play.fill")
                                 .font(.callout.weight(.semibold))
+                                .foregroundStyle(coverTint.style(\.control, or: .primary))
                                 .padding(.horizontal, Theme.Space.lg + Theme.Space.xs)
                                 .frame(height: Self.heroControlHeight)
                                 .modifier(HeroGlass(shape: Capsule(), cast: cast, playCast: playCast))
                         }
                         .buttonStyle(.pressable)
-                        heroRoundButton(symbol: "shuffle", help: "Shuffle", cast: cast) {
+                        heroRoundButton(symbol: "shuffle", help: "Shuffle", cast: cast, coverTint: coverTint) {
                             player.playShuffled(page.tracks, source: page.item)
                         }
                     }
