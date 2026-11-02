@@ -7,6 +7,7 @@ import SwiftUI
 /// jumps to it.
 struct QueueList: View {
     @Environment(PlayerService.self) private var player
+    @Environment(NoticeCenter.self) private var notices: NoticeCenter?
     @Environment(\.colorScheme) private var colorScheme
     /// The cover's colour, already interpolated by the platter; the list's text takes the same
     /// share of it as the platter's title and artist do.
@@ -98,9 +99,7 @@ struct QueueList: View {
                     guard let offset = player.upcomingOffset(of: entry.id) else { return }
                     withAnimation(Theme.Motion.settle) { player.playUpcoming(at: offset) }
                 } remove: {
-                    guard let offset = player.upcomingOffset(of: entry.id) else { return }
-                    withAnimation(Theme.Motion.settle) { player.removeUpcoming(at: offset) }
-                    AppDelegate.shared?.queueDidChange()
+                    RowMenu.removeFromQueue(entry.id, player: player, notices: notices)
                 }
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 .listRowSeparator(.hidden)
@@ -209,6 +208,7 @@ private struct QueueRow: View {
     @Environment(PlayerService.self) private var player
     @Environment(YTMusicClient.self) private var music
     @Environment(NavigationModel.self) private var navigation
+    @Environment(NoticeCenter.self) private var notices: NoticeCenter?
     @State private var isHovering = false
 
     var body: some View {
@@ -266,7 +266,7 @@ private struct QueueRow: View {
                 playlists: music.ownPlaylists,
                 addedTo: music.addedTo[track.id] ?? [],
                 perform: perform,
-                add: { playlist in Task { try? await music.add(track, to: playlist) } }
+                add: { playlist in RowMenu.add(track, to: playlist, music: music, notices: notices) }
             )
         }
         .onHover { hovering in
@@ -280,11 +280,11 @@ private struct QueueRow: View {
         switch action {
         case .play: play()
         case .removeFromQueue: remove?()
-        case .like, .unlike: RowMenu.setLiked(action == .like, track, player: player, music: music)
+        case .like, .unlike: RowMenu.setLiked(action == .like, track, player: player, music: music, notices: notices)
         // Radio continuation arrives without links; the menu offered them from a lookup.
         case .goToArtist: RowMenu.open(music.withLinks(track).artistItem, navigation: navigation)
         case .goToAlbum: RowMenu.open(music.withLinks(track).albumItem, navigation: navigation)
-        case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))
+        case .copyLink: RowMenu.copyLink(RowMenu.webURL(for: track), notices: notices)
         default: break
         }
     }
