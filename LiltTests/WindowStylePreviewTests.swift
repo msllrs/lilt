@@ -68,3 +68,91 @@ extension WindowStyleTests {
         #expect(panelGlass.cornerRadius == Theme.Radius.panel)
     }
 }
+
+/// The cards themselves: each mounts the surface its style draws, and a click on one picks it.
+extension WindowStyleTests {
+    /// The picker as Settings wires it, straight onto the shared panel style.
+    private struct WiredPicker: View {
+        @Bindable var style = ArtworkStyle.shared
+        var body: some View { WindowStylePicker(selection: $style.windowStyle) }
+    }
+
+    private static let pickerSize = CGSize(width: 320, height: 160)
+
+    /// Runs `body` with the real stored choice and the shared panel style put back afterwards.
+    private func preservingStyle(_ body: () async throws -> Void) async rethrows {
+        let defaults = UserDefaults.standard
+        let saved = defaults.object(forKey: WindowStyle.key)
+        let panel = ArtworkStyle.shared.panel
+        defer {
+            ArtworkStyle.shared.panel = panel
+            if let saved { defaults.set(saved, forKey: WindowStyle.key) } else { defaults.removeObject(forKey: WindowStyle.key) }
+        }
+        try await body()
+    }
+
+    /// A single click at `point`, given in SwiftUI's coordinates (origin top-left).
+    private func click(_ point: CGPoint, in window: NSWindow) async {
+        let location = CGPoint(x: point.x, y: window.frame.height - point.y)
+        let number = Int(Date.timeIntervalSinceReferenceDate * 1000) % 1_000_000
+        let time = ProcessInfo.processInfo.systemUptime
+        let down = NSEvent.mouseEvent(with: .leftMouseDown, location: location, modifierFlags: [], timestamp: time, windowNumber: window.windowNumber, context: nil, eventNumber: number, clickCount: 1, pressure: 1)!
+        let up = NSEvent.mouseEvent(with: .leftMouseUp, location: location, modifierFlags: [], timestamp: time + 0.05, windowNumber: window.windowNumber, context: nil, eventNumber: number + 1, clickCount: 1, pressure: 0)!
+        window.sendEvent(down)
+        await settle(1)
+        window.sendEvent(up)
+        await settle(4)
+    }
+
+    @Test func eachCardMountsItsOwnSurface() async throws {
+        try await preservingStyle {
+            ArtworkStyle.shared.windowStyle = .normal
+            let (window, hosting) = await mount(WiredPicker(), size: Self.pickerSize)
+            defer { window.close() }
+
+            let glass = subviews(of: NSGlassEffectView.self, in: hosting)
+            let sidebar = subviews(of: NSVisualEffectView.self, in: hosting)
+                .filter { $0.material == .sidebar }
+                .sorted { $0.convert($0.bounds, to: nil).minX < $1.convert($1.bounds, to: nil).minX }
+            // Reduce Transparency would show Glass as Solid; the cards then mount that instead.
+            if NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
+                #expect(glass.isEmpty && sidebar.map(\.state) == [.inactive, .active, .inactive])
+            } else {
+                let card = try #require(glass.first)
+                #expect(glass.count == 1, "Glass is window glass")
+                #expect(sidebar.map(\.state) == [.active, .inactive], "Normal is the active material, Solid its flat rendering")
+                #expect(card.cornerRadius == WindowStylePreview.cornerRadius)
+                #expect(!GlassBackground.followsLiveCorner(card))
+                #expect(card.convert(card.bounds, to: nil).minX < sidebar[0].convert(sidebar[0].bounds, to: nil).minX, "in Glass, Normal, Solid order")
+            }
+            for view in sidebar {
+                #expect(!SidebarBackground.followsLiveCorner(view), "a preview stays off the live corner table")
+                #expect(view.maskImage?.size.width == WindowStylePreview.cornerRadius * 2 + 1)
+                #expect(view.frame.size == WindowStylePreview.size)
+            }
+        }
+    }
+
+    /// A click on a card's miniature, where the surface is, picks that style and saves it.
+    @Test func clickingACardPicksItsStyle() async throws {
+        try await preservingStyle {
+            ArtworkStyle.shared.windowStyle = .glass
+            let (window, _) = await mount(WiredPicker(), size: Self.pickerSize)
+            defer { window.close() }
+            let third = Self.pickerSize.width / 3
+
+            // Cards share the width equally; aim at the middle of each one's miniature.
+            await click(CGPoint(x: third * 2.5, y: Self.pickerSize.height / 2 - Theme.Space.md), in: window)
+            #expect(ArtworkStyle.shared.panel == WindowStyle.solid.panelStyle)
+            #expect(WindowStyle.stored() == .solid)
+
+            await click(CGPoint(x: third * 1.5, y: Self.pickerSize.height / 2 - Theme.Space.md), in: window)
+            #expect(ArtworkStyle.shared.windowStyle == .normal)
+            #expect(WindowStyle.stored() == .normal)
+
+            await click(CGPoint(x: third * 0.5, y: Self.pickerSize.height / 2 - Theme.Space.md), in: window)
+            #expect(ArtworkStyle.shared.windowStyle == .glass)
+            #expect(WindowStyle.stored() == .glass)
+        }
+    }
+}

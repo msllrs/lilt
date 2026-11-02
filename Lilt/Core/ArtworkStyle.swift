@@ -453,6 +453,12 @@ struct NotesStyle: Equatable {
 final class ArtworkStyle {
     static let shared = ArtworkStyle()
 
+    /// The panel's surface as Settings names it. Writing it sets `panel`, which saves the choice.
+    var windowStyle: WindowStyle {
+        get { WindowStyle(panel) }
+        set { panel = newValue.panelStyle }
+    }
+
     // Spotlight: a radial light centred at (centerX, centerY) in unit coordinates, radius as a
     // multiple of the artwork size, fading from `peakOpacity` to clear.
     var spotlightCenterX: Double = 0.5

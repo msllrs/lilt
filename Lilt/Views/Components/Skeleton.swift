@@ -11,9 +11,10 @@ enum Skeleton {
     struct Bar: View {
         var width: CGFloat
         var height: CGFloat = 10
+        var fill: Color = Skeleton.fill
         var body: some View {
             RoundedRectangle(cornerRadius: height / 2, style: .continuous)
-                .fill(Skeleton.fill)
+                .fill(fill)
                 .frame(width: width, height: height)
         }
     }
@@ -23,14 +24,17 @@ enum Skeleton {
     struct Row: View {
         /// Varies the line lengths so a column of rows doesn't read as a grid.
         var seed: Int = 0
+        /// A miniature drawn at a fraction of its size (Settings ▸ Appearance) needs more ink
+        /// than a placeholder does to read at all.
+        var fill: Color = Skeleton.fill
         var body: some View {
             HStack(spacing: Theme.Space.md) {
                 RoundedRectangle(cornerRadius: Theme.Radius.rowArtwork, style: .continuous)
-                    .fill(Skeleton.fill)
+                    .fill(fill)
                     .frame(width: Theme.Size.rowArtwork, height: Theme.Size.rowArtwork)
                 VStack(alignment: .leading, spacing: 7) {
-                    Bar(width: [128, 164, 108, 148, 120][seed % 5], height: 11)
-                    Bar(width: [72, 56, 88, 64, 80][seed % 5], height: 8)
+                    Bar(width: [128, 164, 108, 148, 120][seed % 5], height: 11, fill: fill)
+                    Bar(width: [72, 56, 88, 64, 80][seed % 5], height: 8, fill: fill)
                 }
                 Spacer(minLength: 0)
             }

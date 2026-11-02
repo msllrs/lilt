@@ -62,6 +62,11 @@ enum Theme {
         static let playIcon: CGFloat = 22
         /// A notice's cover or symbol, and its button's height.
         static let noticeArtwork: CGFloat = 24
+        /// Settings ▸ Appearance draws each window style as the panel in miniature: the panel's
+        /// own layout and tokens at this fraction of their size (a 320 × 480 panel is 64 × 96).
+        static let windowStylePreviewScale: CGFloat = 0.2
+        /// The ring round the chosen window style, in the system accent colour.
+        static let selectionRing: CGFloat = 2
     }
 
     /// Every duration here is the designed one stretched to the current `MotionPace`, so the
