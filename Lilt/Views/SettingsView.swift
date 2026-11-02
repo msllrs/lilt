@@ -32,9 +32,27 @@ struct SettingsView: View {
                 Text("Keeps the next song loaded in the background so it starts the moment the current one ends. Uses more memory.")
                     .foregroundStyle(.secondary)
             }
+            DockSection()
         }
         .formStyle(.grouped)
         .frame(width: 380)
+    }
+}
+
+/// The spinning disc on the Dock tile. The spinner watches the stored rate, so a change shows
+/// on the song already playing.
+private struct DockSection: View {
+    @AppStorage(DockSpin.key) private var framesPerSecond = DockSpin.standard.framesPerSecond
+
+    var body: some View {
+        Section("Dock") {
+            Picker("Spinning disc", selection: Binding(
+                get: { DockSpin(framesPerSecond: framesPerSecond) },
+                set: { framesPerSecond = $0.framesPerSecond }
+            )) {
+                ForEach(DockSpin.allCases) { Text($0.title).tag($0) }
+            }
+        }
     }
 }
 

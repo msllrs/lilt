@@ -34,6 +34,34 @@ struct DockSpinnerTests {
         #expect(turned.blueComponent > turned.redComponent)
     }
 
+    /// Settings ▸ Dock takes effect on the song already playing: the lap is rebuilt at the new
+    /// rate, or the tile goes still, without waiting for the next cover.
+    @Test func changingTheSpinRateTakesEffectAtOnce() {
+        let saved = UserDefaults.standard.object(forKey: DockSpin.key)
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: DockSpin.key) } else { UserDefaults.standard.removeObject(forKey: DockSpin.key) }
+        }
+        UserDefaults.standard.set(DockSpin.standard.rawValue, forKey: DockSpin.key)
+        let still = NSImage(size: NSSize(width: 512, height: 512))
+        var shown: [NSImage?] = []
+        let spinner = DockSpinner(present: { shown.append($0) })
+        spinner.show(still: { still }) { [cover] angle in
+            DiscIcon.tile(artwork: cover, edgeLuminance: 0.5, accent: .red, side: 16, scale: 1, angle: angle)
+        }
+        #expect(spinner.frameCount == 120, "eight seconds a lap at 15 fps")
+
+        UserDefaults.standard.set(DockSpin.smooth.rawValue, forKey: DockSpin.key)
+        #expect(spinner.frameCount == 240, "still turning at the old rate")
+
+        UserDefaults.standard.set(DockSpin.off.rawValue, forKey: DockSpin.key)
+        #expect(spinner.frameCount == 0)
+        #expect(shown.last! === still, "the still tile didn't come back")
+
+        UserDefaults.standard.set(DockSpin.standard.rawValue, forKey: DockSpin.key)
+        #expect(spinner.frameCount == 120)
+        #expect(shown.last! !== still, "turning again but showing the still tile")
+    }
+
     @Test func drawingAFrameIsCheap() {
         let start = Date.now
         for i in 0..<24 { _ = tile(CGFloat(i) * 15) }

@@ -390,7 +390,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let url else {
             // Nothing playing: the app icon from the bundle, not a redrawn stand-in.
             dockSpinner.clear()
-            NSApp.applicationIconImage = nil
             return
         }
         Task { [weak self] in
@@ -402,12 +401,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             guard let image, self?.dockArtworkURL == url else { return }
             let accent = (ImageCache.shared.accent(for: large, saturationBoost: 1) ?? ImageCache.shared.tint(for: large, saturationBoost: 1)).map { NSColor($0) }
             let edgeLuminance = ImageCache.shared.edgeLuminance(for: large)
-            guard DockSpinner.framesPerSecond > 0 else {
-                self?.dockSpinner.clear()
-                NSApp.applicationIconImage = DiscIcon.tile(artwork: image, edgeLuminance: edgeLuminance, accent: accent)
-                return
-            }
-            self?.dockSpinner.show { angle in
+            // Spin off (Settings ▸ Dock), the still 512 tile; the spinner switches between the
+            // two whenever the setting changes.
+            self?.dockSpinner.show(still: { DiscIcon.tile(artwork: image, edgeLuminance: edgeLuminance, accent: accent) }) { angle in
                 DiscIcon.tile(artwork: image, edgeLuminance: edgeLuminance, accent: accent, side: 128, scale: 2, angle: angle)
             }
         }
