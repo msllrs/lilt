@@ -23,8 +23,11 @@ final class DockSpinner {
     private var isPlaying = false
     /// The screen is asleep or the user switched away: nobody can see the Dock.
     private var isOutOfSight = false
+    /// The Dock itself may be hidden away, waiting for the pointer.
+    private let dock = DockVisibility()
 
     init() {
+        dock.onChange = { [weak self] in self?.update() }
         let center = NSWorkspace.shared.notificationCenter
         for (name, hidden) in [
             (NSWorkspace.screensDidSleepNotification, true), (NSWorkspace.screensDidWakeNotification, false),
@@ -61,7 +64,11 @@ final class DockSpinner {
 
     private func update() {
         let fps = Self.framesPerSecond
-        let runs = renderer != nil && isPlaying && !isOutOfSight && fps > 0 && frames.count > 1
+        let wantsToSpin = renderer != nil && isPlaying && !isOutOfSight && fps > 0 && frames.count > 1
+        // Hidden, the tile rests on its current frame and carries on from it when the Dock
+        // comes up.
+        dock.isWatching = wantsToSpin
+        let runs = wantsToSpin && dock.isInSight
         guard runs != (timer != nil) else { return }
         timer?.invalidate()
         timer = nil
