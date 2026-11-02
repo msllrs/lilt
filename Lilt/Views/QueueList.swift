@@ -9,15 +9,13 @@ struct QueueList: View {
     @Environment(PlayerService.self) private var player
     @Environment(NoticeCenter.self) private var notices: NoticeCenter?
     @Environment(\.colorScheme) private var colorScheme
-    /// The cover's colour, already interpolated by the platter; the list's text takes the same
-    /// share of it as the platter's title and artist do.
+    /// The cover's colour, already interpolated by the platter; the list wears the platter's
+    /// palette, so its text takes the same share as the platter's title and artist do.
     var accent: Color? = nil
     @State private var scrollEdges = ScrollEdges()
 
-    private var tint: CoverTint? { CoverTint(accent: accent, colorScheme: colorScheme, platter: ArtworkStyle.shared.platter) }
-    private var titleColor: Color { tint?.title ?? (colorScheme == .dark ? .white : .black) }
-    private var secondaryColor: Color { tint?.secondary ?? .secondary }
-    private var tertiaryColor: Color { tint?.tertiary ?? Color(nsColor: .tertiaryLabelColor) }
+    private var palette: CoverPalette { CoverPalette(accent: accent, colorScheme: colorScheme, surface: .platter) }
+    private var tertiaryColor: Color { palette.tertiary ?? Color(nsColor: .tertiaryLabelColor) }
 
     /// Whether the list has content hidden past each end.
     private struct ScrollEdges: Equatable {
@@ -101,7 +99,7 @@ struct QueueList: View {
             // Each entry has its own identity (the same track can be queued twice), so rows
             // animate out and shuffle up instead of swapping their contents.
             ForEach(entries) { entry in
-                QueueRow(track: entry.track, titleColor: titleColor, secondaryColor: secondaryColor) {
+                QueueRow(track: entry.track, palette: palette) {
                     guard let offset = player.upcomingOffset(of: entry.id) else { return }
                     withAnimation(Theme.Motion.settle) { player.playUpcoming(at: offset) }
                 } remove: {
@@ -131,7 +129,7 @@ struct QueueList: View {
                 // Keyed by track (a repeat gets a numbered key), so when the group shifts the
                 // rows move rather than crossfading their text in place.
                 ForEach(Array(Self.keyed(automatic).enumerated()), id: \.element.key) { offset, entry in
-                    QueueRow(track: entry.track, titleColor: titleColor, secondaryColor: secondaryColor, play: {
+                    QueueRow(track: entry.track, palette: palette, play: {
                         withAnimation(Theme.Motion.settle) { player.playAutomatic(at: offset) }
                     }, remove: nil)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
@@ -206,9 +204,8 @@ struct QueueList: View {
 
 private struct QueueRow: View {
     let track: Track
-    /// Title and artist colours, carrying the platter's share of the cover's colour.
-    let titleColor: Color
-    let secondaryColor: Color
+    /// The platter's palette: the title and artist carry its share of the cover's colour.
+    let palette: CoverPalette
     let play: () -> Void
     /// Nil for the automatic group, which can't be edited.
     let remove: (() -> Void)?
@@ -235,11 +232,11 @@ private struct QueueRow: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(track.title)
                         .font(.caption)
-                        .foregroundStyle(titleColor)
+                        .foregroundStyle(palette.primary ?? palette.mono)
                         .lineLimit(1)
                     Text(track.artist)
                         .font(.caption2)
-                        .foregroundStyle(secondaryColor)
+                        .foregroundStyle(palette.secondary ?? .secondary)
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -269,8 +266,8 @@ private struct QueueRow: View {
         }
         .background {
             RoundedRectangle(cornerRadius: QueueList.rowHighlightRadius, style: .continuous)
-                .fill(.fill.quaternary)
-                .opacity(isHovering ? 0.6 : 0)
+                .fill(palette.highlightFill)
+                .opacity(isHovering ? palette.hoverHighlightOpacity : 0)
         }
         // The table row doesn't clip (the cover's shadow spills past it), so the band is
         // clipped to the highlight itself.

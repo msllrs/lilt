@@ -15,11 +15,10 @@ struct AmbiencePanel: View {
     @Environment(AmbienceService.self) private var ambience
     @Environment(\.colorScheme) private var colorScheme
 
-    private var tint: Color {
-        let mono = colorScheme == .dark ? Color.white : Color.black
-        return accent.map { mono.mix(with: $0, by: ArtworkStyle.shared.platter.controlsTint) } ?? mono
-    }
-    private var dim: Color { accent.map { Color.secondary.mix(with: $0, by: ArtworkStyle.shared.platter.controlsTint) } ?? .secondary }
+    /// The platter's palette: active sounds wear its control colour, idle ones its dim one.
+    private var palette: CoverPalette { CoverPalette(accent: accent, colorScheme: colorScheme, surface: .platter) }
+    private var tint: Color { palette.control ?? palette.mono }
+    private var dim: Color { palette.dimControl ?? .secondary }
 
     var body: some View {
         @Bindable var ambience = ambience

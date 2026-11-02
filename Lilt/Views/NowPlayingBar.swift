@@ -11,6 +11,8 @@ struct NowPlayingBar: View {
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous) }
     private var platter: PlatterStyle { ArtworkStyle.shared.platter }
     private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
+    /// The cover's colour as every part of the platter wears it, from the interpolated accent.
+    private func coverPalette(_ accent: Color?) -> CoverPalette { CoverPalette(accent: accent, colorScheme: colorScheme, surface: .platter) }
 
     /// The cover's colour as the play capsule samples it, for the rim and glow.
     private var cast: Color? {
@@ -32,10 +34,10 @@ struct NowPlayingBar: View {
         return ImageCache.shared.cached(url) ?? ImageCache.shared.anyVariant(for: url)
     }
 
-    /// The cover's dominant colour, for the corner accent and the scrubber.
+    /// The cover's dominant colour, the seed of the platter's palette.
     private var accent: Color? {
         guard let url = player.displayArtworkURL else { return nil }
-        return ImageCache.shared.accent(for: url, saturationBoost: platter.scrubberSaturation)
+        return ImageCache.shared.accent(for: url, saturationBoost: ArtworkStyle.shared.palette.accentSaturation)
     }
 
     @State private var isScrubbing = false
@@ -200,10 +202,11 @@ struct NowPlayingBar: View {
                 }
                 // The dominant colour pooled behind the cover (or along the top), as if it spilled.
                 InterpolatedColor(accent) { accent in
-                    if let accent, platter.cornerAccentOpacity > 0 {
+                    let palette = coverPalette(accent)
+                    if let wash = palette.wash, palette.washOpacity > 0 {
                         shape.fill(
                             EllipticalGradient(
-                                colors: [accent.opacity(platter.cornerAccentOpacity), .clear],
+                                colors: [wash, .clear],
                                 center: platter.accentPlacement.unitPoint,
                                 startRadiusFraction: 0,
                                 endRadiusFraction: platter.cornerAccentRadius
@@ -314,20 +317,18 @@ struct NowPlayingBar: View {
             artwork
             // Title and artist take a little of the cover's colour too, the artist half as much.
             InterpolatedColor(accent) { accent in
-                let tint = CoverTint(accent: accent, colorScheme: colorScheme, platter: platter)
-                let title = tint?.title
-                let artist = tint?.secondary
+                let palette = coverPalette(accent)
                 VStack(alignment: .leading, spacing: 2) {
                     MarqueeText(
                         text: player.displayTitle,
                         isActive: isHoveringPlatter,
                         font: .callout.weight(.medium),
-                        color: title.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary)
+                        color: palette.style(\.primary, or: .primary)
                     )
                     // The title does nothing with a click, so a double-click on it still reaches
                     // the platter's mini toggle beneath.
                     .allowsHitTesting(false)
-                    ArtistLink(name: player.displayArtist, item: player.current?.artistItem, color: artist ?? .secondary)
+                    ArtistLink(name: player.displayArtist, item: player.current?.artistItem, color: palette.secondary ?? .secondary)
                 }
                 // The text fades out beneath the like button (below) rather than making room, so
                 // nothing shifts when the pointer arrives; a liked thumb stays without the pointer,
@@ -360,8 +361,8 @@ struct NowPlayingBar: View {
                         symbol: player.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
                         isOn: player.isLiked,
                         revealed: isHoveringPlatter,
-                        tint: tint?.control ?? (colorScheme == .dark ? .white : .black),
-                        dimTint: tint?.dimControl,
+                        tint: palette.control ?? palette.mono,
+                        dimTint: palette.dimControl,
                         attention: player.likeToggles
                     ) {
                         player.toggleLike()
@@ -376,9 +377,9 @@ struct NowPlayingBar: View {
         // The glyphs take a faint share of the cover's colour (less than the scrubber), and
         // it slides to the next song's like everything else.
         InterpolatedColor(accent) { accent in
-            let cover = CoverTint(accent: accent, colorScheme: colorScheme, platter: platter)
-            let tint = cover?.control ?? (colorScheme == .dark ? .white : .black)
-            let dim = cover?.dimControl
+            let palette = coverPalette(accent)
+            let tint = palette.control ?? palette.mono
+            let dim = palette.dimControl
             HStack(spacing: 0) {
                 // Shuffle and repeat flank the transport; they appear on hover, or stay when on.
                 ModeButton(symbol: "shuffle", isOn: player.isShuffled, revealed: isHoveringPlatter, tint: tint, dimTint: dim) {
@@ -445,13 +446,13 @@ struct NowPlayingBar: View {
 
     /// Elapsed on the left, the line in the middle, total on the right.
     private var scrubber: some View {
-        // The line takes on the cover's dominant colour by the tweakable amount, the times a
-        // fainter share (like the artist line), and the colour slides to the next song's rather
-        // than switching.
+        // The line is coloured like the controls (or, with the platter's own override, its own
+        // share of the accent), the times like the tertiary lines, and the colour slides to the
+        // next song's rather than switching.
         InterpolatedColor(accent) { accent in
-            let mono = colorScheme == .dark ? Color.white : Color.black
-            let line = accent.map { mono.mix(with: $0, by: platter.scrubberLikeControls ? platter.controlsTint : platter.scrubberTint) }
-            let times = CoverTint(accent: accent, colorScheme: colorScheme, platter: platter)?.tertiary
+            let palette = coverPalette(accent)
+            let line = platter.scrubberLikeControls ? palette.control : accent.map { palette.mono.mix(with: $0, by: platter.scrubberTint) }
+            let times = palette.tertiary
             HStack(spacing: Theme.Space.xs + 2) {
                 Text(timeString(isScrubbing ? scrubValue : player.currentTime))
                     .fixedSize()
