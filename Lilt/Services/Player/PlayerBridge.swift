@@ -185,11 +185,21 @@ final class PlayerBridge: NSObject, PlayerBridging {
         case "PLAYING":
             onEvent?(.playing(videoId: body["videoId"] as? String))
         case "CUED":
-            guard let videoId = body["videoId"] as? String, videoId == cueVideoId else { return }
+            guard let videoId = body["videoId"] as? String, videoId == cueVideoId else {
+                #if DEBUG
+                DebugLog.player("Lilt gapless: page CUED \(body["videoId"] as? String ?? "nil") dropped, cueing \(cueVideoId ?? "nothing")")
+                #endif
+                return
+            }
             cueVideoId = nil
             onEvent?(.cued(videoId: videoId))
         case "CUE_FAILED":
-            guard let videoId = body["videoId"] as? String, videoId == cueVideoId else { return }
+            guard let videoId = body["videoId"] as? String, videoId == cueVideoId else {
+                #if DEBUG
+                DebugLog.player("Lilt gapless: page CUE_FAILED \(body["videoId"] as? String ?? "nil") dropped, cueing \(cueVideoId ?? "nothing")")
+                #endif
+                return
+            }
             cueVideoId = nil
             onEvent?(.cueFailed(videoId: videoId))
         case "STATE_UPDATE":

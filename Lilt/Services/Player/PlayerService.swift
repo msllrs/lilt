@@ -93,6 +93,8 @@ final class PlayerService {
     @ObservationIgnored private var awaitingSound: String?
     @ObservationIgnored private var handoverWatch: Task<Void, Never>?
     @ObservationIgnored var handoverTimeout: Duration = .seconds(3)
+    /// "web player 1", "web player 2", in the order they were made, for the gapless trace.
+    @ObservationIgnored private var bridgeNames: [ObjectIdentifier: String] = [:]
     /// Looks up artist/album ids for a track that arrived without them. Wired by the app.
     @ObservationIgnored var linkResolver: ((String) async throws -> TrackLinks?)?
     /// Reports each like the player makes, so rows elsewhere agree. Wired by the app.
@@ -162,8 +164,10 @@ final class PlayerService {
     /// Only the web player you hear drives playback; the standby's state, ends and remote
     /// commands are about a song nobody is listening to.
     private func route(_ player: any PlayerBridging) {
+        bridgeNames[ObjectIdentifier(player)] = "web player \(bridgeNames.count + 1)"
         player.onEvent = { [weak self, weak player] event in
             guard let self, let player else { return }
+            self.traceArrival(of: event, from: player)
             if player === self.bridge {
                 self.handle(event)
             } else if player === self.standby {
@@ -486,7 +490,12 @@ final class PlayerService {
         isLoading = true
         wantsAutoplayNudge = true
         handedOver = canHandOver(to: queue[index].id)
-        if handedOver { handOver() } else { bridge.load(videoId: queue[index].id) }
+        if handedOver {
+            handOver()
+        } else {
+            trace("fallback load \(queue[index].id) on \(describe(bridge)): \(whyNotHandedOver(to: queue[index].id))")
+            bridge.load(videoId: queue[index].id)
+        }
         recents?.recordPlayed(queue[index], artwork: liveArtworkURL)
         save()
     }
@@ -531,7 +540,11 @@ final class PlayerService {
                 awaitingSound = nil
                 handoverWatch?.cancel()
             }
-            guard let trace = gap, videoId == trace.new.id else { return }
+            guard let trace = gap, videoId == trace.new.id else {
+                self.trace("gap trace " + (gap.map { "waits for \($0.new.id), not \(videoId ?? "nil")" } ?? "none running for \(videoId ?? "nil")"))
+                return
+            }
+            self.trace("gap trace matched \(trace.new.id)")
             gap = nil
             #if DEBUG
             let ms = Int((Date.now.timeIntervalSince(trace.endedAt) * 1000).rounded())
@@ -567,6 +580,7 @@ final class PlayerService {
         let standby = self.standby ?? makeStandby()
         standbyTrackId = next.id
         isStandbyReady = false
+        trace("standby cue requested: \(next.id) on \(describe(standby))")
         standby.cue(videoId: next.id)
     }
 
@@ -620,6 +634,7 @@ final class PlayerService {
     /// (it has ended, or you skipped it) and waits for whatever follows.
     private func handOver() {
         guard let next = standby else { return }
+        trace("handover started: \(current?.id ?? "nil") on \(describe(next)), \(describe(bridge)) held")
         let old = bridge
         bridge = next
         standby = old
@@ -635,8 +650,53 @@ final class PlayerService {
             // It never sounded (YouTube paused it, or the page lost its video): load it the
             // ordinary way on the same page.
             self.awaitingSound = nil
+            self.trace("fallback load \(id) on \(self.describe(self.bridge)): the handover made no sound within \(timeout)")
             self.bridge.load(videoId: id)
         }
+    }
+
+    // MARK: Gapless trace (DEBUG)
+
+    /// `Lilt gapless: …` lines in the unified log, one per step of a handover, to see in the
+    /// running app where one stops. Nothing in release builds.
+    private func trace(_ message: @autoclosure () -> String) {
+        #if DEBUG
+        DebugLog.player("Lilt gapless: " + message())
+        #endif
+    }
+
+    /// The web player's name and whether it's the one you hear.
+    private func describe(_ player: (any PlayerBridging)?) -> String {
+        guard let player else { return "no web player" }
+        let name = bridgeNames[ObjectIdentifier(player)] ?? "web player ?"
+        let role = player === bridge ? "active" : player === standby ? "standby" : "detached"
+        return "\(name) (\(role))"
+    }
+
+    /// Events from either web player as they arrive, before anything filters them.
+    private func traceArrival(of event: PlayerEvent, from player: any PlayerBridging) {
+        switch event {
+        case .ended(let id):
+            trace("TRACK_ENDED from \(describe(player)): \(id ?? "nil"), current \(current?.id ?? "nil")" + (id == current?.id ? "" : " (mismatch)"))
+        case .playing(let id):
+            trace("PLAYING from \(describe(player)): \(id ?? "nil"), current \(current?.id ?? "nil")")
+        case .cued(let id):
+            trace("CUED from \(describe(player)): \(id), standby holds \(standbyTrackId ?? "nil")")
+        case .cueFailed(let id):
+            trace("CUE_FAILED from \(describe(player)): \(id), standby holds \(standbyTrackId ?? "nil")")
+        default:
+            break
+        }
+    }
+
+    /// Which of `canHandOver`'s conditions failed.
+    private func whyNotHandedOver(to videoId: String) -> String {
+        if !isGapless { return "gapless is off" }
+        guard standby != nil else { return "no standby yet" }
+        if pendingSeek != nil { return "resuming partway through" }
+        if standbyTrackId != videoId { return "standby holds \(standbyTrackId ?? "nothing"), not \(videoId)" }
+        if !isStandbyReady { return "standby still cueing \(videoId)" }
+        return "unknown"
     }
 
     private func apply(_ s: PlaybackSnapshot) {
