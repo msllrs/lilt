@@ -14,6 +14,7 @@ struct SpinningArtwork: View {
 
     /// 0 = ordinary artwork, 1 = disc. Animated explicitly.
     @Environment(\.screenIsParked) private var parked
+    @Environment(\.discsHoldStill) private var holdsStill
     @State private var disc: CGFloat
     /// Angle held when the spin last stopped, and when it resumed.
     @State private var baseAngle: Double = 0
@@ -25,6 +26,8 @@ struct SpinningArtwork: View {
 
     /// One full turn every eight seconds.
     static let degreesPerSecond: Double = 45
+    /// Settings ▸ Appearance ▸ Spin the cover of the playing song (on unless turned off).
+    static let spinsKey = "spinPlayingCover"
 
     init(url: URL?, size: CGFloat, restRadius: CGFloat, context: ArtworkContext = .row, isDisc: Bool, isSpinning: Bool) {
         self.url = url
@@ -42,7 +45,7 @@ struct SpinningArtwork: View {
     var body: some View {
         ArtworkView(
             url: url, size: size, radius: radius, context: context,
-            spin: turning ? ArtworkSpin(baseAngle: baseAngle, resumedAt: resumedAt, degreesPerSecond: Self.degreesPerSecond, paused: !isSpinning || parked) : nil
+            spin: turning ? spin : nil
         )
         // A real hole through the middle, so the background shows like a CD's centre.
         .mask {
@@ -66,6 +69,12 @@ struct SpinningArtwork: View {
                 self.resumedAt = nil
             }
         }
+        // Held still or let go, the turn starts over from upright: the picture eases there
+        // from wherever it was, and starts turning from there.
+        .onChange(of: holdsStill) { _, _ in
+            baseAngle = 0
+            resumedAt = isSpinning ? .now : nil
+        }
         .onChange(of: isDisc) { _, on in
             if on { turning = true }
             withAnimation(Theme.Motion.standard, completionCriteria: .removed) {
@@ -80,6 +89,14 @@ struct SpinningArtwork: View {
             }
             if !on { resumedAt = nil }
         }
+    }
+
+    /// Held still, the disc rests upright whatever the clock says; the clock keeps time
+    /// underneath and is reset when the hold ends.
+    private var spin: ArtworkSpin {
+        holdsStill
+            ? ArtworkSpin(baseAngle: 0, resumedAt: nil, degreesPerSecond: Self.degreesPerSecond, paused: true)
+            : ArtworkSpin(baseAngle: baseAngle, resumedAt: resumedAt, degreesPerSecond: Self.degreesPerSecond, paused: !isSpinning || parked)
     }
 
     private var radius: CGFloat { restRadius + (size / 2 - restRadius) * disc }

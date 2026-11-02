@@ -42,10 +42,14 @@ extension UserDefaults {
 /// so once the first lap is done a frame costs only the handover to the Dock.
 @MainActor
 final class DockSpinner {
-    /// Frames handed to the Dock per second; 0 leaves the tile still.
-    static var framesPerSecond: Int {
+    /// Frames handed to the Dock per second, as Settings ▸ Dock has it; 0 leaves the tile still.
+    static var storedFramesPerSecond: Int {
         UserDefaults.standard.object(forKey: DockSpin.key) as? Int ?? DockSpin.standard.framesPerSecond
     }
+
+    /// The rate in use. Reduce Motion stills the tile too: the Dock is always in view at the
+    /// edge of the screen, which is just where a turning picture is hardest to ignore.
+    var framesPerSecond: Int { reducesMotion() ? 0 : Self.storedFramesPerSecond }
 
     /// Draws the tile with the cover turned by the given angle.
     typealias Renderer = @MainActor (_ angle: CGFloat) -> NSImage
@@ -63,13 +67,18 @@ final class DockSpinner {
     private let dock = DockVisibility()
     /// Hands the Dock its picture; nil puts the bundle's icon back. Tests watch it instead.
     private let presentIcon: @MainActor (NSImage?) -> Void
+    private let reducesMotion: @MainActor () -> Bool
     private var rateObservation: NSKeyValueObservation?
 
     /// Frames in the current lap; 0 while the tile is still.
     var frameCount: Int { frames.count }
 
-    init(present: @escaping @MainActor (NSImage?) -> Void = { NSApp.applicationIconImage = $0 }) {
+    init(
+        present: @escaping @MainActor (NSImage?) -> Void = { NSApp.applicationIconImage = $0 },
+        reducesMotion: @escaping @MainActor () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    ) {
         presentIcon = present
+        self.reducesMotion = reducesMotion
         // Settings ▸ Dock applies to the song already playing, not just the next one.
         rateObservation = UserDefaults.standard.observe(\.dockSpinFPS) { [weak self] _, _ in
             if Thread.isMainThread {
@@ -87,6 +96,10 @@ final class DockSpinner {
             center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.isOutOfSight = hidden; self?.update() }
             }
+        }
+        // Reduce Motion turned on or off in System Settings ▸ Accessibility ▸ Display.
+        center.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.rebuildLap() }
         }
     }
 
@@ -113,7 +126,7 @@ final class DockSpinner {
     /// angle it had reached; turned off, the still tile comes back.
     private func rebuildLap() {
         guard renderer != nil else { return }
-        let fps = Self.framesPerSecond
+        let fps = framesPerSecond
         if fps <= 0 {
             frames = []
             index = 0
@@ -139,7 +152,7 @@ final class DockSpinner {
     }
 
     private func update() {
-        let fps = Self.framesPerSecond
+        let fps = framesPerSecond
         let wantsToSpin = renderer != nil && isPlaying && !isOutOfSight && fps > 0 && frames.count > 1
         // Hidden, the tile rests on its current frame and carries on from it when the Dock
         // comes up.

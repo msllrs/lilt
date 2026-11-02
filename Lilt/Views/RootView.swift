@@ -6,6 +6,9 @@ struct RootView: View {
     /// The column's height while expanded. In mini the window is only as tall as the platter, so
     /// the (invisible) column keeps this size instead of reflowing, and reports none of it.
     @State private var columnHeight: CGFloat = 0
+    /// Settings ▸ Appearance, and the system's Reduce Motion: read once here for every disc.
+    @AppStorage(SpinningArtwork.spinsKey) private var spinsPlayingCover = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let mini = navigation.isMiniPlayer
@@ -76,6 +79,7 @@ struct RootView: View {
         // Everything outside a screen (the platter's marquee and disc) pauses while nobody can
         // see the panel too; screens combine this with their own parked state above.
         .environment(\.screenIsParked, navigation.isPanelOutOfSight)
+        .environment(\.discsHoldStill, !spinsPlayingCover || reduceMotion)
     }
 }
 
@@ -260,4 +264,7 @@ extension EnvironmentValues {
     /// True inside a navigation screen that is mounted but hidden under another, and throughout
     /// the panel while nobody can see it.
     @Entry var screenIsParked: Bool = false
+    /// The playing song's disc stays a disc but doesn't turn: spinning is off in Settings ▸
+    /// Appearance, or Reduce Motion is on.
+    @Entry var discsHoldStill: Bool = false
 }

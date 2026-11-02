@@ -44,7 +44,7 @@ struct DockSpinnerTests {
         UserDefaults.standard.set(DockSpin.standard.rawValue, forKey: DockSpin.key)
         let still = NSImage(size: NSSize(width: 512, height: 512))
         var shown: [NSImage?] = []
-        let spinner = DockSpinner(present: { shown.append($0) })
+        let spinner = DockSpinner(present: { shown.append($0) }, reducesMotion: { false })
         spinner.show(still: { still }) { [cover] angle in
             DiscIcon.tile(artwork: cover, edgeLuminance: 0.5, accent: .red, side: 16, scale: 1, angle: angle)
         }
@@ -60,6 +60,18 @@ struct DockSpinnerTests {
         UserDefaults.standard.set(DockSpin.standard.rawValue, forKey: DockSpin.key)
         #expect(spinner.frameCount == 120)
         #expect(shown.last! !== still, "turning again but showing the still tile")
+    }
+
+    /// Reduce Motion stills the Dock tile whatever Settings ▸ Dock says.
+    @Test func reduceMotionShowsTheStillTile() {
+        let still = NSImage(size: NSSize(width: 512, height: 512))
+        var shown: [NSImage?] = []
+        let spinner = DockSpinner(present: { shown.append($0) }, reducesMotion: { true })
+        spinner.show(still: { still }) { [cover] angle in
+            DiscIcon.tile(artwork: cover, edgeLuminance: 0.5, accent: .red, side: 16, scale: 1, angle: angle)
+        }
+        #expect(spinner.frameCount == 0)
+        #expect(shown.last! === still)
     }
 
     @Test func drawingAFrameIsCheap() {

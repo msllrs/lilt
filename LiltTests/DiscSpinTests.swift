@@ -29,6 +29,8 @@ struct DiscSpinTests {
     /// Clockwise degrees, as the layer's own (y-up, so negated) radians.
     private static func radians(_ degrees: Double) -> Double { -degrees * .pi / 180 }
 
+    private static func modelRadians(view: SpinningPictureView) -> Double { modelRadians(view) }
+
     private static func modelRadians(_ view: SpinningPictureView) -> Double {
         (view.picture.value(forKeyPath: "transform.rotation.z") as? Double) ?? .nan
     }
@@ -115,6 +117,8 @@ struct DiscSpinTests {
     @Observable final class Disc {
         var isDisc: Bool
         var isSpinning: Bool
+        /// Settings ▸ Appearance off, or Reduce Motion on.
+        var holdsStill = false
         init(isDisc: Bool, isSpinning: Bool) { self.isDisc = isDisc; self.isSpinning = isSpinning }
     }
 
@@ -128,6 +132,7 @@ struct DiscSpinTests {
             }
             .buttonStyle(.plain)
             .frame(width: 120, height: 120)
+            .environment(\.discsHoldStill, disc.holdsStill)
         }
     }
 
@@ -199,6 +204,30 @@ struct DiscSpinTests {
         // Once upright, the plain image takes over again.
         await settle(0.8)
         #expect(Self.pictures(in: hosting).isEmpty)
+    }
+
+    /// Spinning off in Settings, or Reduce Motion: the playing song's cover stays a disc but
+    /// settles upright and rests there; let go, it turns again from upright.
+    @Test func aDiscHeldStillRestsUpright() async throws {
+        let disc = Disc(isDisc: true, isSpinning: true)
+        let hosting = CountingHostingView(rootView: Harness(disc: disc, url: Self.cachedCoverURL()))
+        let window = window(hosting)
+        defer { window.close() }
+        await settle(0.6)
+        let picture = try #require(Self.pictures(in: hosting).first)
+        #expect(picture.displayedDegrees > 10)
+
+        disc.holdsStill = true
+        await settle(0.1)
+        #expect(Self.pictures(in: hosting).first === picture, "no longer a disc")
+        // Not turning: at most the ease back upright, which ends where the model already rests.
+        #expect(!(picture.picture.animation(forKey: SpinningPictureView.spinKey) is CABasicAnimation))
+        #expect(abs(Self.modelRadians(view: picture).truncatingRemainder(dividingBy: 2 * .pi)) < 1e-9)
+
+        disc.holdsStill = false
+        await settle(0.3)
+        #expect(picture.picture.animation(forKey: SpinningPictureView.spinKey) is CABasicAnimation)
+        #expect(picture.displayedDegrees > 5 && picture.displayedDegrees < 45)
     }
 
     /// The disc is the label of the row's play/pause button; the layer under it mustn't take the

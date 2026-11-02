@@ -33,12 +33,29 @@ struct SettingsView: View {
                 Text("Keeps the next song loaded in the background so it starts the moment the current one ends. Uses more memory.")
                     .foregroundStyle(.secondary)
             }
+            AppearanceSection()
             DockSection()
             NotificationsSection()
             UpdatesSection()
         }
         .formStyle(.grouped)
         .frame(width: 380)
+    }
+}
+
+/// The disc in lists and page headers. With Reduce Motion on it rests whatever this says.
+private struct AppearanceSection: View {
+    @AppStorage(SpinningArtwork.spinsKey) private var spinsPlayingCover = true
+
+    var body: some View {
+        Section {
+            Toggle("Spin the cover of the playing song", isOn: $spinsPlayingCover)
+        } header: {
+            Text("Appearance")
+        } footer: {
+            Text("With Reduce Motion on, the cover stays still here and in the Dock.")
+                .foregroundStyle(.secondary)
+        }
     }
 }
 
