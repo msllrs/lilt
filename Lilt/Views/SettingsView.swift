@@ -54,26 +54,46 @@ struct SettingsView: View {
 
 /// The panel's surface, and the disc in lists and page headers. The window style edits the same
 /// `ArtworkStyle.panel` the panel draws from (and saves), so the open panel restyles at once.
-/// With Reduce Motion on the disc rests whatever this says; with Reduce Transparency on, Glass
-/// shows as Solid.
+/// Each style is a card showing the panel in miniature on its real surface, its platter in the
+/// playing cover's colour. With Reduce Motion on the disc rests whatever this says; with Reduce
+/// Transparency on, Glass shows as Solid, and its card says so.
 private struct AppearanceSection: View {
     @AppStorage(SpinningArtwork.spinsKey) private var spinsPlayingCover = true
-    private var style = ArtworkStyle.shared
+    @Bindable private var style = ArtworkStyle.shared
+    @Environment(PlayerService.self) private var player
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    /// The cover's dominant colour, as the platter takes it.
+    private var accent: Color? {
+        guard let url = player.displayArtworkURL else { return nil }
+        return ImageCache.shared.accent(for: url, saturationBoost: style.platter.scrubberSaturation)
+    }
+
+    private var artwork: NSImage? {
+        guard let url = player.displayArtworkURL else { return nil }
+        return ImageCache.shared.cached(url) ?? ImageCache.shared.anyVariant(for: url)
+    }
 
     var body: some View {
         Section {
-            Picker("Window style", selection: Binding(
-                get: { WindowStyle(style.panel) },
-                set: { style.panel = $0.panelStyle }
-            )) {
-                ForEach(WindowStyle.allCases) { Text($0.title).tag($0) }
+            VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                // The picker carries this name for VoiceOver itself.
+                Text("Window style")
+                    .accessibilityHidden(true)
+                InterpolatedColor(accent) { accent in
+                    WindowStylePicker(selection: $style.windowStyle, accent: accent, artwork: artwork)
+                }
+                if reduceTransparency {
+                    Text("Glass is shown as Solid while Reduce Transparency is on.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .pickerStyle(.segmented)
             Toggle("Spin the cover of the playing song", isOn: $spinsPlayingCover)
         } header: {
             Text("Appearance")
         } footer: {
-            Text("With Reduce Transparency on, Glass shows as Solid. With Reduce Motion on, the cover stays still here and in the Dock.")
+            Text("With Reduce Motion on, the cover stays still here and in the Dock.")
                 .foregroundStyle(.secondary)
         }
     }
