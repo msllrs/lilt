@@ -29,6 +29,9 @@ enum PlayerEvent {
     /// Native queue mode: whether YouTube Music's own Up Next now has `videoId` straight after
     /// the playing song (`ok`), read back from the page's queue, or why not.
     case queuedNext(videoId: String, ok: Bool, reason: String)
+    /// The page couldn't play `videoId`: the `<video>`'s `error`, the player's `onError`, or its
+    /// error screen showing. `reason` says which, with the code.
+    case playbackError(videoId: String?, reason: String)
     /// A Now Playing / media key command the page's media session forwarded to us.
     case remote(RemoteAction)
 }
@@ -249,6 +252,8 @@ final class PlayerBridge: NSObject, PlayerBridging {
             #endif
         case "PLAYING":
             onEvent?(.playing(videoId: body["videoId"] as? String))
+        case "PLAYBACK_ERROR":
+            onEvent?(.playbackError(videoId: body["videoId"] as? String, reason: body["reason"] as? String ?? "?"))
         case "CUED":
             guard let videoId = body["videoId"] as? String, videoId == cueVideoId else {
                 #if DEBUG

@@ -638,6 +638,8 @@ final class PlayerService {
             apply(s)
         case .queuedNext(let videoId, let ok, let reason):
             nativeQueued(videoId, ok: ok, reason: reason)
+        case .playbackError(let videoId, let reason):
+            trace("playback error on \(describe(bridge)) for \(videoId ?? "nil"): \(reason)")
         case .cued, .cueFailed:
             break
         }

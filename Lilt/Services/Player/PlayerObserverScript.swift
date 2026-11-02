@@ -10,7 +10,7 @@ enum PlayerObserverScript {
       const post = (type, payload) => {
         try { window.webkit.messageHandlers.lilt.postMessage(Object.assign({ type }, payload || {})); } catch (e) {}
       };
-      const state = { video: null, lastTimeUpdate: 0, pendingNav: null, hold: false, cueing: null, ytVolume: null, probed: false, queueing: null };
+      const state = { video: null, lastTimeUpdate: 0, pendingNav: null, hold: false, cueing: null, ytVolume: null, probed: false, queueing: null, errorPlayer: null, errorScreenFor: null };
       // A standby page (gapless playback) is held silent and still. The flag outlives a reload
       // through sessionStorage, which belongs to this web view alone.
       const holdKey = '__liltHold';
@@ -107,6 +107,10 @@ enum PlayerObserverScript {
         v.addEventListener('ended', () => post('TRACK_ENDED', { videoId: videoId() }));
         // Sound actually under way (not just asked for), for timing the gap between tracks.
         v.addEventListener('playing', () => post('PLAYING', { videoId: videoId() }));
+        v.addEventListener('error', () => {
+          const e = v.error;
+          post('PLAYBACK_ERROR', { videoId: videoId(), reason: '<video> error ' + (e ? e.code + (e.message ? ' ' + e.message : '') : '?') });
+        });
         keepHeld();
         report();
       };
@@ -126,9 +130,29 @@ enum PlayerObserverScript {
         post('GAPLESS_PROBE', { why, player: true, supportsGaplessAudio: supports, apis: has(p), internalApis: internal, userAgent: navigator.userAgent });
       };
 
+      // The player's own failures: its onError event (listened to, nothing replaced), and its
+      // error screen, once per song.
+      const watchErrors = () => {
+        const p = playerApi();
+        if (p && state.errorPlayer !== p && typeof p.addEventListener === 'function') {
+          state.errorPlayer = p;
+          try { p.addEventListener('onError', (code) => post('PLAYBACK_ERROR', { videoId: videoId(), reason: 'player onError ' + code })); } catch (e) {}
+        }
+        const screen = document.querySelector('#movie_player .ytp-error');
+        const shown = !!screen && screen.offsetParent !== null;
+        const id = videoId();
+        if (shown && state.errorScreenFor !== id) {
+          state.errorScreenFor = id;
+          post('PLAYBACK_ERROR', { videoId: id, reason: 'player error screen: ' + (screen.textContent || '').trim().slice(0, 120) });
+        } else if (!shown) {
+          state.errorScreenFor = null;
+        }
+      };
+
       const tick = () => {
         const v = document.querySelector('video');
         if (v) { attach(v); }
+        watchErrors();
         if (!state.probed && playerApi()) { state.probed = true; probe('startup'); }
         report();
       };
