@@ -35,6 +35,15 @@ struct SettingsView: View {
             }
             AppearanceSection()
             DockSection()
+            // Reached through AppDelegate rather than the environment, so this section stands
+            // on its own.
+            Section("Keyboard Shortcut") {
+                if let shortcut = AppDelegate.shared?.showLiltShortcut {
+                    LabeledContent("Show Lilt") {
+                        ShortcutRecorder(shortcut: shortcut.combo, error: shortcut.error, onChange: shortcut.set, onRecordingChange: shortcut.setSuspended)
+                    }
+                }
+            }
             NotificationsSection()
             UpdatesSection()
         }
