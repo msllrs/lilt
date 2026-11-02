@@ -53,6 +53,13 @@ struct SurfaceMatrixTests {
         }
     }
 
+    /// The shipped file is byte for byte what Export JSON writes, so a pasted export diffs only
+    /// where values moved.
+    @Test func theShippedFileIsWhatExportWrites() throws {
+        let url = try #require(Bundle.main.url(forResource: SurfaceMatrix.resource, withExtension: "json"))
+        #expect(try String(contentsOf: url, encoding: .utf8) == SurfaceMatrix.defaults.json())
+    }
+
     @Test func aMissingValueDoesNotDecode() throws {
         let json = try SurfaceMatrix.defaults.json().replacingOccurrences(of: "\"washOpacity\"", with: "\"wash\"")
         #expect(throws: DecodingError.self) { try SurfaceMatrix.decode(Data(json.utf8)) }
