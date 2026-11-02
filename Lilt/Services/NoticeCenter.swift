@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// A short confirmation inside the panel ("Added to queue: Schism"), with an optional action
+/// A short confirmation inside the panel ("Queued Schism"), with an optional action
 /// such as Undo. Shown one at a time by `NoticeCenter`; drawn by `NoticeHost`.
 struct Notice: Identifiable {
     enum Icon: Equatable {
@@ -27,9 +27,16 @@ struct Notice: Identifiable {
     }
 
     let id = UUID()
+    /// What it acted on: a song, album or playlist title.
     var message: String
+    /// What happened, in a word or two ("Liked", "Queued"), set before the title in a heavier
+    /// weight. The icon beside it says what kind of thing happened, so the word can stay short.
+    var label: String? = nil
     var icon: Icon?
     var action: Action?
+
+    /// The whole line, for VoiceOver and tests.
+    var spoken: String { [label, message].compactMap { $0 }.joined(separator: " ") }
 }
 
 /// When a notice's countdown runs out: the real clock in the app, a hand-wound one in tests.
@@ -108,8 +115,8 @@ final class NoticeCenter {
         if !isPaused { schedule() }
     }
 
-    func post(_ message: String, icon: Notice.Icon? = nil, action: Notice.Action? = nil) {
-        post(Notice(message: message, icon: icon, action: action))
+    func post(_ message: String, label: String? = nil, icon: Notice.Icon? = nil, action: Notice.Action? = nil) {
+        post(Notice(message: message, label: label, icon: icon, action: action))
     }
 
     /// Seconds counted down so far.

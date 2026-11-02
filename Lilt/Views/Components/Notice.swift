@@ -76,8 +76,8 @@ struct NoticeCapsule: View {
             center.setHovering(hovering)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(notice.message)
-        .onAppear { AccessibilityNotification.Announcement(notice.message).post() }
+        .accessibilityLabel(notice.spoken)
+        .onAppear { AccessibilityNotification.Announcement(notice.spoken).post() }
     }
 
     private var isSymbol: Bool {
@@ -105,10 +105,16 @@ struct NoticeCapsule: View {
 
     /// As wide as the text needs and no wider (the hidden copy sizes the slot), down to what
     /// the panel allows; a longer line scrolls while the pointer rests on it.
+    /// The label stays put; only the title scrolls.
     private var message: some View {
-        Text(notice.message).font(Self.font).lineLimit(1).hidden()
-            .overlay { MarqueeText(text: notice.message, isActive: isHovering, font: Self.font) }
-            .padding(.leading, notice.icon == nil ? Theme.Space.xs : 0)
+        HStack(spacing: Theme.Space.xs) {
+            if let label = notice.label {
+                Text(label).font(Self.font.weight(.semibold)).lineLimit(1).fixedSize()
+            }
+            Text(notice.message).font(Self.font).lineLimit(1).hidden()
+                .overlay { MarqueeText(text: notice.message, isActive: isHovering, font: Self.font, color: AnyShapeStyle(.secondary)) }
+        }
+        .padding(.leading, notice.icon == nil ? Theme.Space.xs : 0)
     }
 
     private func button(_ action: Notice.Action) -> some View {

@@ -11,7 +11,7 @@ extension RowMenu {
     static func playNext(_ tracks: [Track], named name: String, artwork: URL?, player: PlayerService, notices: NoticeCenter?) {
         let ids = player.playNext(tracks)
         AppDelegate.shared?.queueDidChange()
-        notices?.post("Playing next: \(name)", icon: .artwork(artwork), action: ids.isEmpty ? nil : .undo {
+        notices?.post(name, label: "Next", icon: .artwork(artwork), action: ids.isEmpty ? nil : .undo {
             withAnimation(Theme.Motion.settle) { player.removeUpcoming(ids: ids) }
             AppDelegate.shared?.queueDidChange()
         })
@@ -27,7 +27,7 @@ extension RowMenu {
         let ids = tracks.compactMap { player.enqueue($0) }
         AppDelegate.shared?.queueDidChange()
         let undoable = !ids.isEmpty && ids.count == tracks.count
-        notices?.post("Added to queue: \(name)", icon: .artwork(artwork), action: undoable ? .undo {
+        notices?.post(name, label: "Queued", icon: .artwork(artwork), action: undoable ? .undo {
             withAnimation(Theme.Motion.settle) { player.removeUpcoming(ids: ids) }
             AppDelegate.shared?.queueDidChange()
         } : nil)
@@ -43,7 +43,7 @@ extension RowMenu {
         let track = player.upcoming[offset]
         withAnimation(Theme.Motion.settle) { player.removeUpcoming(at: offset) }
         AppDelegate.shared?.queueDidChange()
-        notices?.post("Removed from queue: \(track.title)", icon: .artwork(track.artworkURL), action: .undo {
+        notices?.post(track.title, label: "Removed", icon: .artwork(track.artworkURL), action: .undo {
             withAnimation(Theme.Motion.settle) { _ = player.insertUpcoming(track, at: offset) }
             AppDelegate.shared?.queueDidChange()
         })
@@ -55,8 +55,10 @@ extension RowMenu {
     static func setLiked(_ liked: Bool, _ track: Track, player: PlayerService, music: YTMusicClient, notices: NoticeCenter?) {
         setLiked(liked, track, player: player, music: music)
         notices?.post(
-            "\(liked ? "Added to Liked Music" : "Removed from Liked Music"): \(track.title)",
-            icon: .symbol(liked ? "hand.thumbsup.fill" : "hand.thumbsup"),
+            track.title,
+            // Unliking has no good single word; the struck-through thumb carries it.
+            label: liked ? "Liked" : "Like removed",
+            icon: .symbol(liked ? "hand.thumbsup.fill" : "hand.thumbsup.slash"),
             action: .undo { setLiked(!liked, track, player: player, music: music) }
         )
     }
@@ -79,7 +81,7 @@ extension RowMenu {
     }
 
     private static func postAdded(_ added: [YTMusicClient.AddedSong], key: String, named name: String, artwork: URL?, to playlist: OwnPlaylist, music: YTMusicClient, notices: NoticeCenter?) {
-        notices?.post("Added to \(playlist.title): \(name)", icon: .artwork(artwork), action: added.isEmpty ? nil : .undo {
+        notices?.post("\(name) to \(playlist.title)", label: "Added", icon: .artwork(artwork), action: added.isEmpty ? nil : .undo {
             Task { try? await music.undoAdd(added, key: key, from: playlist) }
         })
     }
@@ -90,7 +92,7 @@ extension RowMenu {
     static func removeFromPlaylist(_ track: Track, in source: BrowseItem?, music: YTMusicClient, notices: NoticeCenter?) {
         Task {
             guard (try? await music.removeFromPlaylist(track)) != nil else { return }
-            notices?.post("\(source.map { "Removed from \($0.title)" } ?? "Removed from playlist"): \(track.title)", icon: .artwork(track.artworkURL))
+            notices?.post(source.map { "\(track.title) from \($0.title)" } ?? track.title, label: "Removed", icon: .artwork(track.artworkURL))
         }
     }
 
@@ -99,6 +101,6 @@ extension RowMenu {
     static func copyLink(_ url: URL?, named name: String, notices: NoticeCenter?) {
         guard url != nil else { return }
         copy(url)
-        notices?.post("Link copied: \(name)", icon: .symbol("link"))
+        notices?.post(name, label: "Copied", icon: .symbol("link"))
     }
 }

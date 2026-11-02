@@ -31,7 +31,7 @@ struct NoticeUndoTests {
             let entry = player.upcomingEntries[1]
             RowMenu.removeFromQueue(entry.id, player: player, notices: center)
             #expect(player.upcoming.map(\.title) == ["Schism", "Lateralus"])
-            #expect(center.current?.message == "Removed from queue: Parabola")
+            #expect(center.current?.spoken == "Removed Parabola")
             #expect(center.performAction(key: "z"))
             #expect(player.upcoming.map(\.title) == ["Schism", "Parabola", "Lateralus"])
             #expect(player.automaticUpcoming.map(\.title) == ["Sober"], "the rest of the list is untouched")
@@ -44,7 +44,7 @@ struct NoticeUndoTests {
             let earlier = try #require(player.upcomingEntries.first)
             RowMenu.playNext(schism, player: player, notices: center)
             #expect(player.upcoming.map(\.title) == ["Schism", "Schism"])
-            #expect(center.current?.message == "Playing next: Schism")
+            #expect(center.current?.spoken == "Next Schism")
             center.performAction(key: "z")
             #expect(player.upcomingEntries.map(\.id) == [earlier.id], "the copy queued before stays")
             #expect(player.automaticUpcoming.map(\.title) == ["Sober"])
@@ -68,7 +68,7 @@ struct NoticeUndoTests {
             let center = notices()
             RowMenu.enqueue(schism, player: player, notices: center)
             #expect(player.upcoming.map(\.title) == ["Schism", "Schism"])
-            #expect(center.current?.message == "Added to queue: Schism")
+            #expect(center.current?.spoken == "Queued Schism")
             let earlier = player.upcomingEntries[0].id
             center.performAction()
             #expect(player.upcomingEntries.map(\.id) == [earlier])
@@ -84,7 +84,7 @@ struct NoticeUndoTests {
         try withPlayer([forty]) { player in
             let center = notices()
             RowMenu.setLiked(true, schism, player: player, music: music, notices: center)
-            #expect(center.current?.message == "Added to Liked Music: \(schism.title)", "a notice names the song it acted on")
+            #expect(center.current?.spoken == "Liked \(schism.title)", "a notice names the song it acted on")
             center.performAction()
         }
         for _ in 0..<50 where calls.count < 2 { try await Task.sleep(for: .milliseconds(10)) }
@@ -116,7 +116,7 @@ struct NoticeUndoTests {
         let center = notices()
         RowMenu.add(schism, to: playlist, music: music, notices: center)
         for _ in 0..<50 where center.current == nil { try await Task.sleep(for: .milliseconds(10)) }
-        #expect(center.current?.message == "Added to run: \(schism.title)")
+        #expect(center.current?.spoken == "Added \(schism.title) to run")
         #expect(music.addedTo[schism.id] == ["PLmine"])
         center.performAction()
         for _ in 0..<50 where calls.count < 2 { try await Task.sleep(for: .milliseconds(10)) }
@@ -134,7 +134,7 @@ struct NoticeUndoTests {
         let center = notices()
         RowMenu.add(schism, to: OwnPlaylist(id: "PLmine", title: "run"), music: music, notices: center)
         for _ in 0..<50 where center.current == nil { try await Task.sleep(for: .milliseconds(10)) }
-        #expect(center.current?.message == "Added to run: \(schism.title)")
+        #expect(center.current?.spoken == "Added \(schism.title) to run")
         #expect(center.current?.action == nil)
     }
 
