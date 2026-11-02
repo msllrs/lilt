@@ -81,6 +81,15 @@ final class PlayerService {
     /// Position to seek to once the restored track is playing.
     private var pendingSeek: Double?
     private var lastSavedTime: Double = 0
+    /// The automatic track change being timed (DEBUG logs it): from the old track's `ended` to
+    /// the new one's first `playing`, which is the silence the listener hears between them.
+    @ObservationIgnored private var gap: GapTrace?
+    private struct GapTrace {
+        let old: Track
+        let new: Track
+        let mode: String
+        let endedAt: Date
+    }
 
     private static let savedKey = "playbackState"
     private struct Saved: Codable {
@@ -407,6 +416,7 @@ final class PlayerService {
         }
         currentIndex = index
         needsLoad = false
+        gap = nil
         let resumeAt = pendingSeek
         resetLiveState()
         // Resuming a restored track: keep the saved position on screen instead of dipping to
@@ -447,6 +457,7 @@ final class PlayerService {
             previous()
         case .ended(let videoId):
             guard videoId == current?.id, let i = currentIndex else { return }
+            let old = queue[i]
             if repeatMode == .one {
                 load(index: i)
             } else if hasNext {
@@ -454,7 +465,16 @@ final class PlayerService {
             } else {
                 // Let YouTube Music continue with its own pick; `adopt` picks it up.
                 isLoading = false
+                return
             }
+            if let new = current { gap = GapTrace(old: old, new: new, mode: "single", endedAt: .now) }
+        case .playing(let videoId):
+            guard let trace = gap, videoId == trace.new.id else { return }
+            gap = nil
+            #if DEBUG
+            let ms = Int((Date.now.timeIntervalSince(trace.endedAt) * 1000).rounded())
+            NSLog("Lilt gap %ldms %@→%@ (%@)", ms, trace.old.title, trace.new.title, trace.mode)
+            #endif
         case .state(let s):
             apply(s)
         }

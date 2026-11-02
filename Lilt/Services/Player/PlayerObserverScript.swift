@@ -65,6 +65,8 @@ enum PlayerObserverScript {
           report();
         });
         v.addEventListener('ended', () => post('TRACK_ENDED', { videoId: videoId() }));
+        // Sound actually under way (not just asked for), for timing the gap between tracks.
+        v.addEventListener('playing', () => post('PLAYING', { videoId: videoId() }));
         report();
       };
       const tick = () => {

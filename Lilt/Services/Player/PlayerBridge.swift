@@ -20,6 +20,8 @@ enum PlayerEvent {
     case ready
     case state(PlaybackSnapshot)
     case ended(videoId: String?)
+    /// The `<video>` has started producing sound (its `playing` event).
+    case playing(videoId: String?)
     /// A Now Playing / media key command the page's media session forwarded to us.
     case remote(RemoteAction)
 }
@@ -123,6 +125,8 @@ final class PlayerBridge: NSObject {
             }
         case "TRACK_ENDED":
             onEvent?(.ended(videoId: body["videoId"] as? String))
+        case "PLAYING":
+            onEvent?(.playing(videoId: body["videoId"] as? String))
         case "STATE_UPDATE":
             let snapshot = PlaybackSnapshot(
                 videoId: body["videoId"] as? String,
