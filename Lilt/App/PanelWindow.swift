@@ -102,6 +102,9 @@ final class PanelWindow: NSPanel {
         radiusLink = link
     }
 
+    /// How long the frame animation under way lasts, nil while none is.
+    var frameAnimationDuration: TimeInterval? { radiusLink == nil ? nil : radiusDuration }
+
     @objc private func stepFrame(_ link: CADisplayLink) {
         // Aim at the moment this step will be shown, not the moment it's computed.
         let elapsed = link.targetTimestamp - radiusStart

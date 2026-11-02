@@ -8,14 +8,25 @@ struct TweakPanel: View {
     @State private var style = ArtworkStyle.shared
     @State private var shadowContext: ArtworkContext = .player
     @State private var copied = false
+    @State private var motion = MotionSettings.shared
     @Environment(ScrollTracker.self) private var scrollTracker
 
     var body: some View {
         @Bindable var style = style
+        @Bindable var motion = motion
         Form {
             Section("Live") {
                 LabeledContent("Content under platter", value: String(format: "%.0f pt", scrollTracker.activeRemainingBelow))
                 LabeledContent("Active screen", value: scrollTracker.activeKey)
+            }
+            Section("Motion") {
+                // Slows every token-built animation alike, the native frame and the disc's
+                // settle included, so a frame and its content drifting apart shows in slow motion.
+                slider("Animation speed", $motion.speed, MotionSettings.speedRange)
+                Picker("Preset", selection: $motion.speed) {
+                    ForEach([0.1, 0.25, 0.5, 1], id: \.self) { Text("\($0.formatted())×").tag($0) }
+                }
+                .pickerStyle(.segmented)
             }
             Section("Spotlight") {
                 slider("Centre X", $style.spotlightCenterX, 0...1)

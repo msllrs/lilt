@@ -60,32 +60,37 @@ enum Theme {
         static let noticeArtwork: CGFloat = 24
     }
 
+    /// Every duration here is the designed one stretched to the current `MotionPace`, so the
+    /// tweak panel's Animation speed slows them all alike; at 1× each token is exactly its
+    /// designed curve.
     enum Motion {
-        static let quick: Animation = .easeOut(duration: 0.18)
-        static let standard: Animation = .snappy(duration: 0.28)
+        private static func scaled(_ seconds: TimeInterval) -> TimeInterval { MotionPace.current.scaled(seconds) }
+
+        static var quick: Animation { .easeOut(duration: scaled(0.18)) }
+        static var standard: Animation { .snappy(duration: scaled(0.28)) }
         /// `standard` for motion SwiftUI doesn't drive, like a Core Animation layer settling.
-        static let standardCurve: FrameCurve = .spring(.snappy(duration: 0.28))
+        static var standardCurve: FrameCurve { .spring(.snappy(duration: scaled(0.28))) }
         /// For a container changing size: `snappy` carries a little bounce, and a frame that
         /// overshoots smaller than its content squeezes the content for a few frames.
-        static let settle: Animation = .smooth(duration: 0.3)
+        static var settle: Animation { .smooth(duration: scaled(0.3)) }
         /// A container growing or shrinking with a little overshoot, like the platter revealing
         /// the queue. Content inside must hold its own size (see NowPlayingBar) or it squeezes.
-        static let bounce: Animation = .spring(duration: 0.42, bounce: 0.22)
+        static var bounce: Animation { .spring(duration: scaled(0.42), bounce: 0.22) }
         /// Colour drawn from one cover handing over to the next: slow enough to read as a change
         /// of light, not a cut.
-        static let cast: Animation = .easeInOut(duration: 0.8)
+        static var cast: Animation { .easeInOut(duration: scaled(0.8)) }
         /// The native frame growing or shrinking between the column and the platter: a quick
         /// ease-out with a definite end. (A critically damped spring crept toward its target for
         /// another 0.3s after the visible motion, which read as lag at the end.) The window steps
         /// along this same curve, so the content and the frame land together.
-        static let frameDuration: TimeInterval = 0.22
-        static let frame: Animation = .easeOut(duration: frameDuration)
-        static let frameCurve: FrameCurve = .easeOut(frameDuration)
+        static var frameDuration: TimeInterval { scaled(0.22) }
+        static var frame: Animation { .easeOut(duration: frameDuration) }
+        static var frameCurve: FrameCurve { .easeOut(frameDuration) }
         /// The platter revealing the queue under the native frame: the window is the platter
         /// and steps along this same spring, so no bounce, or the two overshoot out of phase and
         /// a strip of bare material opens between them.
-        static let queueSpring = Spring(duration: 0.3, bounce: 0)
-        static let queueCurve: FrameCurve = .spring(queueSpring)
+        static var queueSpring: Spring { Spring(duration: scaled(0.3), bounce: 0) }
+        static var queueCurve: FrameCurve { .spring(queueSpring) }
     }
 }
 
