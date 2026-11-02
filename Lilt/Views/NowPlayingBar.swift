@@ -4,6 +4,7 @@ struct NowPlayingBar: View {
     @Environment(PlayerService.self) private var player
     @Environment(NavigationModel.self) private var navigation
     @Environment(YTMusicClient.self) private var music
+    @Environment(NoticeCenter.self) private var notices: NoticeCenter?
     @Environment(ScrollTracker.self) private var scrollTracker
     @Environment(\.colorScheme) private var colorScheme
 
@@ -235,7 +236,7 @@ struct NowPlayingBar: View {
                     playlists: music.ownPlaylists,
                     addedTo: music.addedTo[track.id] ?? [],
                     perform: { perform($0, on: track) },
-                    add: { playlist in Task { try? await music.add(track, to: playlist) } }
+                    add: { playlist in RowMenu.add(track, to: playlist, music: music, notices: notices) }
                 )
             }
         }
@@ -410,11 +411,11 @@ struct NowPlayingBar: View {
 
     private func perform(_ action: RowAction, on track: Track) {
         switch action {
-        case .like, .unlike: RowMenu.setLiked(action == .like, track, player: player, music: music)
+        case .like, .unlike: RowMenu.setLiked(action == .like, track, player: player, music: music, notices: notices)
         // The player resolves the playing song's links itself, but a lookup may land first.
         case .goToArtist: RowMenu.open(music.withLinks(track).artistItem, navigation: navigation)
         case .goToAlbum: RowMenu.open(music.withLinks(track).albumItem, navigation: navigation)
-        case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))
+        case .copyLink: RowMenu.copyLink(RowMenu.webURL(for: track), notices: notices)
         default: break
         }
     }
