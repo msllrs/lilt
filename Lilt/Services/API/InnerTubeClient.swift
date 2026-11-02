@@ -32,11 +32,12 @@ final class InnerTubeClient {
     /// decides gapless audio by browser, read from `navigator.userAgent` when its script loads:
     /// `supportsGaplessAudio()` is true only for Chrome 74+ (not on iOS) or Firefox 68+, and only
     /// then does it append the next song into the same MediaSource. WebKit has no
-    /// `navigator.userAgentData`, so the string is all it reads. The same string also makes it
-    /// ask for Widevine rather than FairPlay (it picks FairPlay only for `WebKit/600`+), which
-    /// WebKit doesn't have, so a song with DRM can fail here; the player falls back for that.
+    /// `navigator.userAgentData`, so the string is all it reads. It keeps WebKit's own
+    /// `AppleWebKit/605.1.15` rather than Chrome's `537.36`: the same script picks FairPlay only
+    /// for `WebKit/600`+ and asks for Widevine otherwise, which WebKit doesn't have, so a real
+    /// Chrome string would fail every song with DRM. The player falls back if one fails anyway.
     static let chromeUserAgent =
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/605.1.15"
 
     private static let clientVersion = "1.20250929.01.00"
 
