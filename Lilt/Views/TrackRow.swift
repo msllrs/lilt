@@ -12,8 +12,12 @@ struct TrackRow: View {
     @Environment(NavigationModel.self) private var navigation
     @Environment(YTMusicClient.self) private var music
     @Environment(NoticeCenter.self) private var notices: NoticeCenter?
-    /// An album page's cover colour, for the text and the playing row's pill.
-    @Environment(\.coverTint) private var coverTint
+    /// An album page's cover palette, for the text and the playing row's pill.
+    @Environment(\.coverPalette) private var coverPalette
+    @Environment(\.colorScheme) private var colorScheme
+    /// The page's palette, or a plain one where there's no cover to wear: the row's pill and
+    /// hover come from it either way.
+    private var palette: CoverPalette { coverPalette ?? CoverPalette(accent: nil, colorScheme: colorScheme, surface: .page) }
     @State private var isHovering = false
     /// The add-to-queue button shows a tick for a moment after a click.
     @State private var showsTick = false
@@ -65,7 +69,7 @@ struct TrackRow: View {
             HStack(spacing: Theme.Space.md) {
                 artwork
                 VStack(alignment: .leading, spacing: 2) {
-                    MarqueeText(text: track.title, isActive: isHovering, font: .body, color: coverTint.style(\.title, or: .primary))
+                    MarqueeText(text: track.title, isActive: isHovering, font: .body, color: coverPalette.style(\.primary, or: .primary))
                     ArtistLink(name: track.artist, item: track.artistItem)
                 }
                 // Takes every point the trailing item doesn't need, so titles run wide when
@@ -76,7 +80,7 @@ struct TrackRow: View {
                 if let duration = track.durationText {
                     Text(duration)
                         .font(.caption2.monospacedDigit())
-                        .foregroundStyle(coverTint.style(\.tertiary, or: .tertiary))
+                        .foregroundStyle(coverPalette.style(\.tertiary, or: .tertiary))
                         .opacity(isHovering ? 0 : 1)
                         // Swaps with the button instantly; the eased hover fade is for the row.
                         .transaction { $0.animation = nil }
@@ -89,14 +93,14 @@ struct TrackRow: View {
             .contentShape(rowShape)
             .background {
                 rowShape
-                    .fill(.fill.quaternary)
-                    .opacity(isCurrent ? 1 : isHovering ? 0.6 : 0)
+                    .fill(palette.highlightFill)
+                    .opacity(isCurrent ? 1 : isHovering ? palette.hoverHighlightOpacity : 0)
                 // On an album page the playing row's pill takes a little of the cover too, so it
                 // reads as the same light as the Play capsule. Hover stays plain: it's the
                 // pointer, not the music.
-                if let coverTint {
+                if let highlight = palette.highlight {
                     rowShape
-                        .fill(coverTint.highlight)
+                        .fill(highlight)
                         .opacity(isCurrent ? 1 : 0)
                 }
             }
@@ -220,7 +224,7 @@ struct TrackRow: View {
                 // The tick hops as it arrives. Inside the frame below, so the button's hit
                 // area stays put while the glyph moves.
                 .attentionBounce(trigger: queueClicks)
-                .foregroundStyle(coverTint.style(\.secondary, or: .secondary))
+                .foregroundStyle(coverPalette.style(\.secondary, or: .secondary))
                 .frame(width: Self.queueButtonSize, height: Self.queueButtonSize)
                 .contentShape(Circle())
             }

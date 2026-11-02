@@ -66,7 +66,7 @@ private struct AppearanceSection: View {
     /// The cover's dominant colour, as the platter takes it.
     private var accent: Color? {
         guard let url = player.displayArtworkURL else { return nil }
-        return ImageCache.shared.accent(for: url, saturationBoost: style.platter.scrubberSaturation)
+        return ImageCache.shared.accent(for: url, saturationBoost: style.palette.accentSaturation)
     }
 
     private var artwork: NSImage? {

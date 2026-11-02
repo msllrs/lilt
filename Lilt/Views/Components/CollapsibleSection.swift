@@ -41,7 +41,7 @@ struct CollapsibleSection<Item: Identifiable, Row: View, Empty: View>: View {
 
     @Environment(CollapsedSections.self) private var collapsedSections
     /// An album page's cover colour, for the header; the rows are left to their own.
-    @Environment(\.coverTint) private var coverTint
+    @Environment(\.coverPalette) private var coverPalette
     @State private var isHovering = false
 
     private var id: String { "\(scope)/\(title)" }
@@ -88,7 +88,7 @@ struct CollapsibleSection<Item: Identifiable, Row: View, Empty: View>: View {
                         .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4.5 }
                     Spacer(minLength: 0)
                 }
-                .foregroundStyle(coverTint.style(\.secondary, or: .secondary))
+                .foregroundStyle(coverPalette.style(\.secondary, or: .secondary))
                 .padding(.horizontal, Theme.Space.rowPadding)
                 .padding(.top, Theme.Space.lg)
                 .padding(.bottom, Theme.Space.xs)

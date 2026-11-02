@@ -58,10 +58,10 @@ struct BrowseScreen: View {
         // if the colour lands after the page. The hero and compact header are built here and take
         // it directly; the rows and section headers below read it from the environment.
         InterpolatedColor(pageAccent) { accent in
-            let tint = Self.coverTint(kind: (page ?? BrowsePage(item: item)).item.kind, accent: accent, colorScheme: colorScheme)
-            content(tint)
-                .safeAreaBar(edge: .top, spacing: 0) { navigationHeader(tint) }
-                .environment(\.coverTint, tint)
+            let palette = Self.palette(kind: (page ?? BrowsePage(item: item)).item.kind, accent: accent, colorScheme: colorScheme)
+            content(palette)
+                .safeAreaBar(edge: .top, spacing: 0) { navigationHeader(palette) }
+                .environment(\.coverPalette, palette)
         }
         // The cover's light spills down from the top of the page, behind everything.
         .background(alignment: .top) { PageAmbient(url: (page?.item.artworkURL) ?? item.artworkURL) }
@@ -74,7 +74,7 @@ struct BrowseScreen: View {
     }
 
     /// Back button, plus a compact artwork/title/artist that fades in as the hero scrolls out.
-    private func navigationHeader(_ coverTint: CoverTint?) -> some View {
+    private func navigationHeader(_ palette: CoverPalette) -> some View {
         HStack(spacing: Theme.Space.sm) {
             // Slot for the back button, which the navigation column draws statically on top.
             Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
@@ -83,7 +83,7 @@ struct BrowseScreen: View {
                 HStack(spacing: Theme.Space.sm) {
                     compactArtwork(page)
                     VStack(alignment: .leading, spacing: 0) {
-                        MarqueeText(text: page.item.title, isActive: isHoveringHeader, font: .callout.weight(.medium), color: coverTint.style(\.title, or: .primary))
+                        MarqueeText(text: page.item.title, isActive: isHoveringHeader, font: .callout.weight(.medium), color: palette.style(\.primary, or: .primary))
                         if !page.item.subtitle.isEmpty {
                             ArtistLink(name: page.item.subtitle, item: pageArtist(page), font: .caption2)
                         }
@@ -94,7 +94,7 @@ struct BrowseScreen: View {
                 .allowsHitTesting(collapse > 0.5)
             }
             Spacer()
-            pageMenu(page ?? BrowsePage(item: item), coverTint: coverTint)
+            pageMenu(page ?? BrowsePage(item: item), palette: palette)
         }
         .frame(height: Theme.Size.headerRow)
         .padding(.top, Theme.Space.panelInset)
@@ -137,18 +137,11 @@ struct BrowseScreen: View {
     /// playlist mixes covers and an artist page has an avatar.
     nonisolated static func wearsCoverTint(_ kind: BrowseKind) -> Bool { kind == .album }
 
-    /// The page's tint: the platter's mix of the cover's accent (or the page's own shares, see
-    /// `PageTintStyle`), held to a readable contrast on the plain panel (see
-    /// `CoverTint.guarded`). Nil for every other kind of page.
-    static func coverTint(kind: BrowseKind, accent: Color?, colorScheme: ColorScheme, style: PageTintStyle = ArtworkStyle.shared.pageTint) -> CoverTint? {
-        guard wearsCoverTint(kind) else { return nil }
-        let platter = ArtworkStyle.shared.platter
-        let text = style.followsPlatter ? platter.textTint : style.textTint
-        let controls = style.followsPlatter ? platter.controlsTint : style.controlsTint
-        guard var tint = CoverTint(accent: accent, colorScheme: colorScheme, textTint: text, controlsTint: controls) else { return nil }
-        if style.contrastGuard { tint = tint.guarded() }
-        tint.highlightOpacity = colorScheme == .dark ? style.darkHighlightOpacity : style.highlightOpacity
-        return tint
+    /// The page's palette: the cover's accent on an album, held to a readable contrast on the
+    /// plain panel as the palette is built; every other kind of page gets a plain one, whose
+    /// roles fall back to the label colours.
+    static func palette(kind: BrowseKind, accent: Color?, colorScheme: ColorScheme) -> CoverPalette {
+        CoverPalette(accent: wearsCoverTint(kind) ? accent : nil, colorScheme: colorScheme, surface: .page)
     }
 
     /// The album cover's own accent, measured as the platter measures the playing song's.
@@ -156,7 +149,7 @@ struct BrowseScreen: View {
         _ = coverLoads
         let current = page ?? BrowsePage(item: item)
         guard Self.wearsCoverTint(current.item.kind), let url = current.item.artworkURL else { return nil }
-        return ImageCache.shared.accent(for: url, saturationBoost: ArtworkStyle.shared.platter.scrubberSaturation)
+        return ImageCache.shared.accent(for: url, saturationBoost: ArtworkStyle.shared.palette.accentSaturation)
     }
 
     /// Liked Music is YouTube's automatic playlist: always in the library, never saved or removed.
@@ -176,17 +169,18 @@ struct BrowseScreen: View {
     @State private var savedChanges = 0
     private var isSaved: Bool { music.isSaved(item) }
 
-    /// A round glass button beside Play, with the same cast. On an album the glyph takes the
-    /// cover tint, dimmed while the button can't be used (an explicit colour doesn't dim itself).
-    /// The glyph hops each time `attention` changes, inside the glass, which keeps its place.
-    private func heroRoundButton(symbol: String, help: String, cast: Color?, coverTint: CoverTint?, disabled: Bool = false, attention: Int = 0, action: @escaping () -> Void) -> some View {
+    /// A round glass button beside Play, with the same cast. On an album the glyph is the
+    /// palette's colour on its container, dimmed while the button can't be used (an explicit
+    /// colour doesn't dim itself). The glyph hops each time `attention` changes, inside the
+    /// glass, which keeps its place.
+    private func heroRoundButton(symbol: String, help: String, palette: CoverPalette, disabled: Bool = false, attention: Int = 0, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.callout.weight(.semibold))
-                .foregroundStyle(coverTint.style(disabled ? \.dimControl : \.control, or: .primary))
+                .foregroundStyle(palette.style(disabled ? \.dimControl : \.onContainer, or: .primary))
                 .attentionBounce(trigger: attention)
                 .frame(width: Self.heroControlHeight, height: Self.heroControlHeight)
-                .modifier(HeroGlass(shape: Circle(), cast: cast, playCast: playCast))
+                .modifier(HeroGlass(shape: Circle(), palette: palette))
         }
         .buttonStyle(.pressable)
         .disabled(disabled)
@@ -220,7 +214,7 @@ struct BrowseScreen: View {
     }
 
     /// Opposite the back button: a place for page actions as they arrive.
-    private func pageMenu(_ page: BrowsePage, coverTint: CoverTint?) -> some View {
+    private func pageMenu(_ page: BrowsePage, palette: CoverPalette) -> some View {
         Menu {
             // The same refresh as pulling the list down or ⌘R.
             if isRefreshable {
@@ -237,7 +231,7 @@ struct BrowseScreen: View {
             Image(systemName: "ellipsis")
                 .font(.body.weight(.semibold))
                 .rotationEffect(.degrees(90))
-                .foregroundStyle(coverTint.style(\.control, or: .primary))
+                .foregroundStyle(palette.style(\.control, or: .primary))
                 .headerControl()
         }
         .menuStyle(.button)
@@ -303,14 +297,14 @@ struct BrowseScreen: View {
 
     /// The header renders straight away from what the tapped row already knew; only the body
     /// waits for the network.
-    private func content(_ coverTint: CoverTint?) -> some View {
-        pageBody(page ?? BrowsePage(item: item), coverTint: coverTint)
+    private func content(_ palette: CoverPalette) -> some View {
+        pageBody(page ?? BrowsePage(item: item), palette: palette)
     }
 
-    private func pageBody(_ page: BrowsePage, coverTint: CoverTint?) -> some View {
+    private func pageBody(_ page: BrowsePage, palette: CoverPalette) -> some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                header(page, coverTint: coverTint)
+                header(page, palette: palette)
                 if awaitingContent {
                     Skeleton.Rows(count: 6, header: true, insetsRows: false)
                         .placeholderShown(loadingGate.showsPlaceholder)
@@ -340,7 +334,7 @@ struct BrowseScreen: View {
                     ForEach(page.sections) { section in
                         // The header is this page's; the rows are other albums and artists, with
                         // covers of their own, so they keep the plain colours.
-                        CollapsibleSection(title: section.title, scope: "page", items: section.items) { BrowseRow(item: $0).environment(\.coverTint, nil) }
+                        CollapsibleSection(title: section.title, scope: "page", items: section.items) { BrowseRow(item: $0).environment(\.coverPalette, nil) }
                     }
                 }
             }
@@ -386,7 +380,7 @@ struct BrowseScreen: View {
         t * t * (3 - 2 * t)
     }
 
-    private func header(_ page: BrowsePage, coverTint: CoverTint?) -> some View {
+    private func header(_ page: BrowsePage, palette: CoverPalette) -> some View {
         VStack(spacing: Theme.Space.md) {
             ArtworkView(
                 url: page.item.artworkURL,
@@ -397,7 +391,7 @@ struct BrowseScreen: View {
             VStack(spacing: 2) {
                 Text(page.item.title)
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(coverTint.style(\.title, or: .primary))
+                    .foregroundStyle(palette.style(\.primary, or: .primary))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                 if !page.item.subtitle.isEmpty {
@@ -406,7 +400,7 @@ struct BrowseScreen: View {
                 if let detail = page.detail {
                     Text(detail)
                         .font(.caption)
-                        .foregroundStyle(coverTint.style(\.tertiary, or: .tertiary))
+                        .foregroundStyle(palette.style(\.tertiary, or: .tertiary))
                 }
             }
             if awaitingContent {
@@ -418,9 +412,10 @@ struct BrowseScreen: View {
                 // over the controls rather than a cut. Save on the left, shuffle on the right,
                 // Play between; artists have no library membership, so no save.
                 InterpolatedColor(artworkCast(page)) { cast in
+                    let glass = palette.casting(cast)
                     HStack(spacing: Theme.Space.sm) {
                         if page.item.kind != .artist, !Self.isLikedMusic(page.item) {
-                            heroRoundButton(symbol: isSaved ? "bookmark.fill" : "bookmark", help: isSaved ? "Remove from Library" : "Save to Library", cast: cast, coverTint: coverTint, disabled: page.playlistId == nil || isSaving, attention: savedChanges) {
+                            heroRoundButton(symbol: isSaved ? "bookmark.fill" : "bookmark", help: isSaved ? "Remove from Library" : "Save to Library", palette: glass, disabled: page.playlistId == nil || isSaving, attention: savedChanges) {
                                 toggleSaved(page)
                             }
                         }
@@ -429,13 +424,13 @@ struct BrowseScreen: View {
                         } label: {
                             Label("Play", systemImage: "play.fill")
                                 .font(.callout.weight(.semibold))
-                                .foregroundStyle(coverTint.style(\.control, or: .primary))
+                                .foregroundStyle(glass.style(\.onContainer, or: .primary))
                                 .padding(.horizontal, Theme.Space.lg + Theme.Space.xs)
                                 .frame(height: Self.heroControlHeight)
-                                .modifier(HeroGlass(shape: Capsule(), cast: cast, playCast: playCast))
+                                .modifier(HeroGlass(shape: Capsule(), palette: glass))
                         }
                         .buttonStyle(.pressable)
-                        heroRoundButton(symbol: "shuffle", help: "Shuffle", cast: cast, coverTint: coverTint) {
+                        heroRoundButton(symbol: "shuffle", help: "Shuffle", palette: glass) {
                             player.playShuffled(page.tracks, source: page.item)
                         }
                     }
@@ -544,36 +539,35 @@ private struct HeroSnapBehavior: ScrollTargetBehavior {
 
 /// The hero controls' glass: the same surface as the header controls (so the tweak panel's
 /// glass settings apply to both), with the cover above casting its colour onto it the way the
-/// compact header casts onto the back button: the same rim and wash dials, lit from the top
-/// here since the cover sits above. Lives on the label so the press scale moves the whole control.
+/// compact header casts onto the back button: the palette's accent container, its wash and rim,
+/// lit from the top here since the cover sits above. Lives on the label so the press scale
+/// moves the whole control.
 private struct HeroGlass<S: InsettableShape>: ViewModifier {
     let shape: S
-    let cast: Color?
-    let playCast: PlayCastStyle
-    @Environment(\.colorScheme) private var colorScheme
+    /// The page's palette with the hero's cast as its container seed.
+    let palette: CoverPalette
 
     func body(content: Content) -> some View {
-        let style = ArtworkStyle.shared.leadingCast
-        let dark = colorScheme == .dark
+        let style = palette.container
         content
             .modifier(HeaderControlSurface(shape: shape, cornerRadius: BrowseScreen.heroControlHeight / 2, tint: nil))
             .overlay {
-                if let cast = cast.map({ style.drawn($0, dark: dark) }) {
+                if let wash = palette.containerWash, let rim = palette.containerRim {
                     ZStack {
                         // The wash falls from the top edge, as far as the reach dial says.
                         shape.fill(LinearGradient(
-                            stops: [.init(color: cast.opacity(style.washOpacity(dark: dark)), location: 0), .init(color: .clear, location: style.washReach)],
+                            stops: [.init(color: wash, location: 0), .init(color: .clear, location: style.washReach)],
                             startPoint: .top, endPoint: .bottom
                         ))
                         // The rim catches the light along the top, fading out below the start. It
                         // runs on the glass highlight's own path, centred on the outline, so the
                         // cast colours that highlight rather than lining the inside of it.
                         shape.inset(by: -0.5).stroke(
-                            LinearGradient(stops: [.init(color: cast.opacity(style.rimOpacity), location: 0), .init(color: .clear, location: 1 - style.rimStart)], startPoint: .top, endPoint: .bottom),
+                            LinearGradient(stops: [.init(color: rim, location: 0), .init(color: .clear, location: 1 - style.rimStart)], startPoint: .top, endPoint: .bottom),
                             lineWidth: style.rimWidth
                         )
                     }
-                    .blendMode(style.blend(dark: dark))
+                    .blendMode(palette.containerBlend)
                     .allowsHitTesting(false)
                 }
             }

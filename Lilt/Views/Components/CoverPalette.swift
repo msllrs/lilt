@@ -35,7 +35,7 @@ struct CoverPalette: Equatable {
     }
 
     let accent: Color?
-    let cast: Color?
+    private(set) var cast: Color?
     let colorScheme: ColorScheme
     let surface: Surface
     let style: CoverPaletteStyle
@@ -122,6 +122,13 @@ struct CoverPalette: Equatable {
     var hoverHighlightOpacity: Double { style.hoverHighlightOpacity }
     /// The platter's pool of the accent, behind the cover or along the top.
     var wash: Color? { accent?.opacity(washOpacity) }
+
+    /// The same palette with another cast seed (the shares, and so the guard, are the accent's).
+    func casting(_ cast: Color?) -> CoverPalette {
+        var copy = self
+        copy.cast = cast
+        return copy
+    }
 
     /// A role's colour when the palette has one, else the plain style it replaces.
     func style(_ role: KeyPath<CoverPalette, Color?>, or plain: some ShapeStyle) -> AnyShapeStyle {

@@ -169,10 +169,11 @@ private struct LeadingButton: View {
 
     private var symbol: String { isBack ? "chevron.left" : "books.vertical" }
 
-    /// On an album the chevron is one of the page's controls, so it takes the page's tint (the
-    /// same mix and contrast guard as its Play and shuffle glyphs); the library glyph stays plain.
+    /// On an album the chevron is one of the page's controls, so it takes the page's palette
+    /// (the same control colour and contrast guard as its Play and shuffle glyphs); the library
+    /// glyph stays plain.
     private func glyphStyle(_ accent: Color?) -> AnyShapeStyle {
-        BrowseScreen.coverTint(kind: .album, accent: accent, colorScheme: colorScheme).style(\.control, or: .primary)
+        BrowseScreen.palette(kind: .album, accent: accent, colorScheme: colorScheme).style(\.control, or: .primary)
     }
 
     var body: some View {
@@ -200,17 +201,16 @@ private struct LeadingButton: View {
                 let style = ArtworkStyle.shared.leadingCast
                 let amount = navigation.leadingCastAmount
                 InterpolatedColor(navigation.leadingCast) { sampled in
-                    if let sampled {
-                        // Dark glass has no tonal range for a dim colour to sit on, so there the
-                        // cast is lifted towards white and added as light rather than laid over.
-                        let dark = colorScheme == .dark
-                        let cast = style.drawn(sampled, dark: dark)
-                        let washOpacity = style.washOpacity(dark: dark)
+                    // The cast is the palette's accent container: on dark glass, which has no
+                    // tonal range for a dim colour to sit on, lifted towards white and added as
+                    // light rather than laid over.
+                    let palette = CoverPalette(accent: nil, cast: sampled, colorScheme: colorScheme, surface: .page)
+                    if let wash = palette.containerWash, let rim = palette.containerRim {
                         ZStack {
                             // The wash: light from the side falling off across the button, not from
                             // a point. It simply fades in with the header (a wipe cut it in half).
                             Circle().fill(LinearGradient(
-                                stops: [.init(color: cast.opacity(washOpacity), location: 0), .init(color: .clear, location: style.washReach)],
+                                stops: [.init(color: wash, location: 0), .init(color: .clear, location: style.washReach)],
                                 startPoint: .trailing, endPoint: .leading
                             ))
                             .opacity(amount)
@@ -219,7 +219,7 @@ private struct LeadingButton: View {
                             // that highlight rather than lining the inside of it.
                             Circle().inset(by: -0.5)
                                 .stroke(
-                                    LinearGradient(stops: [.init(color: .clear, location: style.rimStart), .init(color: cast.opacity(style.rimOpacity), location: 1)], startPoint: .leading, endPoint: .trailing),
+                                    LinearGradient(stops: [.init(color: .clear, location: style.rimStart), .init(color: rim, location: 1)], startPoint: .leading, endPoint: .trailing),
                                     lineWidth: style.rimWidth
                                 )
                                 .mask {
@@ -242,7 +242,7 @@ private struct LeadingButton: View {
                                     .padding(-1)
                                 }
                         }
-                        .blendMode(style.blend(dark: dark))
+                        .blendMode(palette.containerBlend)
                     }
                 }
                 // Only while a browse page is on top: the library page (or any page without a

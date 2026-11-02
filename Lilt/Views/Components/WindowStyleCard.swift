@@ -8,8 +8,8 @@ import SwiftUI
 /// are mounted at the small size with the panel's corner scaled to match, and they keep that
 /// corner: the native frame re-corners only the panel's own (`followsWindowCorner`).
 ///
-/// The platter wears the playing cover's colour the way the real one does (`CoverTint`, the
-/// platter's accent wash); with nothing playing it is neutral.
+/// The platter wears the playing cover's colour the way the real one does (the platter's
+/// `CoverPalette`: its text, glyph and wash); with nothing playing it is neutral.
 struct WindowStylePreview: View {
     var style: WindowStyle
     /// The cover's dominant colour, or nil for a neutral platter.
@@ -74,25 +74,25 @@ struct WindowStylePreview: View {
     private var platter: some View {
         let shape = RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous)
         let dials = ArtworkStyle.shared.platter
-        let tint = CoverTint(accent: accent, colorScheme: colorScheme, platter: dials)
+        let palette = CoverPalette(accent: accent, colorScheme: colorScheme, surface: .platter)
         return HStack(spacing: Theme.Space.md) {
             cover
             VStack(alignment: .leading, spacing: Theme.Space.sm) {
-                Skeleton.Bar(width: 128, height: 11, fill: tint?.title ?? Self.ink)
-                Skeleton.Bar(width: 80, height: 8, fill: tint?.secondary ?? Self.ink)
+                Skeleton.Bar(width: 128, height: 11, fill: palette.primary ?? Self.ink)
+                Skeleton.Bar(width: 80, height: 8, fill: palette.secondary ?? Self.ink)
             }
             Spacer(minLength: 0)
             Image(systemName: "play.fill")
                 .font(.system(size: Theme.Size.playIcon))
-                .foregroundStyle(tint?.control ?? Self.ink)
+                .foregroundStyle(palette.control ?? Self.ink)
         }
         .padding(Theme.Space.barPadding)
         .background {
             shape.fill(Skeleton.fill)
-            if let accent, dials.cornerAccentOpacity > 0 {
+            if let wash = palette.wash, palette.washOpacity > 0 {
                 shape.fill(
                     EllipticalGradient(
-                        colors: [accent.opacity(dials.cornerAccentOpacity), .clear],
+                        colors: [wash, .clear],
                         center: dials.accentPlacement.unitPoint,
                         startRadiusFraction: 0,
                         endRadiusFraction: dials.cornerAccentRadius

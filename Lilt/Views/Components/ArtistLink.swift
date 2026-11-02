@@ -3,7 +3,7 @@ import SwiftUI
 /// An artist name that opens the artist page wherever it appears. Falls back to plain text when
 /// we don't know the artist's id. Pushes onto the shared navigation model, so it works inside the
 /// stack and in the now-playing bar alike. Without a colour of its own it takes an album page's
-/// cover tint, or the secondary label colour.
+/// palette, or the secondary label colour.
 struct ArtistLink: View {
     let name: String
     let item: BrowseItem?
@@ -12,12 +12,12 @@ struct ArtistLink: View {
 
     @Environment(NavigationModel.self) private var navigation
     @Environment(YTMusicClient.self) private var music
-    @Environment(\.coverTint) private var coverTint
+    @Environment(\.coverPalette) private var coverPalette
     @State private var isHovering = false
 
-    private var resting: Color { color ?? coverTint?.secondary ?? .secondary }
+    private var resting: Color { color ?? coverPalette?.secondary ?? .secondary }
     /// Hover lifts it to the title's colour: the tinted one on an album page.
-    private var hovered: AnyShapeStyle { coverTint.style(\.title, or: .primary) }
+    private var hovered: AnyShapeStyle { coverPalette.style(\.primary, or: .primary) }
 
     var body: some View {
         if let item {
