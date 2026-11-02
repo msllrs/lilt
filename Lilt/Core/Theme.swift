@@ -56,6 +56,8 @@ enum Theme {
         static let barArtwork: CGFloat = 48
         static let controlIcon: CGFloat = 16
         static let playIcon: CGFloat = 22
+        /// A notice's cover or symbol, and its button's height.
+        static let noticeArtwork: CGFloat = 24
     }
 
     enum Motion {
