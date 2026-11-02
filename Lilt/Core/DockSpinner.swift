@@ -25,6 +25,16 @@ enum DockSpin: Int, CaseIterable, Identifiable {
         }
     }
 
+    /// What each rate costs. The tile only turns while the Dock is in sight, and each frame is a
+    /// handover to the Dock, so twice the frames is about twice the work.
+    var footnote: String {
+        switch self {
+        case .off: "The Dock shows the cover as a still disc."
+        case .standard: "The disc turns while a song plays and the Dock is showing."
+        case .smooth: "Smoother turning, but about twice the CPU of Standard while the Dock is showing."
+        }
+    }
+
     /// The option a stored rate reads as; a hand-written rate shows as the nearest one.
     init(framesPerSecond fps: Int) {
         self = Self.allCases.min { abs($0.rawValue - fps) < abs($1.rawValue - fps) } ?? .standard

@@ -74,13 +74,19 @@ private struct DockSection: View {
     @AppStorage(DockSpin.key) private var framesPerSecond = DockSpin.standard.framesPerSecond
 
     var body: some View {
-        Section("Dock") {
+        let spin = DockSpin(framesPerSecond: framesPerSecond)
+        Section {
             Picker("Spinning disc", selection: Binding(
-                get: { DockSpin(framesPerSecond: framesPerSecond) },
+                get: { spin },
                 set: { framesPerSecond = $0.framesPerSecond }
             )) {
                 ForEach(DockSpin.allCases) { Text($0.title).tag($0) }
             }
+        } header: {
+            Text("Dock")
+        } footer: {
+            Text(spin.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 }
