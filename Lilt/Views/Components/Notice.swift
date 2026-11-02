@@ -49,8 +49,12 @@ struct NoticeCapsule: View {
 
     var body: some View {
         HStack(spacing: Theme.Space.sm) {
-            icon
-            message
+            // A symbol sits closer to its line than a cover does: it has no edge of its own, so
+            // the cover's gap leaves it looking adrift.
+            HStack(spacing: isSymbol ? Theme.Space.xs : Theme.Space.sm) {
+                icon
+                message
+            }
             if let action = notice.action { button(action) }
             ring
         }
@@ -76,6 +80,11 @@ struct NoticeCapsule: View {
         .onAppear { AccessibilityNotification.Announcement(notice.message).post() }
     }
 
+    private var isSymbol: Bool {
+        if case .symbol = notice.icon { return true }
+        return false
+    }
+
     @ViewBuilder
     private var icon: some View {
         switch notice.icon {
@@ -85,7 +94,10 @@ struct NoticeCapsule: View {
             Image(systemName: name)
                 .font(Self.font.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .frame(width: Self.inner, height: Self.inner)
+                // Only as wide as the glyph, centred on the cover's height; inset from the end
+                // so it sits where a cover's middle would.
+                .frame(height: Self.inner)
+                .padding(.leading, Theme.Space.xs)
         case nil:
             EmptyView()
         }
