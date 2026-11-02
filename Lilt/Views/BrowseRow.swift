@@ -69,7 +69,7 @@ struct BrowseRow: View {
             }
         case .addToQueue:
             withTracks { tracks in
-                tracks.forEach(player.enqueue)
+                tracks.forEach { player.enqueue($0) }
                 AppDelegate.shared?.queueDidChange()
             }
         case .goToArtist: if let artist = item.artistItem { navigation.open(artist) }

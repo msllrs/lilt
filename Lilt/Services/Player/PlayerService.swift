@@ -372,35 +372,43 @@ final class PlayerService {
     }
 
     /// Adds a track to the end of what's queued by hand, ahead of the rest of the list (as many
-    /// times as you like); with nothing playing, it starts a queue of its own.
-    func enqueue(_ track: Track) {
+    /// times as you like); with nothing playing, it starts a queue of its own. Returns the new
+    /// entry's identity, or nil when it started playing instead.
+    @discardableResult
+    func enqueue(_ track: Track) -> UUID? {
         guard let i = currentIndex, current != nil else {
             play([track], startingAt: 0)
-            return
+            return nil
         }
         let at = min(queue.count, i + 1 + manualCount)
         queue.insert(track, at: at)
         if unshuffledQueue != nil, let j = unshuffledQueue!.firstIndex(where: { $0.id == queue[i].id }) {
             unshuffledQueue!.insert(track, at: min(unshuffledQueue!.count, j + 1 + manualCount))
         }
-        manualTokens.append(UUID())
+        let token = UUID()
+        manualTokens.append(token)
         save()
+        return token
     }
 
     /// Puts tracks straight after the current one, in order, ahead of anything already queued by
-    /// hand; with nothing playing, they start a queue of their own.
-    func playNext(_ tracks: [Track]) {
-        guard !tracks.isEmpty else { return }
+    /// hand; with nothing playing, they start a queue of their own. Returns the new entries'
+    /// identities, none when they started playing instead.
+    @discardableResult
+    func playNext(_ tracks: [Track]) -> [UUID] {
+        guard !tracks.isEmpty else { return [] }
         guard let i = currentIndex, current != nil else {
             play(tracks, startingAt: 0)
-            return
+            return []
         }
         queue.insert(contentsOf: tracks, at: min(queue.count, i + 1))
         if unshuffledQueue != nil, let j = unshuffledQueue!.firstIndex(where: { $0.id == queue[i].id }) {
             unshuffledQueue!.insert(contentsOf: tracks, at: min(unshuffledQueue!.count, j + 1))
         }
-        manualTokens.insert(contentsOf: tracks.map { _ in UUID() }, at: 0)
+        let tokens = tracks.map { _ in UUID() }
+        manualTokens.insert(contentsOf: tokens, at: 0)
         save()
+        return tokens
     }
 
     /// Removes the track at an offset into `upcoming`.
@@ -410,6 +418,30 @@ final class PlayerService {
         if let j = unshuffledQueue?.lastIndex(where: { $0.id == removed.id }) { unshuffledQueue?.remove(at: j) }
         manualTokens.remove(at: offset)
         save()
+    }
+
+    /// Removes these entries from `upcoming`, wherever they've got to; other copies of the same
+    /// song stay. Entries already played or gone are skipped.
+    func removeUpcoming(ids: [UUID]) {
+        for id in ids {
+            if let offset = upcomingOffset(of: id) { removeUpcoming(at: offset) }
+        }
+    }
+
+    /// Puts a track back into `upcoming` at an offset (clamped to what's there), as a new entry.
+    /// Nil when nothing is playing to queue it behind.
+    @discardableResult
+    func insertUpcoming(_ track: Track, at offset: Int) -> UUID? {
+        guard let i = currentIndex, current != nil else { return nil }
+        let offset = min(max(offset, 0), manualCount)
+        queue.insert(track, at: min(queue.count, i + 1 + offset))
+        if unshuffledQueue != nil, let j = unshuffledQueue!.firstIndex(where: { $0.id == queue[i].id }) {
+            unshuffledQueue!.insert(track, at: min(unshuffledQueue!.count, j + 1 + offset))
+        }
+        let token = UUID()
+        manualTokens.insert(token, at: offset)
+        save()
+        return token
     }
 
     /// Reorders `upcoming` the way `ForEach.onMove` reports it.

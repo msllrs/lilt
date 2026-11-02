@@ -296,23 +296,54 @@ final class YTMusicClient {
     /// by video or browse id, so the menu can tick them.
     private(set) var addedTo: [String: Set<String>] = [:]
 
+    /// A song that went into one of your playlists, by the entry the playlist gave it, so it can
+    /// be taken out again.
+    struct AddedSong: Hashable, Sendable {
+        var videoId: String
+        var entry: PlaylistEntry
+    }
+
     /// Adds a song to one of your playlists. A song that's already there is left alone; that
-    /// counts as done too.
-    func add(_ track: Track, to playlist: OwnPlaylist) async throws {
+    /// counts as done too. Returns what went in (nothing, when it was there already).
+    @discardableResult
+    func add(_ track: Track, to playlist: OwnPlaylist) async throws -> [AddedSong] {
         try await add(["action": "ACTION_ADD_VIDEO", "addedVideoId": track.id, "dedupeOption": "DEDUPE_OPTION_SKIP"], key: track.id, to: playlist)
     }
 
     /// Adds every song of an album or playlist to one of yours.
-    func add(_ item: BrowseItem, to playlist: OwnPlaylist) async throws {
+    @discardableResult
+    func add(_ item: BrowseItem, to playlist: OwnPlaylist) async throws -> [AddedSong] {
         var page = cachedPage(for: item)
         if page == nil { page = try await self.page(for: item) }
         guard let listId = page?.playlistId else { throw URLError(.badURL) }
-        try await add(["action": "ACTION_ADD_PLAYLIST", "addedFullListId": listId, "dedupeOption": "DEDUPE_OPTION_SKIP"], key: item.id, to: playlist)
+        return try await add(["action": "ACTION_ADD_PLAYLIST", "addedFullListId": listId, "dedupeOption": "DEDUPE_OPTION_SKIP"], key: item.id, to: playlist)
     }
 
-    private func add(_ action: [String: Any], key: String, to playlist: OwnPlaylist) async throws {
-        _ = try await write("browse/edit_playlist", ["playlistId": playlist.id, "actions": [action]])
+    private func add(_ action: [String: Any], key: String, to playlist: OwnPlaylist) async throws -> [AddedSong] {
+        let response = try await write("browse/edit_playlist", ["playlistId": playlist.id, "actions": [action]])
         addedTo[key, default: []].insert(playlist.id)
+        return Self.addedSongs(in: response.value, playlistId: playlist.id)
+    }
+
+    /// The entries an edit_playlist add reports: one `playlistEditVideoAddedResultData` per song
+    /// that went in, with the `setVideoId` the playlist now knows it by.
+    static func addedSongs(in response: [String: Any], playlistId: String) -> [AddedSong] {
+        (JSON.array(response["playlistEditResults"]) ?? []).compactMap { result in
+            let data = JSON.dict(JSON.dict(result)?["playlistEditVideoAddedResultData"])
+            guard let videoId = JSON.string(data?["videoId"]), let setVideoId = JSON.string(data?["setVideoId"]) else { return nil }
+            return AddedSong(videoId: videoId, entry: PlaylistEntry(playlistId: playlistId, setVideoId: setVideoId))
+        }
+    }
+
+    /// Takes back an add: the songs it put in come out, in one edit, and the menu stops ticking
+    /// the playlist for `key`.
+    func undoAdd(_ songs: [AddedSong], key: String, from playlist: OwnPlaylist) async throws {
+        guard !songs.isEmpty else { return }
+        _ = try await write("browse/edit_playlist", [
+            "playlistId": playlist.id,
+            "actions": songs.map { ["action": "ACTION_REMOVE_VIDEO", "setVideoId": $0.entry.setVideoId, "removedVideoId": $0.videoId] },
+        ])
+        addedTo[key]?.remove(playlist.id)
     }
 
     /// Playlist entries removed in Lilt since their pages were fetched.
