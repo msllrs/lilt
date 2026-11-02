@@ -19,6 +19,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     let collapsedSections = CollapsedSections()
     let ambience = AmbienceService()
+    /// The panel's notices (Added to queue, Undo). Silent while nobody can see the panel, and in
+    /// the mini player, where the window is the platter and has no room for one.
+    let notices = NoticeCenter()
     /// Settings ▸ Notifications: a banner when the song changes.
     private lazy var songNotifier = SongNotifier(player: player, panel: { [weak self] in self?.panel })
     /// The system-wide shortcut that shows or hides the panel; set up at launch.
@@ -34,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         player.onLikeToggled = { [music] track, liked in music.noteLiked(liked, track: track) }
         player.recents = recents
         navigation.recents = recents
+        notices.isSuppressed = { [navigation] in navigation.isPanelOutOfSight || navigation.isMiniPlayer }
         if let url = player.displayArtworkURL { ImageCache.shared.restoreForLaunch(url) }
         makePanel()
         showPanel()
@@ -522,6 +526,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .environment(recents)
             .environment(collapsedSections)
             .environment(ambience)
+            .environment(notices)
         let hosting = NSHostingView(rootView: root)
         hosting.sizingOptions = []
         panelHosting = hosting

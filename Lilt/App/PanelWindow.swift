@@ -136,9 +136,26 @@ final class PanelWindow: NSPanel {
     /// state the menu bar (and its shortcuts) still belong to the previous app. Handle Lilt's own
     /// shortcuts here so they work straight from the panel.
     override func sendEvent(_ event: NSEvent) {
-        if event.type == .keyDown, handleShortcut(event) { return }
+        if event.type == .keyDown, performsNoticeAction(event) || handleShortcut(event) { return }
         if event.type == .leftMouseDown { endEditingIfClickedAway(event) }
         super.sendEvent(event)
+    }
+
+    /// While Lilt is active the Edit menu's Undo would answer ⌘Z first; the window is asked
+    /// before the menu, so a notice's Undo gets it.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        performsNoticeAction(event) || super.performKeyEquivalent(with: event)
+    }
+
+    /// ⌘Z (or whatever key the notice's action has) runs the action of the notice that's up.
+    /// Not while typing: there it's the field's own undo.
+    private func performsNoticeAction(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
+        guard event.type == .keyDown, modifiers == [.command], !(firstResponder is NSTextView),
+              let key = event.charactersIgnoringModifiers?.lowercased().first,
+              let notices = AppDelegate.shared?.notices
+        else { return false }
+        return notices.performAction(key: key)
     }
 
     /// AppKit leaves a text field focused when you click somewhere inert. Here a click anywhere

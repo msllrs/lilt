@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(PlayerService.self) private var player
     @Environment(NavigationModel.self) private var navigation
+    @Environment(NoticeCenter.self) private var notices
     /// The column's height while expanded. In mini the window is only as tall as the platter, so
     /// the (invisible) column keeps this size instead of reflowing, and reports none of it.
     @State private var columnHeight: CGFloat = 0
@@ -67,6 +68,14 @@ struct RootView: View {
                     .padding(.bottom, mini ? 0 : inset)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+            // Notices float just above the platter, centred, clear of its controls and of the
+            // header; with nothing playing, at the foot of the column. Not in mini: the window is
+            // the platter, so a notice could only cover it (or grow the window for a few seconds).
+            if !mini {
+                NoticeHost()
+                    .padding(.horizontal, inset)
+                    .padding(.bottom, inset + (player.current != nil ? navigation.platterHeight + Theme.Space.sm : 0))
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
@@ -76,6 +85,10 @@ struct RootView: View {
         }
         .animation(Theme.Motion.standard, value: player.current?.id)
         .animation(Theme.Motion.frame, value: mini)
+        // A notice is about what you just did in the panel; once it's hidden or folded to the
+        // platter, it's done with.
+        .onChange(of: mini) { _, _ in notices.dismiss() }
+        .onChange(of: navigation.isPanelHidden) { _, hidden in if hidden { notices.dismiss() } }
         // Everything outside a screen (the platter's marquee and disc) pauses while nobody can
         // see the panel too; screens combine this with their own parked state above.
         .environment(\.screenIsParked, navigation.isPanelOutOfSight)
