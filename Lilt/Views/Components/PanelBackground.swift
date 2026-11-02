@@ -4,10 +4,12 @@ import SwiftUI
 /// The panel's own surface, in the mode picked by `PanelStyle`: window-wide Liquid Glass, or the
 /// sidebar material a Finder window uses. Both are window-server composited, so hiding is done
 /// for real on the AppKit view rather than trusted to a SwiftUI fade (see `GlassBackground`).
+/// Settings ▸ Appearance ▸ Window style picks the mode; Reduce Transparency turns glass solid.
 struct PanelBackground: View {
     var isHidden: Bool = false
 
-    private var style: PanelStyle { ArtworkStyle.shared.panel }
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    private var style: PanelStyle { ArtworkStyle.shared.panel.effective(reduceTransparency: reduceTransparency) }
     @Environment(NavigationModel.self) private var navigation
 
     var body: some View {

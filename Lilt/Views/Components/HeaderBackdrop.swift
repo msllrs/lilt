@@ -14,6 +14,8 @@ struct HeaderBackdrop: ViewModifier {
     var visibility: CGFloat = 1
 
     private var style: HeaderBlurStyle { ArtworkStyle.shared.headerBlur }
+    /// The surface `PanelBackground` actually mounts decides whether there is a glass rim to redraw.
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     /// The panel corner the backdrop is clipped to. Behind-window layers ignore the window's own
     /// corner clip, so this applies under the native frame too.
     static let clipRadius: CGFloat = Theme.Radius.window
@@ -53,7 +55,7 @@ struct HeaderBackdrop: ViewModifier {
                 .overlay(alignment: .top) {
                     // Only the glass surface has a rim to restore; the sidebar's hairline sits
                     // above the blur already.
-                    if useBackdrop, ArtworkStyle.shared.panel.surface == .glass {
+                    if useBackdrop, ArtworkStyle.shared.panel.effective(reduceTransparency: reduceTransparency).surface == .glass {
                         Color.clear
                             .frame(height: Theme.Radius.window * 4)
                             .glassEdge(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous).inset(by: 0.5), opacity: style.rimOpacity)

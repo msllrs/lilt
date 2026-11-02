@@ -234,6 +234,13 @@ struct PanelStyle: Equatable {
     /// flat look of an inactive window (the same choice Reduce Transparency makes).
     var translucent: Bool = true
     static let standard = PanelStyle()
+
+    /// What goes on screen. With the system's Reduce Transparency on, glass gives way to the flat
+    /// sidebar: content sits directly on the window glass, which would still let the desktop show
+    /// through behind the rows, and the inactive material is the look the system asks for.
+    func effective(reduceTransparency: Bool) -> PanelStyle {
+        reduceTransparency && surface == .glass ? WindowStyle.solid.panelStyle : self
+    }
 }
 
 /// Settings ▸ Appearance ▸ Window style: the three looks `PanelStyle` can actually produce
