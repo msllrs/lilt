@@ -26,11 +26,13 @@ struct SettingsView: View {
                 }
             }
             Section {
-                Toggle("Gapless playback", isOn: $player.isGapless)
+                Picker("Gapless", selection: $player.gaplessMode) {
+                    ForEach(PlayerService.GaplessMode.allCases) { Text($0.title).tag($0) }
+                }
             } header: {
                 Text("Playback")
             } footer: {
-                Text("Keeps the next song loaded in the background so it starts the moment the current one ends. Uses more memory.")
+                Text(player.gaplessMode.footer)
                     .foregroundStyle(.secondary)
             }
             AppearanceSection()
@@ -211,5 +213,18 @@ private struct GeneralSection: View {
             failure = error.localizedDescription
         }
         status = SMAppService.mainApp.status
+    }
+}
+
+private extension PlayerService.GaplessMode {
+    var footer: String {
+        switch self {
+        case .off:
+            "Each song loads when the one before it ends."
+        case .nativeQueue:
+            "Puts the next song in YouTube Music's own Up Next, so its player moves on by itself. Only this session's queue changes, never your library."
+        case .secondPlayer:
+            "Keeps the next song loaded in a second player, so it starts the moment the current one ends. Uses more memory."
+        }
     }
 }

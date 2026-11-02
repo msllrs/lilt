@@ -69,17 +69,49 @@ final class PlayerService {
 
     // MARK: Gapless state
 
+    /// How one song runs into the next when it ends by itself.
+    enum GaplessMode: String, CaseIterable, Identifiable {
+        /// Every change is a load, on one web player.
+        case off
+        /// YouTube Music's own Up Next queue is kept holding the song that plays next, and the
+        /// page's player moves on to it by itself; Lilt follows along instead of loading it.
+        case nativeQueue
+        /// A second web player holds the next song muted and paused at 0:00, and takes over.
+        case secondPlayer
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .off: "Off"
+            case .nativeQueue: "YouTube's own (native queue)"
+            case .secondPlayer: "Second player (pre-load)"
+            }
+        }
+    }
+
+    static let gaplessModeKey = "gaplessMode"
+    /// The switch this setting replaced; read once, so turning it off is kept.
     static let gaplessKey = "gaplessPlayback"
-    /// Gapless playback: a second web player, signed in on the same data store, holds the song
-    /// that plays next muted and paused at 0:00, and takes over the instant the current one
-    /// ends. Off, there is one web player and every change is a load, exactly as before.
-    var isGapless = UserDefaults.standard.object(forKey: PlayerService.gaplessKey) as? Bool ?? true {
+
+    /// The stored mode; before there was one, the old switch off means off and anything else
+    /// the new default.
+    static func storedGaplessMode(_ defaults: UserDefaults = .standard) -> GaplessMode {
+        if let raw = defaults.string(forKey: gaplessModeKey), let mode = GaplessMode(rawValue: raw) { return mode }
+        if defaults.object(forKey: gaplessKey) as? Bool == false { return .off }
+        return .nativeQueue
+    }
+
+    var gaplessMode: GaplessMode = PlayerService.storedGaplessMode() {
         didSet {
-            UserDefaults.standard.set(isGapless, forKey: Self.gaplessKey)
+            UserDefaults.standard.set(gaplessMode.rawValue, forKey: Self.gaplessModeKey)
+            guard gaplessMode != oldValue else { return }
             syncStandby()
         }
     }
-    /// The web player waiting with the next song; nil with gapless off or before the first play.
+    /// Second player mode: a second web player, signed in on the same data store, holds the
+    /// song that plays next muted and paused at 0:00, and takes over the instant the current one
+    /// ends. Nil in any other mode, or before the first play.
     @ObservationIgnored private(set) var standby: (any PlayerBridging)?
     /// The song the standby is cueing or holding, and whether it's buffered and ready to start.
     @ObservationIgnored private(set) var standbyTrackId: String?
@@ -572,7 +604,7 @@ final class PlayerService {
     /// the current song is under way (its first report is in), so the two don't fight for the
     /// network, and it isn't created at all until something has played.
     private func syncStandby() {
-        guard isGapless else { tearDownStandby(); return }
+        guard gaplessMode == .secondPlayer else { tearDownStandby(); return }
         guard current != nil else { parkStandby(); return }
         guard !needsLoad, !isLoading else { return }
         guard let next = followingTrack, next.id != failedCue else { parkStandby(); return }
@@ -627,7 +659,7 @@ final class PlayerService {
 
     /// A resumed position can't be handed over: the standby waits at 0:00.
     private func canHandOver(to videoId: String) -> Bool {
-        isGapless && standby != nil && isStandbyReady && standbyTrackId == videoId && pendingSeek == nil
+        gaplessMode == .secondPlayer && standby != nil && isStandbyReady && standbyTrackId == videoId && pendingSeek == nil
     }
 
     /// The standby starts its song and becomes the player you hear; the old one is silenced
@@ -691,7 +723,7 @@ final class PlayerService {
 
     /// Which of `canHandOver`'s conditions failed.
     private func whyNotHandedOver(to videoId: String) -> String {
-        if !isGapless { return "gapless is off" }
+        if gaplessMode != .secondPlayer { return "gapless mode is \(gaplessMode.rawValue)" }
         guard standby != nil else { return "no standby yet" }
         if pendingSeek != nil { return "resuming partway through" }
         if standbyTrackId != videoId { return "standby holds \(standbyTrackId ?? "nothing"), not \(videoId)" }
