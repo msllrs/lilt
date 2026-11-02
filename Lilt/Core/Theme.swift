@@ -127,6 +127,13 @@ enum Theme {
         /// One glyph handing over to another in place (play ↔ pause, library ↔ back).
         /// Reduce Motion: kept, it doesn't travel.
         static var symbol: Animation { .snappy(duration: scaled(0.22)) }
+        /// The browse column receding once the panel is at rest (Settings ▸ Appearance ▸ Fade
+        /// when not in use): slow and even, so it settles rather than switches off. Reduce
+        /// Motion: kept as a fade, but a short crossfade, nothing drawn out.
+        static var rest: Animation { reducesMotion ? .easeOut(duration: scaled(0.2)) : .easeInOut(duration: scaled(1.2)) }
+        /// The column coming back the moment the pointer enters or a key is pressed: quicker
+        /// than `quick`, so it is there by the time you look. Reduce Motion: kept, a short fade.
+        static var wake: Animation { .easeOut(duration: scaled(0.12)) }
         /// A pressable button giving under the cursor, and springing back when let go.
         /// Reduce Motion: kept, a few percent of scale under the pointer.
         static var press: Animation { .easeOut(duration: scaled(0.08)) }

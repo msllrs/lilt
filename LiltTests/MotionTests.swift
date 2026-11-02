@@ -38,6 +38,8 @@ struct MotionTests {
             #expect(Theme.Motion.symbol == .snappy(duration: 0.88))
             #expect(Theme.Motion.press == .easeOut(duration: 0.32))
             #expect(Theme.Motion.release == .spring(duration: 1.2, bounce: 0.35))
+            #expect(Theme.Motion.rest == .easeInOut(duration: 4.8))
+            #expect(Theme.Motion.wake == .easeOut(duration: 0.48))
         }
     }
 
@@ -124,6 +126,10 @@ struct MotionTests {
             #expect(Theme.Motion.pageEnter == .easeOut(duration: 0.2))
             #expect(Theme.Motion.pageExit == .easeOut(duration: 0.12))
             #expect(Theme.Motion.pageTravel == 0)
+            // Resting stays a fade, a short crossfade rather than the slow settle; waking is
+            // already quick.
+            #expect(Theme.Motion.rest == .easeOut(duration: 0.2))
+            #expect(Theme.Motion.wake == .easeOut(duration: 0.12))
             // Instant: Up Next shuffling, a container's overshoot, the mini player's frame, the
             // queue opening, closing or let go after a pull.
             #expect(Theme.Motion.settle == nil)
@@ -147,6 +153,7 @@ struct MotionTests {
         Self.at(0.5, reducing: true) {
             #expect(Theme.Motion.quick == .easeOut(duration: 0.36))
             #expect(Theme.Motion.pageEnter == .easeOut(duration: 0.4))
+            #expect(Theme.Motion.rest == .easeOut(duration: 0.4))
             #expect(Theme.Motion.frameCurve.duration == 0)
         }
     }
@@ -202,6 +209,8 @@ struct MotionTests {
             #expect(Theme.Motion.symbol == .snappy(duration: 0.22))
             #expect(Theme.Motion.press == .easeOut(duration: 0.08))
             #expect(Theme.Motion.release == .spring(duration: 0.3, bounce: 0.35))
+            #expect(Theme.Motion.rest == .easeInOut(duration: 1.2))
+            #expect(Theme.Motion.wake == .easeOut(duration: 0.12))
             #expect(Theme.Motion.frameCurve.duration == 0.22)
             #expect(Theme.Motion.queueCurve.duration == Spring(duration: 0.3, bounce: 0).settlingDuration)
             #expect(Theme.Motion.standardCurve.duration == Spring.snappy(duration: 0.28).settlingDuration)
