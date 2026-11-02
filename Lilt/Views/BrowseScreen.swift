@@ -19,6 +19,13 @@ struct BrowseScreen: View {
 
     @State private var phase: Phase = .loading
     @State private var page: BrowsePage?
+    /// Holds the skeleton back while a quick page is on its way, and up once it has shown.
+    @State private var loadingGate = LoadingGate()
+
+    /// The skeleton's turn: still loading, or loaded while a shown skeleton has yet to have its
+    /// minimum time. Through the grace period the skeleton is there but invisible, keeping its
+    /// place so the hero and the rows don't move when the content lands.
+    private var awaitingContent: Bool { phase == .loading || loadingGate.showsPlaceholder }
 
     init(item: BrowseItem) {
         self.item = item
@@ -59,6 +66,7 @@ struct BrowseScreen: View {
         // The cover's light spills down from the top of the page, behind everything.
         .background(alignment: .top) { PageAmbient(url: (page?.item.artworkURL) ?? item.artworkURL) }
         .task(id: item.id) { await load() }
+        .loadingGate(loadingGate, isLoading: phase == .loading)
         // ⌘R takes the same path as pulling the list down.
         .onChange(of: navigation.refreshRequest) { _, _ in
             if isRefreshable, navigation.path.last?.id == item.id { Task { await load() } }
@@ -296,34 +304,37 @@ struct BrowseScreen: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 header(page, coverTint: coverTint)
-                switch phase {
-                case .loading:
+                if awaitingContent {
                     Skeleton.Rows(count: 6, header: true)
+                        .placeholderShown(loadingGate.showsPlaceholder)
                         .transition(.opacity)
-                case .failed(let message):
-                    EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load", detail: message)
-                        .padding(.top, Theme.Space.xl)
-                case .loaded where page.tracks.isEmpty && page.sections.isEmpty:
-                    // e.g. Liked Music before anything has been liked in YouTube Music.
-                    EmptyHint(symbol: "music.note.list", title: "Nothing here yet", detail: "Songs you add on YouTube Music will show up here.")
-                        .padding(.top, Theme.Space.xl)
-                case .loaded:
-                    EmptyView()
-                }
-                if !page.tracks.isEmpty {
-                    SectionHeader(page.item.kind == .artist ? "Top songs" : "Tracks")
-                    TrackRows(tracks: shownTracks(page), source: page.item)
-                    if let allSongsId = page.allSongsId {
-                        BrowseRow(item: BrowseItem(
-                            id: allSongsId, kind: .playlist, title: "All songs",
-                            subtitle: page.item.title, artworkURL: page.item.artworkURL
-                        ))
+                } else {
+                    switch phase {
+                    case .failed(let message):
+                        EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load", detail: message)
+                            .padding(.top, Theme.Space.xl)
+                    case .loaded where page.tracks.isEmpty && page.sections.isEmpty:
+                        // e.g. Liked Music before anything has been liked in YouTube Music.
+                        EmptyHint(symbol: "music.note.list", title: "Nothing here yet", detail: "Songs you add on YouTube Music will show up here.")
+                            .padding(.top, Theme.Space.xl)
+                    case .loaded, .loading:
+                        EmptyView()
                     }
-                }
-                ForEach(page.sections) { section in
-                    // The header is this page's; the rows are other albums and artists, with
-                    // covers of their own, so they keep the plain colours.
-                    CollapsibleSection(title: section.title, scope: "page", items: section.items) { BrowseRow(item: $0).environment(\.coverTint, nil) }
+                    if !page.tracks.isEmpty {
+                        SectionHeader(page.item.kind == .artist ? "Top songs" : "Tracks")
+                        TrackRows(tracks: shownTracks(page), source: page.item)
+                        if let allSongsId = page.allSongsId {
+                            BrowseRow(item: BrowseItem(
+                                id: allSongsId, kind: .playlist, title: "All songs",
+                                subtitle: page.item.title, artworkURL: page.item.artworkURL
+                            ))
+                        }
+                    }
+                    ForEach(page.sections) { section in
+                        // The header is this page's; the rows are other albums and artists, with
+                        // covers of their own, so they keep the plain colours.
+                        CollapsibleSection(title: section.title, scope: "page", items: section.items) { BrowseRow(item: $0).environment(\.coverTint, nil) }
+                    }
                 }
             }
             .padding(.horizontal, Theme.Space.rowInset)
@@ -391,8 +402,9 @@ struct BrowseScreen: View {
                         .foregroundStyle(coverTint.style(\.tertiary, or: .tertiary))
                 }
             }
-            if phase == .loading, page.tracks.isEmpty {
+            if awaitingContent {
                 Skeleton.PlayCapsule()
+                    .placeholderShown(loadingGate.showsPlaceholder)
                     .transition(.opacity)
             } else if !page.tracks.isEmpty {
                 // The cast is interpolated, so a new cover's colour arrives as a change of light
