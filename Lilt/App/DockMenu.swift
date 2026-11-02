@@ -32,10 +32,9 @@ enum DockMenu {
             menu.addItem(.separator())
             addPlaybackModes(to: menu, player: player)
             menu.addItem(.separator())
-            if let upNext = upNextMenu(player: player) {
-                menu.addItem(upNext)
-                menu.addItem(.separator())
-            }
+            let lists = [upNextMenu(player: player), recentlyPlayedMenu(player: player, recents: recents)].compactMap { $0 }
+            for list in lists { menu.addItem(list) }
+            if !lists.isEmpty { menu.addItem(.separator()) }
         }
         menu.addItem(ActionItem("Show Lilt", perform: actions.show))
         return menu
@@ -80,6 +79,22 @@ enum DockMenu {
             submenu.addItem(ActionItem(label(track)) { player.playAutomatic(at: offset) })
         }
         let item = NSMenuItem(title: "Up Next", action: nil, keyEquivalent: "")
+        item.submenu = submenu
+        return item
+    }
+
+    /// The songs played before this one, most recent first, with the covers the clock menu
+    /// keeps. Choosing one starts it on its own, as the clock menu does. Nil when there are none.
+    private static func recentlyPlayedMenu(player: PlayerService, recents: RecentsStore) -> NSMenuItem? {
+        let played = recents.played.filter { $0.id != player.current?.id }
+        guard !played.isEmpty else { return nil }
+        let submenu = NSMenu()
+        for track in played {
+            let entry = ActionItem(label(track)) { player.play([track], startingAt: 0) }
+            entry.image = recents.thumbnail(for: track.id)
+            submenu.addItem(entry)
+        }
+        let item = NSMenuItem(title: "Recently Played", action: nil, keyEquivalent: "")
         item.submenu = submenu
         return item
     }

@@ -132,3 +132,41 @@ struct DockMenuQueueTests {
         }
     }
 }
+
+/// The songs played before this one, to start one again.
+@MainActor
+struct DockMenuRecentsTests {
+    private func song(_ id: String) -> Track { Track(id: id, title: id, artist: "Tool") }
+
+    /// A player on `current` and recents holding `played`, most recent first. The real app's
+    /// saved playback and recents are put back afterwards.
+    private func withState(current: Track, played: [Track], _ body: (PlayerService, RecentsStore) throws -> Void) throws {
+        let keys = ["playbackState", "recents"]
+        let saved = keys.map { UserDefaults.standard.data(forKey: $0) }
+        defer {
+            for (key, data) in zip(keys, saved) {
+                if let data { UserDefaults.standard.set(data, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) }
+            }
+        }
+        let state: [String: Any] = ["queue": try JSONSerialization.jsonObject(with: JSONEncoder().encode([current])), "index": 0, "time": 0]
+        UserDefaults.standard.set(try JSONSerialization.data(withJSONObject: state), forKey: "playbackState")
+        let recents: [String: Any] = ["played": try JSONSerialization.jsonObject(with: JSONEncoder().encode(played)), "viewed": []]
+        UserDefaults.standard.set(try JSONSerialization.data(withJSONObject: recents), forKey: "recents")
+        try body(PlayerService(auth: AuthService()), RecentsStore())
+    }
+
+    @Test func recentlyPlayedLeavesOutTheSongPlayingNow() throws {
+        try withState(current: song("now"), played: [song("now"), song("before"), song("earlier")]) { player, recents in
+            let menu = DockMenu.build(player: player, music: YTMusicClient(auth: AuthService()), recents: recents, actions: .none)
+            let played = try #require(menu.item(withTitle: "Recently Played")?.submenu)
+            #expect(played.items.map(\.title) == ["before — Tool", "earlier — Tool"])
+        }
+    }
+
+    @Test func nothingPlayedBeforeLeavesItOut() throws {
+        try withState(current: song("now"), played: [song("now")]) { player, recents in
+            let menu = DockMenu.build(player: player, music: YTMusicClient(auth: AuthService()), recents: recents, actions: .none)
+            #expect(menu.item(withTitle: "Recently Played") == nil)
+        }
+    }
+}
