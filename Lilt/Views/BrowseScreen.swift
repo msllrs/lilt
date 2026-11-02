@@ -172,11 +172,18 @@ struct BrowseScreen: View {
     /// colour doesn't dim itself).
     private func heroRoundButton(symbol: String, help: String, palette: CoverPalette, disabled: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.callout.weight(.semibold))
-                .foregroundStyle(palette.style(disabled ? \.dimControl : \.onContainer, or: .primary))
-                .frame(width: Self.heroControlHeight, height: Self.heroControlHeight)
-                .modifier(HeroGlass(shape: Circle(), palette: palette))
+            ZStack {
+                // Glyph swap (bookmark ↔ bookmark.fill): scale, blur and fade in place, like the
+                // platter's like and a row's queue button.
+                Image(systemName: symbol)
+                    .font(.callout.weight(.semibold))
+                    .id(symbol)
+                    .transition(.blurScale)
+            }
+            .animation(Theme.Motion.symbol, value: symbol)
+            .foregroundStyle(palette.style(disabled ? \.dimControl : \.onContainer, or: .primary))
+            .frame(width: Self.heroControlHeight, height: Self.heroControlHeight)
+            .modifier(HeroGlass(shape: Circle(), palette: palette))
         }
         .buttonStyle(.pressable)
         .disabled(disabled)
