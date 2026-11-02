@@ -59,13 +59,40 @@ final class PlayerService {
     var displayArtworkURL: URL? { current?.artworkURL ?? liveArtworkURL }
 
     /// The web player you hear.
-    private(set) var bridge: any PlayerBridging
+    @ObservationIgnored private(set) var bridge: any PlayerBridging
     /// Makes a web player (a real one signed in on the app's data store, or a test's fake).
     @ObservationIgnored private let makeBridge: @MainActor () -> any PlayerBridging
     /// Puts a web player's view in a window, where it has to be to keep playing. Wired by the app.
     @ObservationIgnored var hostWebView: ((WKWebView) -> Void)? {
-        didSet { if let view = bridge.webView { hostWebView?(view) } }
+        didSet { for view in [bridge.webView, standby?.webView].compactMap({ $0 }) { hostWebView?(view) } }
     }
+
+    // MARK: Gapless state
+
+    static let gaplessKey = "gaplessPlayback"
+    /// Gapless playback: a second web player, signed in on the same data store, holds the song
+    /// that plays next muted and paused at 0:00, and takes over the instant the current one
+    /// ends. Off, there is one web player and every change is a load, exactly as before.
+    var isGapless = UserDefaults.standard.object(forKey: PlayerService.gaplessKey) as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(isGapless, forKey: Self.gaplessKey)
+            syncStandby()
+        }
+    }
+    /// The web player waiting with the next song; nil with gapless off or before the first play.
+    @ObservationIgnored private(set) var standby: (any PlayerBridging)?
+    /// The song the standby is cueing or holding, and whether it's buffered and ready to start.
+    @ObservationIgnored private(set) var standbyTrackId: String?
+    @ObservationIgnored private(set) var isStandbyReady = false
+    /// A song the standby couldn't cue; it isn't tried again until another song has started.
+    @ObservationIgnored private var failedCue: String?
+    /// Whether the last change of song was a handover rather than a load (for the gap log).
+    @ObservationIgnored private var handedOver = false
+    /// After a handover, the song that should be heard within `handoverTimeout`; if it isn't,
+    /// it's loaded the ordinary way.
+    @ObservationIgnored private var awaitingSound: String?
+    @ObservationIgnored private var handoverWatch: Task<Void, Never>?
+    @ObservationIgnored var handoverTimeout: Duration = .seconds(3)
     /// Looks up artist/album ids for a track that arrived without them. Wired by the app.
     @ObservationIgnored var linkResolver: ((String) async throws -> TrackLinks?)?
     /// Reports each like the player makes, so rows elsewhere agree. Wired by the app.
@@ -128,8 +155,21 @@ final class PlayerService {
         let make = makeBridge ?? { [dataStore = auth.dataStore] in PlayerBridge(dataStore: dataStore) }
         self.makeBridge = make
         bridge = make()
-        bridge.onEvent = { [weak self] event in self?.handle(event) }
+        route(bridge)
         restore()
+    }
+
+    /// Only the web player you hear drives playback; the standby's state, ends and remote
+    /// commands are about a song nobody is listening to.
+    private func route(_ player: any PlayerBridging) {
+        player.onEvent = { [weak self, weak player] event in
+            guard let self, let player else { return }
+            if player === self.bridge {
+                self.handle(event)
+            } else if player === self.standby {
+                self.handleStandby(event)
+            }
+        }
     }
 
     // MARK: Commands
@@ -269,6 +309,7 @@ final class PlayerService {
         currentIndex = nil
         resetLiveState()
         bridge.unload()
+        tearDownStandby()
         hasWebSession = false
         save()
     }
@@ -397,6 +438,9 @@ final class PlayerService {
             manualCount: manualCount, sourceId: sourceId, sourceTitle: sourceTitle
         )
         UserDefaults.standard.set(try? JSONEncoder().encode(saved), forKey: Self.savedKey)
+        // Every change to the queue, its order or its repeat lands here, so this is where the
+        // standby learns what plays next.
+        syncStandby()
     }
 
     private func restore() {
@@ -427,6 +471,9 @@ final class PlayerService {
         currentIndex = index
         needsLoad = false
         gap = nil
+        failedCue = nil
+        awaitingSound = nil
+        handoverWatch?.cancel()
         let resumeAt = pendingSeek
         resetLiveState()
         // Resuming a restored track: keep the saved position on screen instead of dipping to
@@ -438,7 +485,8 @@ final class PlayerService {
         trustWebPlayStateAfter = .now.addingTimeInterval(1.5)
         isLoading = true
         wantsAutoplayNudge = true
-        bridge.load(videoId: queue[index].id)
+        handedOver = canHandOver(to: queue[index].id)
+        if handedOver { handOver() } else { bridge.load(videoId: queue[index].id) }
         recents?.recordPlayed(queue[index], artwork: liveArtworkURL)
         save()
     }
@@ -477,8 +525,12 @@ final class PlayerService {
                 isLoading = false
                 return
             }
-            if let new = current { gap = GapTrace(old: old, new: new, mode: "single", endedAt: .now) }
+            if let new = current { gap = GapTrace(old: old, new: new, mode: handedOver ? "handover" : "single", endedAt: .now) }
         case .playing(let videoId):
+            if videoId == awaitingSound {
+                awaitingSound = nil
+                handoverWatch?.cancel()
+            }
             guard let trace = gap, videoId == trace.new.id else { return }
             gap = nil
             #if DEBUG
@@ -489,6 +541,101 @@ final class PlayerService {
             apply(s)
         case .cued, .cueFailed:
             break
+        }
+    }
+
+    // MARK: Gapless playback
+
+    /// The song that plays when the current one ends by itself, as `handle(.ended)` picks it;
+    /// nil when YouTube Music's own continuation takes over.
+    var followingTrack: Track? {
+        guard let i = currentIndex, queue.indices.contains(i) else { return nil }
+        if repeatMode == .one { return queue[i] }
+        if i + 1 < queue.count { return queue[i + 1] }
+        return repeatMode == .all ? queue.first : nil
+    }
+
+    /// Points the standby at `followingTrack`, re-cueing only when that changed. It waits until
+    /// the current song is under way (its first report is in), so the two don't fight for the
+    /// network, and it isn't created at all until something has played.
+    private func syncStandby() {
+        guard isGapless else { tearDownStandby(); return }
+        guard current != nil else { parkStandby(); return }
+        guard !needsLoad, !isLoading else { return }
+        guard let next = followingTrack, next.id != failedCue else { parkStandby(); return }
+        guard next.id != standbyTrackId else { return }
+        let standby = self.standby ?? makeStandby()
+        standbyTrackId = next.id
+        isStandbyReady = false
+        standby.cue(videoId: next.id)
+    }
+
+    private func makeStandby() -> any PlayerBridging {
+        let player = makeBridge()
+        route(player)
+        standby = player
+        if let view = player.webView { hostWebView?(view) }
+        return player
+    }
+
+    /// Nothing to hold: keep the page (and its signed-in shell) but silent.
+    private func parkStandby() {
+        guard standbyTrackId != nil else { return }
+        standbyTrackId = nil
+        isStandbyReady = false
+        standby?.hold()
+    }
+
+    private func tearDownStandby() {
+        guard let standby else { return }
+        standby.onEvent = nil
+        standby.unload()
+        standby.webView?.removeFromSuperview()
+        self.standby = nil
+        standbyTrackId = nil
+        isStandbyReady = false
+    }
+
+    private func handleStandby(_ event: PlayerEvent) {
+        switch event {
+        case .cued(let videoId):
+            guard videoId == standbyTrackId else { return }
+            isStandbyReady = true
+        case .cueFailed(let videoId):
+            guard videoId == standbyTrackId else { return }
+            failedCue = videoId
+            standbyTrackId = nil
+            isStandbyReady = false
+        default:
+            break
+        }
+    }
+
+    /// A resumed position can't be handed over: the standby waits at 0:00.
+    private func canHandOver(to videoId: String) -> Bool {
+        isGapless && standby != nil && isStandbyReady && standbyTrackId == videoId && pendingSeek == nil
+    }
+
+    /// The standby starts its song and becomes the player you hear; the old one is silenced
+    /// (it has ended, or you skipped it) and waits for whatever follows.
+    private func handOver() {
+        guard let next = standby else { return }
+        let old = bridge
+        bridge = next
+        standby = old
+        standbyTrackId = nil
+        isStandbyReady = false
+        next.start()
+        old.hold()
+        guard let id = current?.id else { return }
+        awaitingSound = id
+        handoverWatch = Task { [weak self, timeout = handoverTimeout] in
+            try? await Task.sleep(for: timeout)
+            guard !Task.isCancelled, let self, self.awaitingSound == id, self.current?.id == id else { return }
+            // It never sounded (YouTube paused it, or the page lost its video): load it the
+            // ordinary way on the same page.
+            self.awaitingSound = nil
+            self.bridge.load(videoId: id)
         }
     }
 
@@ -506,7 +653,10 @@ final class PlayerService {
             }
             adopt(videoId: videoId, from: s)
         }
-        isLoading = false
+        if isLoading {
+            isLoading = false
+            syncStandby()
+        }
         // WebKit only registers with Now Playing once the page actually plays. A snapshot of
         // YouTube's own restored (paused) player after a relaunch doesn't count, so the bridge
         // keeps Lilt's entry until our restored track is loaded and running.
