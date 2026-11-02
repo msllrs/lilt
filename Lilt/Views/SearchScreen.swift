@@ -50,19 +50,25 @@ struct SearchScreen: View {
         if !auth.isSignedIn {
             SignedOutView()
         } else {
-            switch phase {
-            case .idle:
-                HomeScreen(scrollOffset: $scrollOffset)
-            case .loading:
+            // Results that land quickly come straight in; only a slow search shows the skeleton.
+            // A new query typed over results keeps them on screen until its own arrive.
+            DelayedPlaceholder(isLoading: phase == .loading) {
+                switch phase {
+                case .idle:
+                    HomeScreen(scrollOffset: $scrollOffset)
+                case .loading:
+                    EmptyView()
+                case .failed(let message):
+                    EmptyHint(symbol: "exclamationmark.triangle", title: "Something went wrong", detail: message)
+                case .loaded where results.isEmpty:
+                    EmptyHint(symbol: "music.note", title: "Nothing found", detail: "Try a different search.")
+                        .onAppear { scrollTracker.report(remainingBelow: 0, for: ScrollTracker.searchKey) }
+                case .loaded:
+                    resultsList
+                }
+            } placeholder: {
                 ScrollView { Skeleton.Rows(count: 7, header: true) }
                     .scrollDisabled(true)
-            case .failed(let message):
-                EmptyHint(symbol: "exclamationmark.triangle", title: "Something went wrong", detail: message)
-            case .loaded where results.isEmpty:
-                EmptyHint(symbol: "music.note", title: "Nothing found", detail: "Try a different search.")
-                    .onAppear { scrollTracker.report(remainingBelow: 0, for: ScrollTracker.searchKey) }
-            case .loaded:
-                resultsList
             }
         }
     }
