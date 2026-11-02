@@ -27,6 +27,17 @@ final class InnerTubeClient {
     static let safariUserAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
 
+    /// Experimental, for the player page alone in Settings ▸ Playback's Chrome mode, and nothing
+    /// else (InnerTube calls and the login page keep `safariUserAgent`). YouTube's player script
+    /// decides gapless audio by browser, read from `navigator.userAgent` when its script loads:
+    /// `supportsGaplessAudio()` is true only for Chrome 74+ (not on iOS) or Firefox 68+, and only
+    /// then does it append the next song into the same MediaSource. WebKit has no
+    /// `navigator.userAgentData`, so the string is all it reads. The same string also makes it
+    /// ask for Widevine rather than FairPlay (it picks FairPlay only for `WebKit/600`+), which
+    /// WebKit doesn't have, so a song with DRM can fail here; the player falls back for that.
+    static let chromeUserAgent =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+
     private static let clientVersion = "1.20250929.01.00"
 
     private let auth: AuthService

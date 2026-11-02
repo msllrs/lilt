@@ -17,6 +17,13 @@ final class FakeBridge: PlayerBridging {
     func start() { calls.append("start") }
     func queueNext(videoId: String, after sourceId: String) { calls.append("queueNext:\(videoId)>\(sourceId)") }
     func cancelQueueNext() { calls.append("cancelQueueNext") }
+    /// The user agent the page was last given (it starts as Safari's, like the real one).
+    private(set) var userAgent = InnerTubeClient.safariUserAgent
+    func setUserAgent(_ userAgent: String) {
+        guard userAgent != self.userAgent else { return }
+        self.userAgent = userAgent
+        calls.append(userAgent == InnerTubeClient.chromeUserAgent ? "userAgent:chrome" : "userAgent:safari")
+    }
     func play() { calls.append("play") }
     func pause() { calls.append("pause") }
     func seek(to seconds: Double) { calls.append("seek") }
