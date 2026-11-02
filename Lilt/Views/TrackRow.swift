@@ -20,6 +20,8 @@ struct TrackRow: View {
     @State private var justQueued: Task<Void, Never>?
     /// Counts the button's clicks: the tick hops on each (see `attentionBounce`).
     @State private var queueClicks = 0
+    /// Copy Link, Play Next and Add to Queue from the menu sweep a light across the row.
+    @State private var shine = ShineTrigger()
     /// 0 = ordinary row, 1 = the playing track's pill highlight. Animated explicitly, on the
     /// same curve as the artwork's own disc transition.
     @State private var disc: CGFloat
@@ -98,6 +100,7 @@ struct TrackRow: View {
                         .opacity(isCurrent ? 1 : 0)
                 }
             }
+            .shine(trigger: shine, in: rowShape)
         }
         .buttonStyle(.plain)
         .contextMenu {
@@ -162,6 +165,7 @@ struct TrackRow: View {
         case .copyLink: RowMenu.copyLink(RowMenu.webURL(for: track), named: track.title, notices: notices)
         default: break
         }
+        shine.note(menuAction)
     }
 
     private func enqueue() { RowMenu.enqueue(track, player: player, notices: notices) }

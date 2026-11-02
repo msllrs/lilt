@@ -4,6 +4,8 @@ import SwiftUI
 struct BrowseRow: View {
     static let horizontalPadding = Theme.Space.rowPadding
     static let verticalPadding = Theme.Space.rowPadding
+    /// The hover highlight, concentric with the artwork: its radius plus the padding between them.
+    private static let highlight = RoundedRectangle(cornerRadius: Theme.Radius.rowArtwork + horizontalPadding, style: .continuous)
 
     let item: BrowseItem
 
@@ -13,6 +15,8 @@ struct BrowseRow: View {
     @Environment(NoticeCenter.self) private var notices: NoticeCenter?
     @State private var isHovering = false
     @State private var isHoveringArtwork = false
+    /// Copy Link, Play Next and Add to Queue from the menu sweep a light across the row.
+    @State private var shine = ShineTrigger()
 
     private var artworkRadius: CGFloat { item.kind == .artist ? Theme.Size.rowArtwork / 2 : Theme.Radius.rowArtwork }
 
@@ -34,13 +38,13 @@ struct BrowseRow: View {
             }
             .padding(.horizontal, Self.horizontalPadding)
             .padding(.vertical, Self.verticalPadding)
-            // Concentric with the artwork: its radius plus the padding between them.
-            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.rowArtwork + Self.horizontalPadding, style: .continuous))
+            .contentShape(Self.highlight)
             .background {
-                RoundedRectangle(cornerRadius: Theme.Radius.rowArtwork + Self.horizontalPadding, style: .continuous)
+                Self.highlight
                     .fill(.fill.quaternary)
                     .opacity(isHovering ? 0.6 : 0)
             }
+            .shine(trigger: shine, in: Self.highlight)
         }
         .buttonStyle(.plain)
         .contextMenu {
@@ -66,10 +70,15 @@ struct BrowseRow: View {
         switch action {
         case .play: withTracks { player.play($0, startingAt: 0, source: item) }
         case .shuffle: withTracks { player.playShuffled($0, source: item) }
-        case .playNext: withTracks { RowMenu.playNext($0, named: item.title, artwork: item.artworkURL, player: player, notices: notices) }
-        case .addToQueue: withTracks { RowMenu.enqueue($0, named: item.title, artwork: item.artworkURL, player: player, notices: notices) }
+        // The queue actions wait for the page's songs; the row shines when they go in, with the
+        // notice, and not at all if they never arrive.
+        case .playNext: withTracks { RowMenu.playNext($0, named: item.title, artwork: item.artworkURL, player: player, notices: notices); shine.note(action) }
+        case .addToQueue: withTracks { RowMenu.enqueue($0, named: item.title, artwork: item.artworkURL, player: player, notices: notices); shine.note(action) }
         case .goToArtist: if let artist = item.artistItem { navigation.open(artist) }
-        case .copyLink: RowMenu.copyLink(RowMenu.webURL(for: item), named: item.title, notices: notices)
+        case .copyLink:
+            guard let url = RowMenu.webURL(for: item) else { return }
+            RowMenu.copyLink(url, named: item.title, notices: notices)
+            shine.note(action)
         default: break
         }
     }

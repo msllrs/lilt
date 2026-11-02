@@ -218,6 +218,8 @@ private struct QueueRow: View {
     @Environment(NavigationModel.self) private var navigation
     @Environment(NoticeCenter.self) private var notices: NoticeCenter?
     @State private var isHovering = false
+    /// Copy Link from the menu sweeps a light across the row.
+    @State private var shine = ShineTrigger()
 
     var body: some View {
         // A plain tap gesture on List row content never fires on macOS (the table takes the
@@ -270,6 +272,9 @@ private struct QueueRow: View {
                 .fill(.fill.quaternary)
                 .opacity(isHovering ? 0.6 : 0)
         }
+        // The table row doesn't clip (the cover's shadow spills past it), so the band is
+        // clipped to the highlight itself.
+        .shine(trigger: shine, in: RoundedRectangle(cornerRadius: QueueList.rowHighlightRadius, style: .continuous))
         .contextMenu {
             RowMenuItems(
                 groups: RowMenu.queued(music.withLinks(track), removable: remove != nil, isLiked: music.isLiked(track)),
@@ -297,6 +302,7 @@ private struct QueueRow: View {
         case .copyLink: RowMenu.copyLink(RowMenu.webURL(for: track), named: track.title, notices: notices)
         default: break
         }
+        shine.note(action)
     }
 }
 
