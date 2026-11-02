@@ -170,6 +170,7 @@ struct BrowseScreen: View {
 
     /// Play, save and shuffle all share this height so the row reads as one set of controls.
     static let heroControlHeight: CGFloat = 38
+    @Environment(NoticeCenter.self) private var notices: NoticeCenter?
     @State private var isSaving = false
     private var isSaved: Bool { music.isSaved(item) }
 
@@ -193,7 +194,7 @@ struct BrowseScreen: View {
         isSaving = true
         Task {
             defer { isSaving = false }
-            try? await music.setSaved(target, page: page)
+            await RowMenu.setSaved(target, page: page, music: music, notices: notices)
         }
     }
 

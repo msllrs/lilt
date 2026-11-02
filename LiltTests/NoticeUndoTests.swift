@@ -145,4 +145,20 @@ struct NoticeUndoTests {
         try await Task.sleep(for: .milliseconds(100))
         #expect(center.current == nil)
     }
+
+    @Test func savingAnAlbumConfirmsItAndUndoTakesItBackOut() async throws {
+        var calls: [String] = []
+        let music = YTMusicClient(auth: AuthService(), write: { endpoint, _ in
+            calls.append(endpoint)
+            return JSONObject(value: [:])
+        })
+        var page = BrowsePage(item: BrowseItem(id: "MPREb-lateralus", kind: .album, title: "Lateralus", subtitle: "Tool", artworkURL: nil))
+        page.playlistId = "OLAK5uy-lateralus"
+        let center = notices()
+        await RowMenu.setSaved(true, page: page, music: music, notices: center)
+        #expect(center.current?.spoken == "Saved Lateralus to Library")
+        center.performAction()
+        for _ in 0..<50 where calls.count < 2 { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(calls == ["like/like", "like/removelike"])
+    }
 }

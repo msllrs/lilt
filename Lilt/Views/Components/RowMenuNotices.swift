@@ -95,6 +95,18 @@ extension RowMenu {
         }
     }
 
+    /// Saves an album or playlist to your library, or takes it out, confirmed once YouTube has;
+    /// Undo sets it back the same way.
+    static func setSaved(_ saved: Bool, page: BrowsePage, music: YTMusicClient, notices: NoticeCenter?) async {
+        guard (try? await music.setSaved(saved, page: page)) != nil else { return }
+        notices?.post(
+            "\(page.item.title) \(saved ? "to" : "from") Library",
+            label: saved ? "Saved" : "Removed",
+            icon: .symbol(saved ? "bookmark.fill" : "bookmark.slash"),
+            action: .undo { Task { try? await music.setSaved(!saved, page: page) } }
+        )
+    }
+
     // MARK: Links
 
     static func copyLink(_ url: URL?, named name: String, notices: NoticeCenter?) {
