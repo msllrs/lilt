@@ -1,3 +1,4 @@
+import ServiceManagement
 import SwiftUI
 
 struct SettingsView: View {
@@ -9,6 +10,7 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var player = player
         Form {
+            GeneralSection()
             Section("Account") {
                 if auth.isSignedIn {
                     LabeledContent("YouTube Music", value: account.map { "\($0.name) (\($0.email))" } ?? "Signed in")
@@ -33,5 +35,47 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 380)
+    }
+}
+
+/// Open at login, as the system has it. The switch reads `SMAppService` rather than a flag of
+/// our own, so turning Lilt off in System Settings ▸ Login Items shows here too. (The main app
+/// service needs no helper or entitlement, sandboxed or not.)
+private struct GeneralSection: View {
+    @State private var status = SMAppService.mainApp.status
+    @State private var failure: String?
+
+    var body: some View {
+        Section {
+            Toggle("Open at login", isOn: Binding(get: { status == .enabled || status == .requiresApproval }, set: setOpensAtLogin))
+        } header: {
+            Text("General")
+        } footer: {
+            if status == .requiresApproval {
+                // Registered, but macOS wants the user's say-so before it counts.
+                VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                    Text("Allow Lilt in System Settings ▸ General ▸ Login Items to finish turning this on.")
+                    Button("Open Login Items…") { SMAppService.openSystemSettingsLoginItems() }
+                        .buttonStyle(.link)
+                }
+                .foregroundStyle(.secondary)
+            } else if let failure {
+                Text(failure).foregroundStyle(.secondary)
+            }
+        }
+        // Coming back from System Settings, show what was decided there.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            status = SMAppService.mainApp.status
+        }
+    }
+
+    private func setOpensAtLogin(_ on: Bool) {
+        do {
+            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+            failure = nil
+        } catch {
+            failure = error.localizedDescription
+        }
+        status = SMAppService.mainApp.status
     }
 }
