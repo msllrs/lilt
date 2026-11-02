@@ -61,9 +61,6 @@ protocol PlayerBridging: AnyObject {
     func queueNext(videoId: String, after sourceId: String)
     /// Abandons a `queueNext` still under way; its result is never reported.
     func cancelQueueNext()
-    /// The user agent the page presents. A page already loaded keeps the browser it read when
-    /// its scripts loaded, so the next `load` opens a new document rather than navigating in it.
-    func setUserAgent(_ userAgent: String)
     func play()
     func pause()
     func seek(to seconds: Double)
@@ -90,8 +87,6 @@ final class PlayerBridge: NSObject, PlayerBridging {
     /// The latest `queueNext`, so a result from one it replaced is dropped.
     private var queueAttempt = 0
     private var queueVideoId: String?
-    /// The user agent changed under a loaded document; the next load replaces the document.
-    private var needsFreshDocument = false
 
     private static let handlerName = "lilt"
     private static let world: WKContentWorld = .page
@@ -129,12 +124,7 @@ final class PlayerBridge: NSObject, PlayerBridging {
     func load(videoId: String) {
         cueVideoId = nil
         queueVideoId = nil
-        if needsFreshDocument {
-            // In-app navigation would keep the old document, and the browser it read.
-            needsFreshDocument = false
-            pendingVideoId = nil
-            view.load(URLRequest(url: URL(string: "https://music.youtube.com/watch?v=\(videoId)")!))
-        } else if isShellLoaded && isReady {
+        if isShellLoaded && isReady {
             call("window.__lilt && window.__lilt.navigate(\(Self.quote(videoId)))")
         } else if isShellLoaded {
             // The shell is mid-load (e.g. warm-up); hand the request to the script when it's up.
@@ -176,12 +166,6 @@ final class PlayerBridge: NSObject, PlayerBridging {
         call("window.__lilt && window.__lilt.cancelQueueNext()")
     }
 
-    func setUserAgent(_ userAgent: String) {
-        guard view.customUserAgent != userAgent else { return }
-        view.customUserAgent = userAgent
-        needsFreshDocument = view.url.map { $0.absoluteString != "about:blank" } ?? false
-    }
-
     func start() {
         cueVideoId = nil
         call("window.__lilt && window.__lilt.start()")
@@ -197,7 +181,6 @@ final class PlayerBridge: NSObject, PlayerBridging {
     func unload() {
         cueVideoId = nil
         pendingVideoId = nil
-        needsFreshDocument = false
         view.load(URLRequest(url: URL(string: "about:blank")!))
     }
 

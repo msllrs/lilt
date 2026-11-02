@@ -82,10 +82,6 @@ final class PlayerService {
         case nativeQueue
         /// A second web player holds the next song muted and paused at 0:00, and takes over.
         case secondPlayer
-        /// Experimental: native queue, with the player page presenting Chrome's user agent so
-        /// YouTube's player turns on its own gapless (the next song appended into the same
-        /// stream). See `InnerTubeClient.chromeUserAgent`.
-        case chromeQueue
 
         var id: Self { self }
 
@@ -94,12 +90,11 @@ final class PlayerService {
             case .off: "Off"
             case .nativeQueue: "YouTube's own (native queue)"
             case .secondPlayer: "Second player (pre-load)"
-            case .chromeQueue: "YouTube's own (Chrome mode)"
             }
         }
 
         /// Whether the next song waits in YouTube Music's own Up Next and the page moves on to it.
-        var usesNativeQueue: Bool { self == .nativeQueue || self == .chromeQueue }
+        var usesNativeQueue: Bool { self == .nativeQueue }
     }
 
     static let gaplessModeKey = "gaplessMode"
@@ -118,45 +113,14 @@ final class PlayerService {
         didSet {
             UserDefaults.standard.set(gaplessMode.rawValue, forKey: Self.gaplessModeKey)
             guard gaplessMode != oldValue else { return }
-            let userAgentChanged = bridgeUserAgent != playerUserAgent
-            if gaplessMode == .chromeQueue, isChromeModeSuspended {
-                trace("chrome mode stays off for this session after repeated playback errors; the player page keeps the Safari user agent")
-            }
-            if userAgentChanged {
-                trace("player page user agent: \(userAgentName) for \(gaplessMode.rawValue), the page reloads")
-                bridge.setUserAgent(playerUserAgent)
-                bridgeUserAgent = playerUserAgent
-                chromeFailures = 0
-            }
             syncStandby()
-            let movedOn = !gaplessMode.usesNativeQueue
-                && fallBackFromNativeAdvance("the gapless mode changed to \(gaplessMode.rawValue)")
-            if userAgentChanged && !movedOn { reloadForUserAgent() }
+            if !gaplessMode.usesNativeQueue {
+                fallBackFromNativeAdvance("the gapless mode changed to \(gaplessMode.rawValue)")
+            }
             syncNativeQueue()
         }
     }
 
-    /// Chrome mode gave up after repeated playback errors: the player page is back on Safari's
-    /// user agent (still following YouTube's own queue) until Lilt quits.
-    @ObservationIgnored private(set) var isChromeModeSuspended = false
-    /// The user agent the player page should present: Chrome's only in Chrome mode, and only
-    /// on that page; the standby (second player mode) and everything else keep Safari's.
-    var playerUserAgent: String {
-        gaplessMode == .chromeQueue && !isChromeModeSuspended ? InnerTubeClient.chromeUserAgent : InnerTubeClient.safariUserAgent
-    }
-    /// What the player page was last given.
-    @ObservationIgnored private var bridgeUserAgent = InnerTubeClient.safariUserAgent
-    private var isChromeActive: Bool { playerUserAgent == InnerTubeClient.chromeUserAgent }
-    private var userAgentName: String { isChromeActive ? "Chrome" : "Safari" }
-    /// Chrome mode: playback errors and songs that didn't start, in a row. One loads the song
-    /// again the ordinary way; `chromeFailureLimit` puts the page back on Safari's user agent.
-    @ObservationIgnored private(set) var chromeFailures = 0
-    static let chromeFailureLimit = 2
-    /// Chrome mode: the song loaded and not yet heard, and how long it gets before that counts
-    /// as a failure (a fresh page load takes longer than the 3s an in-page move gets).
-    @ObservationIgnored private var chromeAwaitingStart: String?
-    @ObservationIgnored private var chromeStartWatch: Task<Void, Never>?
-    @ObservationIgnored var chromeStartTimeout: Duration = .seconds(10)
     /// Where the current song starts on the `<video>`'s timeline. Zero, except after YouTube's
     /// own gapless appended it to the song before in the same stream.
     @ObservationIgnored private var streamOffset: Double = 0
@@ -266,8 +230,6 @@ final class PlayerService {
         bridge = make()
         route(bridge)
         restore()
-        bridge.setUserAgent(playerUserAgent)
-        bridgeUserAgent = playerUserAgent
     }
 
     /// Only the web player you hear drives playback; the standby's state, ends and remote
@@ -386,7 +348,6 @@ final class PlayerService {
         guard current != nil else { return }
         setPlayingOptimistically(false)
         bridge.pause()
-        endChromeStartWatch()
         save()
     }
 
@@ -425,7 +386,6 @@ final class PlayerService {
         bridge.unload()
         tearDownStandby()
         clearNativeQueue()
-        endChromeStartWatch()
         hasWebSession = false
         save()
     }
@@ -598,7 +558,6 @@ final class PlayerService {
             trace("fallback load \(queue[index].id) on \(describe(bridge)): \(whyNotHandedOver(to: queue[index].id))")
             bridge.load(videoId: queue[index].id)
         }
-        watchChromeStart(queue[index].id)
         recents?.recordPlayed(queue[index], artwork: liveArtworkURL)
         save()
     }
@@ -678,7 +637,6 @@ final class PlayerService {
             if let advance = nativeAdvance, videoId == advance.targetId {
                 adoptNativeAdvance(advance, soundingAt: .now)
             }
-            if videoId == chromeAwaitingStart { endChromeStartWatch() }
             if videoId == awaitingSound {
                 awaitingSound = nil
                 handoverWatch?.cancel()
@@ -695,7 +653,7 @@ final class PlayerService {
         case .queuedNext(let videoId, let ok, let reason):
             nativeQueued(videoId, ok: ok, reason: reason)
         case .playbackError(let videoId, let reason):
-            playbackFailed(videoId, reason: reason)
+            trace("playback error on \(describe(bridge)) for \(videoId ?? "nil"): \(reason)")
         case .cued, .cueFailed:
             break
         }
@@ -885,11 +843,7 @@ final class PlayerService {
         nativeWatch = Task { [weak self, timeout = nativeAdvanceTimeout, token = advance.id, target = advance.targetId] in
             try? await Task.sleep(for: timeout)
             guard !Task.isCancelled, let self, self.nativeAdvance?.id == token else { return }
-            if self.isChromeActive {
-                self.chromeFailed("stuck: the page didn't reach \(target) within \(timeout)")
-            } else {
-                self.fallBackFromNativeAdvance("the page didn't reach \(target) within \(timeout)")
-            }
+            self.fallBackFromNativeAdvance("the page didn't reach \(target) within \(timeout)")
         }
         return true
     }
@@ -929,7 +883,7 @@ final class PlayerService {
         nativeSource = nil
         isNativeQueued = false
         nativeFailures = [:]
-        let mode = isChromeActive ? "chrome" : "native"
+        let mode = "native"
         recents?.recordPlayed(new, artwork: liveArtworkURL)
         if let continuation {
             // One stream: the new song is the same `<video>` playing on, so there was no silence
@@ -973,87 +927,8 @@ final class PlayerService {
         }
         trace("fallback load \(queue[index].id) on \(describe(bridge)): \(reason)")
         load(index: index)
-        let mode = isChromeActive ? "chrome fallback" : "native fallback"
-        if let new = current { gap = GapTrace(old: advance.from, new: new, mode: mode, endedAt: advance.endedAt ?? .now) }
+        if let new = current { gap = GapTrace(old: advance.from, new: new, mode: "native fallback", endedAt: advance.endedAt ?? .now) }
         return true
-    }
-
-    // MARK: Chrome mode
-
-    /// The player page's user agent changed: reload it on the song playing, where it was, so
-    /// the page reads its browser again. A paused song reloads when you press play.
-    private func reloadForUserAgent() {
-        if nativeAdvance != nil {
-            fallBackFromNativeAdvance("the player page reloads as \(userAgentName)")
-            return
-        }
-        guard let i = currentIndex, current != nil, !needsLoad else { return }
-        guard isPlaying || isLoading else {
-            trace("player page reloads as \(userAgentName) when \(queue[i].id) plays again")
-            needsLoad = true
-            return
-        }
-        pendingSeek = currentTime > 1 ? currentTime : nil
-        trace("player page reloads as \(userAgentName) on \(queue[i].id) at \(Int(currentTime))s")
-        load(index: i, keepingManual: true)
-    }
-
-    /// The page says it couldn't play a song. In Chrome mode that's a failure to fall back from;
-    /// otherwise it's only traced.
-    private func playbackFailed(_ videoId: String?, reason: String) {
-        let about = videoId ?? "nil"
-        guard isChromeActive else {
-            trace("playback error on \(describe(bridge)) for \(about): \(reason)")
-            return
-        }
-        let relevant = videoId == nil || videoId == current?.id
-            || (nativeAdvance.map { videoId == $0.targetId } ?? false)
-        guard relevant else {
-            trace("chrome mode playback error for \(about) ignored, playing \(current?.id ?? "nil"): \(reason)")
-            return
-        }
-        chromeFailed("\(about): \(reason)")
-    }
-
-    /// Chrome mode couldn't play the song (an error, or it didn't start in time). Never silence:
-    /// the song is loaded again the ordinary way, and after `chromeFailureLimit` in a row the
-    /// player page goes back to Safari's user agent for the rest of the session.
-    private func chromeFailed(_ what: String) {
-        endChromeStartWatch()
-        chromeFailures += 1
-        trace("chrome mode playback error \(what) (\(chromeFailures) of \(Self.chromeFailureLimit) in a row) on \(describe(bridge))")
-        if chromeFailures >= Self.chromeFailureLimit {
-            isChromeModeSuspended = true
-            chromeFailures = 0
-            bridge.setUserAgent(playerUserAgent)
-            bridgeUserAgent = playerUserAgent
-            trace("chrome mode playback error: giving up on Chrome mode for this session; the player page goes back to the Safari user agent and keeps following YouTube's own queue")
-        }
-        if nativeAdvance != nil {
-            fallBackFromNativeAdvance("chrome mode playback error")
-        } else if let i = currentIndex, current != nil {
-            pendingSeek = currentTime > 1 ? currentTime : nil
-            trace("fallback load \(queue[i].id) on \(describe(bridge)) as \(userAgentName): chrome mode playback error")
-            load(index: i, keepingManual: true)
-        }
-    }
-
-    /// Chrome mode: a loaded song that isn't heard within `chromeStartTimeout` is a failure.
-    private func watchChromeStart(_ id: String) {
-        endChromeStartWatch()
-        guard isChromeActive else { return }
-        chromeAwaitingStart = id
-        chromeStartWatch = Task { [weak self, timeout = chromeStartTimeout] in
-            try? await Task.sleep(for: timeout)
-            guard !Task.isCancelled, let self, self.chromeAwaitingStart == id, self.current?.id == id else { return }
-            self.chromeFailed("stuck: \(id) didn't start within \(timeout)")
-        }
-    }
-
-    private func endChromeStartWatch() {
-        chromeAwaitingStart = nil
-        chromeStartWatch?.cancel()
-        chromeStartWatch = nil
     }
 
     /// Native queue mode, from a snapshot of the page's player: whether it is moving on (or has
@@ -1184,11 +1059,6 @@ final class PlayerService {
         if abs(currentTime - lastSavedTime) > 5 { save() }
         duration = max(0, s.duration - streamOffset)
         if songDuration == 0 { songDuration = duration }
-        if s.isPlaying, videoId == current?.id {
-            if videoId == chromeAwaitingStart { endChromeStartWatch() }
-            // Really under way: Chrome mode's run of failures is over.
-            if currentTime > 2, chromeFailures > 0 { chromeFailures = 0 }
-        }
         liveTitle = s.title
         liveArtist = s.artist
         liveArtworkURL = s.artworkURL ?? liveArtworkURL
