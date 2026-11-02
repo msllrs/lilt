@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// What's up next, shown inside the platter below the scrubber: first the tracks you added
@@ -152,9 +153,6 @@ struct QueueList: View {
         // label was stretched to a full row and the gap beneath it ballooned.
         .environment(\.defaultMinListRowHeight, Self.leadingLabelHeight)
         .scrollIndicators(.never)
-        // AppKit's table still insets rows by 8pt a side after the margins are zeroed;
-        // pull it back so rows line up with the platter's artwork and controls.
-        .padding(.horizontal, -Self.tableInset)
         // Rows fade out at an edge only when there's more beyond it: no top fade while
         // sitting at the top, no bottom fade once scrolled to the end. A few points of slack
         // beyond the end (the table's own trailing padding) don't count as more.
@@ -188,6 +186,11 @@ struct QueueList: View {
         }
         .frame(height: listHeight, alignment: .top)
         .clipped()
+        // AppKit's table still insets rows by 8pt a side after the margins are zeroed;
+        // pull it back so rows line up with the platter's artwork and controls. Outside the
+        // clip above, so that cuts the gutter below the last row but leaves the covers'
+        // shadows the inset's room to the left; flush with the covers, it squared them off.
+        .padding(.horizontal, -Self.tableInset)
         .overlay {
             if entries.isEmpty, automatic.isEmpty {
                 Text("Nothing up next")
@@ -220,8 +223,10 @@ private struct QueueRow: View {
         // as a sibling, not nested inside it.
         Button(action: play) {
             HStack(spacing: Theme.Space.sm) {
-                // Same hover state as list rows: a play glyph over the cover.
-                ArtworkView(url: track.artworkURL, size: 28, radius: Theme.Radius.artwork(28), context: .row)
+                // Same hover state as list rows: a play glyph over the cover. Drawn by a
+                // hosting view of its own so its shadow can spill past the row (see
+                // `SpillingArtwork`).
+                SpillingArtwork(url: track.artworkURL, size: 28)
                     .playOverlay(isVisible: isHovering, symbol: "play.fill", radius: Theme.Radius.artwork(28), size: 28)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(track.title)
@@ -287,6 +292,77 @@ private struct QueueRow: View {
         case .goToAlbum: RowMenu.open(music.withLinks(track).albumItem, navigation: navigation)
         case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))
         default: break
+        }
+    }
+}
+
+/// A row's cover whose shadow spills past the row, as it does in the main lists.
+///
+/// Each List row is a cell of AppKit's table, drawn by a SwiftUI hosting view that only draws
+/// inside its own bounds, and the row view around it clips to the row too. A cover's shadow
+/// (which runs past the cover on purpose, see `ArtworkView.ambientShadow`) was cut square at the
+/// cell's edges: flush with the cover on the left, and 6pt below it, where the 40pt row ends. No
+/// SwiftUI modifier reaches either, so the cover gets a hosting view of its own, a cover's width
+/// bigger each way (the room `ambientShadow` gives its spill), and the row is told not to clip.
+/// The list's own scroll view still clips at its edges.
+private struct SpillingArtwork: NSViewRepresentable {
+    let url: URL?
+    let size: CGFloat
+
+    private func content(_ context: Context) -> AnyView {
+        AnyView(
+            ArtworkView(url: url, size: size, radius: Theme.Radius.artwork(size), context: .row)
+                // A separate hosting view doesn't inherit the platter's environment.
+                .environment(\.colorScheme, context.environment.colorScheme)
+        )
+    }
+
+    func makeNSView(context: Context) -> SpillView {
+        let view = SpillView()
+        let host = SpillView.Host(rootView: content(context))
+        host.sizingOptions = []
+        host.frame = view.bounds.insetBy(dx: -size, dy: -size)
+        host.autoresizingMask = [.width, .height]
+        view.addSubview(host)
+        view.host = host
+        return view
+    }
+
+    func updateNSView(_ view: SpillView, context: Context) {
+        view.host?.rootView = content(context)
+        view.unclipRow()
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: SpillView, context: Context) -> CGSize? {
+        CGSize(width: size, height: size)
+    }
+
+    final class SpillView: NSView {
+        /// Clicks, hovers and drags go to the row around it, as they would to a SwiftUI cover.
+        final class Host: NSHostingView<AnyView> {
+            override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        }
+
+        var host: Host?
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            unclipRow()
+        }
+
+        override func layout() {
+            super.layout()
+            unclipRow()
+        }
+
+        /// Turns off clipping on the table row this is drawn in (rows are reused, so this runs
+        /// whenever it lands in one). Rows are transparent, so a neighbour's spill shows through.
+        func unclipRow() {
+            var view = superview
+            while let current = view, !(current is NSTableRowView) { view = current.superview }
+            if let row = view, row.clipsToBounds { row.clipsToBounds = false }
         }
     }
 }
