@@ -43,6 +43,9 @@ enum Skeleton {
     struct Rows: View {
         var count: Int = 6
         var header: Bool = false
+        /// Keep off the panel's edge as a list's rows do. Off inside a list that already
+        /// insets its rows (a page), or the placeholders sit a second inset further in.
+        var insetsRows: Bool = true
         var body: some View {
             VStack(alignment: .leading, spacing: 0) {
                 if header {
@@ -56,7 +59,7 @@ enum Skeleton {
                         .opacity(1 - Double(i) / Double(max(count, 1)) * 0.6)
                 }
             }
-            .padding(.horizontal, Theme.Space.rowInset)
+            .padding(.horizontal, insetsRows ? Theme.Space.rowInset : 0)
             .modifier(Shimmer())
             .accessibilityLabel("Loading")
         }

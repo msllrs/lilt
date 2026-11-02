@@ -306,7 +306,7 @@ struct BrowseScreen: View {
             LazyVStack(alignment: .leading, spacing: 0) {
                 header(page, coverTint: coverTint)
                 if awaitingContent {
-                    Skeleton.Rows(count: 6, header: true)
+                    Skeleton.Rows(count: 6, header: true, insetsRows: false)
                         .placeholderShown(loadingGate.showsPlaceholder)
                         .transition(.opacity)
                 } else {
