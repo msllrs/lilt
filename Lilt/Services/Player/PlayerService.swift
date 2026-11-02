@@ -560,7 +560,9 @@ final class PlayerService {
         syncNativeQueue()
     }
 
-    private func restore() {
+    /// Takes up the saved queue and playhead, ready to load. Internal so tests can put the app's
+    /// own player on a queue of their choosing and back again.
+    func restore() {
         guard let data = UserDefaults.standard.data(forKey: Self.savedKey),
               let saved = try? JSONDecoder().decode(Saved.self, from: data),
               let index = saved.index, saved.queue.indices.contains(index) else { return }

@@ -27,8 +27,35 @@ struct AmbienceDrawerTests {
         #expect(after >= platterAfter - 1, "the platter (\(platterAfter)) must fit the window (\(after))")
     }
 
+    /// Puts the app's own player on a song with two more queued by hand, so Up Next has rows and
+    /// stays open (an empty list folds itself away after 1.5s, mid-test). The app's saved
+    /// playback is put back afterwards, in the defaults and in the player.
+    private func withQueuedSongs(_ player: PlayerService, _ body: () async throws -> Void) async throws {
+        let key = "playbackState"
+        let saved = UserDefaults.standard.data(forKey: key)
+        defer {
+            if let saved {
+                UserDefaults.standard.set(saved, forKey: key)
+                player.restore()
+            } else {
+                player.stop()
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+        let songs = ["now", "queued1", "queued2"].map { Track(id: $0, title: $0, artist: "Tool") }
+        let state: [String: Any] = ["queue": try JSONSerialization.jsonObject(with: JSONEncoder().encode(songs)), "index": 0, "time": 0, "manualCount": 2]
+        UserDefaults.standard.set(try JSONSerialization.data(withJSONObject: state), forKey: key)
+        player.restore()
+        try await body()
+    }
+
     @Test func miniWindowGrowsForTheDrawerWithTheQueueOpen() async throws {
         let delegate = try #require(AppDelegate.shared)
+        try await withQueuedSongs(delegate.player) { try await drawerGrowsWithQueueOpen(delegate) }
+    }
+
+    private func drawerGrowsWithQueueOpen(_ delegate: AppDelegate) async throws {
+        try #require(delegate.player.upcoming.count == 2, "the seeded queue should show in Up Next")
         let wasMini = delegate.navigation.isMiniPlayer
         let hadDrawer = delegate.navigation.isAmbienceVisible
         let hadQueue = delegate.navigation.isQueueVisible
