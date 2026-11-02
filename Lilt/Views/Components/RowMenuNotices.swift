@@ -43,7 +43,7 @@ extension RowMenu {
         let track = player.upcoming[offset]
         withAnimation(Theme.Motion.settle) { player.removeUpcoming(at: offset) }
         AppDelegate.shared?.queueDidChange()
-        notices?.post(track.title, label: "Removed", icon: .artwork(track.artworkURL), action: .undo {
+        notices?.post("\(track.title) from Up Next", label: "Removed", icon: .artwork(track.artworkURL), action: .undo {
             withAnimation(Theme.Motion.settle) { _ = player.insertUpcoming(track, at: offset) }
             AppDelegate.shared?.queueDidChange()
         })
@@ -55,9 +55,8 @@ extension RowMenu {
     static func setLiked(_ liked: Bool, _ track: Track, player: PlayerService, music: YTMusicClient, notices: NoticeCenter?) {
         setLiked(liked, track, player: player, music: music)
         notices?.post(
-            track.title,
-            // Unliking has no good single word; the struck-through thumb carries it.
-            label: liked ? "Liked" : "Like removed",
+            liked ? track.title : "\(track.title) from Liked",
+            label: liked ? "Liked" : "Removed",
             icon: .symbol(liked ? "hand.thumbsup.fill" : "hand.thumbsup.slash"),
             action: .undo { setLiked(!liked, track, player: player, music: music) }
         )

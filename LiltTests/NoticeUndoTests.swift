@@ -31,7 +31,7 @@ struct NoticeUndoTests {
             let entry = player.upcomingEntries[1]
             RowMenu.removeFromQueue(entry.id, player: player, notices: center)
             #expect(player.upcoming.map(\.title) == ["Schism", "Lateralus"])
-            #expect(center.current?.spoken == "Removed Parabola")
+            #expect(center.current?.spoken == "Removed Parabola from Up Next")
             #expect(center.performAction(key: "z"))
             #expect(player.upcoming.map(\.title) == ["Schism", "Parabola", "Lateralus"])
             #expect(player.automaticUpcoming.map(\.title) == ["Sober"], "the rest of the list is untouched")
