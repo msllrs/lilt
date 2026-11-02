@@ -225,6 +225,8 @@ private extension PlayerService.GaplessMode {
             "Puts the next song in YouTube Music's own Up Next, so its player moves on by itself. Only this session's queue changes, never your library."
         case .secondPlayer:
             "Keeps the next song loaded in a second player, so it starts the moment the current one ends. Uses more memory."
+        case .chromeQueue:
+            "An experiment: the player page identifies as Chrome so YouTube turns on its own gapless. Some songs may not play."
         }
     }
 }
