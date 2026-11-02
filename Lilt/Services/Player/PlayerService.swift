@@ -35,6 +35,9 @@ final class PlayerService {
     private(set) var liveArtworkURL: URL?
     /// Whether the playing track is liked on YouTube Music, as the page reports it.
     private(set) var isLiked = false
+    /// How many times a like or unlike has been asked for here (the platter, a menu, an Undo),
+    /// so the like button can answer those and not the page catching up with a new song's.
+    private(set) var likeToggles = 0
 
     var current: Track? {
         guard let i = currentIndex, queue.indices.contains(i) else { return nil }
@@ -269,6 +272,7 @@ final class PlayerService {
     func toggleLike() {
         guard let current else { return }
         isLiked.toggle()
+        likeToggles += 1
         onLikeToggled?(current, isLiked)
         bridge.toggleLike()
     }

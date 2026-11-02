@@ -18,6 +18,8 @@ struct TrackRow: View {
     /// The add-to-queue button shows a tick for a moment after a click.
     @State private var showsTick = false
     @State private var justQueued: Task<Void, Never>?
+    /// Counts the button's clicks: the tick hops on each (see `attentionBounce`).
+    @State private var queueClicks = 0
     /// 0 = ordinary row, 1 = the playing track's pill highlight. Animated explicitly, on the
     /// same curve as the artwork's own disc transition.
     @State private var disc: CGFloat
@@ -200,6 +202,7 @@ struct TrackRow: View {
                     showsTick = false
                 }
                 showsTick = true
+                queueClicks += 1
             } label: {
                 let symbol = showsTick ? "checkmark" : "text.line.last.and.arrowtriangle.forward"
                 ZStack {
@@ -210,6 +213,9 @@ struct TrackRow: View {
                         .transition(.blurScale)
                 }
                 .animation(Theme.Motion.symbol, value: symbol)
+                // The tick hops as it arrives. Inside the frame below, so the button's hit
+                // area stays put while the glyph moves.
+                .attentionBounce(trigger: queueClicks)
                 .foregroundStyle(coverTint.style(\.secondary, or: .secondary))
                 .frame(width: Self.queueButtonSize, height: Self.queueButtonSize)
                 .contentShape(Circle())
