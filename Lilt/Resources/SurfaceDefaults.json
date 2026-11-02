@@ -1,6 +1,9 @@
 {
   "glass" : {
     "dark" : {
+      "atRest" : {
+        "contentOpacity" : 0.6
+      },
       "glassEdge" : {
         "bottomOpacity" : 0.35,
         "hairline" : false,
@@ -40,6 +43,9 @@
       }
     },
     "light" : {
+      "atRest" : {
+        "contentOpacity" : 0.6
+      },
       "glassEdge" : {
         "bottomOpacity" : 0.1,
         "hairline" : false,
@@ -81,6 +87,9 @@
   },
   "normal" : {
     "dark" : {
+      "atRest" : {
+        "contentOpacity" : 0.6
+      },
       "glassEdge" : {
         "bottomOpacity" : 0.35,
         "hairline" : false,
@@ -120,6 +129,9 @@
       }
     },
     "light" : {
+      "atRest" : {
+        "contentOpacity" : 0.6
+      },
       "glassEdge" : {
         "bottomOpacity" : 0.1,
         "hairline" : false,
@@ -161,6 +173,9 @@
   },
   "solid" : {
     "dark" : {
+      "atRest" : {
+        "contentOpacity" : 0.6
+      },
       "glassEdge" : {
         "bottomOpacity" : 0.35,
         "hairline" : false,
@@ -200,6 +215,9 @@
       }
     },
     "light" : {
+      "atRest" : {
+        "contentOpacity" : 0.6
+      },
       "glassEdge" : {
         "bottomOpacity" : 0.1,
         "hairline" : false,

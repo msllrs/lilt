@@ -14,6 +14,7 @@ struct SurfaceStyle: Codable, Equatable {
     var headerBlur: HeaderBlur
     var pageAmbient: PageAmbient
     var headerControls: HeaderControls
+    var atRest: AtRest
 
     /// The now-playing platter's finish (see `PlatterStyle` for the rest).
     struct Platter: Codable, Equatable {
@@ -80,6 +81,16 @@ struct SurfaceStyle: Codable, Equatable {
         var rimOpacity: Double
         /// Tint of the glass with the cover's colour (0 = none).
         var tintOpacity: Double
+    }
+}
+
+extension SurfaceStyle {
+    /// The panel at rest (Settings ▸ Appearance ▸ Fade when not in use, see `PanelRest`): how far
+    /// the browse column recedes on this surface. On glass the desktop shows through what's
+    /// left, on the solid style only the surface does, so each can take its own step.
+    struct AtRest: Codable, Equatable {
+        /// The browse column's opacity (its lists, header and search); the platter keeps 1.
+        var contentOpacity: Double
     }
 }
 

@@ -16,7 +16,8 @@ struct SurfaceMatrixTests {
             glassEdge: .init(topOpacity: dark ? 0.45 : 0.9, middleOpacity: dark ? 0.12 : 0.35, bottomOpacity: dark ? 0.35 : 0.10, lineWidth: 1, hairline: false, hairlineWidth: 0.75, hairlineOpacity: 0.07),
             headerBlur: .init(radius: 24, saturation: 1.0, brightness: 0.0, reach: 32, rimOpacity: 0.45),
             pageAmbient: .init(opacity: 0.28, saturation: 3.0, blur: 120),
-            headerControls: .init(rim: false, rimOpacity: 0.5, tintOpacity: 0.6)
+            headerControls: .init(rim: false, rimOpacity: 0.5, tintOpacity: 0.6),
+            atRest: .init(contentOpacity: 0.6)
         )
     }
 
@@ -48,7 +49,7 @@ struct SurfaceMatrixTests {
         for appearances in object.values {
             #expect(Set(appearances.keys) == ["light", "dark"])
             for surfaces in appearances.values {
-                #expect(Set(surfaces.keys) == ["platter", "glassEdge", "headerBlur", "pageAmbient", "headerControls"])
+                #expect(Set(surfaces.keys) == ["platter", "glassEdge", "headerBlur", "pageAmbient", "headerControls", "atRest"])
             }
         }
     }
@@ -63,6 +64,21 @@ struct SurfaceMatrixTests {
     @Test func aMissingValueDoesNotDecode() throws {
         let json = try SurfaceMatrix.defaults.json().replacingOccurrences(of: "\"washOpacity\"", with: "\"wash\"")
         #expect(throws: DecodingError.self) { try SurfaceMatrix.decode(Data(json.utf8)) }
+    }
+
+    /// The panel at rest reads its step from the surface file, per style and appearance.
+    @Test func theRestingStepDecodesFromTheSurfaceFile() throws {
+        for style in WindowStyle.allCases {
+            for scheme in [ColorScheme.light, .dark] {
+                #expect(SurfaceMatrix.defaults[style, scheme].atRest.contentOpacity == 0.6)
+            }
+        }
+        let json = try SurfaceMatrix.defaults.json()
+        let edited = json.replacingOccurrences(of: "\"contentOpacity\" : 0.6", with: "\"contentOpacity\" : 0.45")
+        let matrix = try SurfaceMatrix.decode(Data(edited.utf8))
+        #expect(matrix[.solid, .dark].atRest.contentOpacity == 0.45)
+        let missing = json.replacingOccurrences(of: "\"contentOpacity\"", with: "\"opacity\"")
+        #expect(throws: DecodingError.self) { try SurfaceMatrix.decode(Data(missing.utf8)) }
     }
 
     /// The hairline experiment adds light on dark glass and takes it away on light.

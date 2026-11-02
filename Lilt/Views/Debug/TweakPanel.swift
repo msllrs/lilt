@@ -251,6 +251,7 @@ struct TweakPanel: View {
             Toggle("Header controls: our lit rim", isOn: $style.surfaces[shown, scheme].headerControls.rim)
             slider("Header controls: rim opacity", $style.surfaces[shown, scheme].headerControls.rimOpacity, 0...1)
             slider("Header controls: cover tint", $style.surfaces[shown, scheme].headerControls.tintOpacity, 0...0.6)
+            slider("At rest: content", $style.surfaces[shown, scheme].atRest.contentOpacity, 0.2...1)
             HStack {
                 Button("Reset this cell") { style.surfaces[shown, scheme] = SurfaceMatrix.defaults[shown, scheme] }
                 Spacer()
