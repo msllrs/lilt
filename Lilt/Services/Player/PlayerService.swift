@@ -487,6 +487,8 @@ final class PlayerService {
             #endif
         case .state(let s):
             apply(s)
+        case .cued, .cueFailed:
+            break
         }
     }
 

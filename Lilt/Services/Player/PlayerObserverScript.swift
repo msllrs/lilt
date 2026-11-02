@@ -10,7 +10,11 @@ enum PlayerObserverScript {
       const post = (type, payload) => {
         try { window.webkit.messageHandlers.lilt.postMessage(Object.assign({ type }, payload || {})); } catch (e) {}
       };
-      const state = { video: null, lastTimeUpdate: 0, pendingNav: null };
+      const state = { video: null, lastTimeUpdate: 0, pendingNav: null, hold: false, cueing: null, ytVolume: null };
+      // A standby page (gapless playback) is held silent and still. The flag outlives a reload
+      // through sessionStorage, which belongs to this web view alone.
+      const holdKey = '__liltHold';
+      try { state.hold = !!sessionStorage.getItem(holdKey); } catch (e) {}
       const text = (sel) => { const el = document.querySelector(sel); return el ? (el.textContent || '').trim() : ''; };
       const app = () => document.querySelector('ytmusic-app');
       const playerApi = () => {
@@ -44,6 +48,41 @@ enum PlayerObserverScript {
         });
         return out;
       };
+      // Muted at the element, never through the player API: that stores volume and mute for
+      // every YouTube Music page on the account, the one you're listening to included. The
+      // volume YouTube gives the element (its own level, loudness-matched per song) is kept to
+      // put back on start.
+      const quiet = (v) => {
+        if (v.volume > 0) { state.ytVolume = v.volume; }
+        if (v.volume !== 0) { v.volume = 0; }
+        if (!v.muted) { v.muted = true; }
+      };
+      // The page autoplays whatever it navigates to; a held one stops it the moment it starts.
+      const keepHeld = () => {
+        const v = state.video;
+        if (!state.hold || !v) { return; }
+        quiet(v);
+        if (!v.paused) { v.pause(); }
+      };
+      const bufferedAhead = (v) => {
+        const t = v.currentTime || 0;
+        for (let i = 0; i < v.buffered.length; i++) {
+          if (v.buffered.start(i) <= t + 0.1 && v.buffered.end(i) > t) { return v.buffered.end(i) - t; }
+        }
+        return 0;
+      };
+      const stopCueing = () => { if (state.cueing) { clearInterval(state.cueing); state.cueing = null; } };
+      const hold = () => {
+        state.hold = true;
+        try { sessionStorage.setItem(holdKey, '1'); } catch (e) {}
+        if (state.pendingNav) { clearInterval(state.pendingNav); state.pendingNav = null; }
+        keepHeld();
+      };
+      const release = () => {
+        state.hold = false;
+        stopCueing();
+        try { sessionStorage.removeItem(holdKey); } catch (e) {}
+      };
       const report = () => {
         const v = state.video;
         if (!v) { return; }
@@ -57,6 +96,7 @@ enum PlayerObserverScript {
       const attach = (v) => {
         if (state.video === v) { return; }
         state.video = v;
+        ['play', 'playing', 'volumechange', 'loadstart'].forEach((e) => v.addEventListener(e, keepHeld));
         ['play', 'pause', 'playing', 'durationchange', 'loadedmetadata', 'seeked', 'emptied'].forEach((e) => v.addEventListener(e, report));
         v.addEventListener('timeupdate', () => {
           const now = Date.now();
@@ -67,6 +107,7 @@ enum PlayerObserverScript {
         v.addEventListener('ended', () => post('TRACK_ENDED', { videoId: videoId() }));
         // Sound actually under way (not just asked for), for timing the gap between tracks.
         v.addEventListener('playing', () => post('PLAYING', { videoId: videoId() }));
+        keepHeld();
         report();
       };
       const tick = () => {
@@ -81,6 +122,7 @@ enum PlayerObserverScript {
       // for a page load). The app's router listens for `yt-navigate` events carrying a music
       // watch endpoint. We confirm via the player's video id and reload only as a last resort.
       const navigate = (id) => {
+        release();
         if (state.pendingNav) { clearInterval(state.pendingNav); state.pendingNav = null; }
         const target = 'https://music.youtube.com/watch?v=' + encodeURIComponent(id);
         const fallback = (why) => {
@@ -118,6 +160,65 @@ enum PlayerObserverScript {
         }, 100);
       };
 
+      // Gapless playback: the standby page navigates to the next song held silent, then waits
+      // paused at 0:00 until enough is buffered to start the instant the current song ends.
+      // CUED says it's ready; CUE_FAILED hands the song back to the ordinary load.
+      const cue = (id) => {
+        hold();
+        stopCueing();
+        const fallback = (why) => {
+          stopCueing();
+          post('NAV', { method: 'cue-replace:' + why, id });
+          location.replace('https://music.youtube.com/watch?v=' + encodeURIComponent(id));
+        };
+        if (videoId() !== id) {
+          const a = app();
+          if (!a) { fallback('no-app'); return; }
+          const endpoint = {
+            watchEndpoint: {
+              videoId: id,
+              watchEndpointMusicSupportedConfigs: { watchEndpointMusicConfig: { musicVideoType: 'MUSIC_VIDEO_TYPE_ATV' } },
+            },
+          };
+          try {
+            a.dispatchEvent(new CustomEvent('yt-navigate', { detail: { endpoint }, bubbles: true, composed: true }));
+          } catch (e) { fallback('threw'); return; }
+        }
+        const started = Date.now();
+        state.cueing = setInterval(() => {
+          const elapsed = Date.now() - started;
+          const v = state.video;
+          if (videoId() === id && v && v.readyState >= 1) {
+            keepHeld();
+            if (v.currentTime > 0.05 && !v.seeking) { v.currentTime = 0; }
+            const wanted = Math.min(5, Math.max(0, (v.duration || 0) - 0.5));
+            if (v.paused && !v.seeking && v.currentTime <= 0.05 && v.readyState >= 3 && bufferedAhead(v) >= wanted) {
+              stopCueing();
+              post('CUED', { videoId: id });
+              return;
+            }
+          } else if (videoId() !== id && elapsed > 6000) {
+            fallback('not-cued');
+            return;
+          }
+          if (elapsed > 20000) { stopCueing(); post('CUE_FAILED', { videoId: id }); }
+        }, 250);
+      };
+      // The handover: unmute at YouTube's own level and play straight from the element, which
+      // is the quickest way to sound from a buffered pause.
+      const start = () => {
+        release();
+        const v = state.video;
+        if (!v) { return; }
+        const p = playerApi();
+        let volume = state.ytVolume;
+        if (volume == null) { try { volume = p && p.getVolume ? p.getVolume() / 100 : 1; } catch (e) { volume = 1; } }
+        v.muted = false;
+        v.volume = Math.max(0, Math.min(1, volume));
+        const r = v.play();
+        if (r && r.catch) { r.catch(() => { try { if (p) { p.playVideo(); } } catch (e) {} }); }
+      };
+
       // WebKit publishes the page's Media Session to macOS Now Playing and media keys. Keep that
       // as the single system entry, but make next/previous drive Lilt's queue instead of the
       // page's own, and stop the page from taking those two actions back.
@@ -134,6 +235,9 @@ enum PlayerObserverScript {
 
       window.__lilt = {
         navigate,
+        cue,
+        hold,
+        start,
         play: () => {
           const p = playerApi();
           if (p) { p.playVideo(); return; }

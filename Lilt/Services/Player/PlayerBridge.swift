@@ -22,6 +22,10 @@ enum PlayerEvent {
     case ended(videoId: String?)
     /// The `<video>` has started producing sound (its `playing` event).
     case playing(videoId: String?)
+    /// A standby page has the song held at 0:00, buffered, ready to `start`.
+    case cued(videoId: String)
+    /// A standby page couldn't get the song ready; it plays the ordinary way instead.
+    case cueFailed(videoId: String)
     /// A Now Playing / media key command the page's media session forwarded to us.
     case remote(RemoteAction)
 }
@@ -39,6 +43,13 @@ protocol PlayerBridging: AnyObject {
     var webView: WKWebView? { get }
     func warmUp()
     func load(videoId: String)
+    /// Gapless playback: navigates to `videoId` held silent and paused at 0:00, and reports
+    /// `.cued` once enough is buffered.
+    func cue(videoId: String)
+    /// Silences and pauses the page, and keeps it that way through whatever it autoplays.
+    func hold()
+    /// Plays the cued song at once, at YouTube's own volume.
+    func start()
     func play()
     func pause()
     func seek(to seconds: Double)
@@ -59,6 +70,9 @@ final class PlayerBridge: NSObject, PlayerBridging {
     private var isReady = false
     /// A load requested while the document was still loading; sent on READY.
     private var pendingVideoId: String?
+    /// The song being cued, until it's ready. Sent again on READY, so a cue survives the shell
+    /// loading or the page's reload fallback.
+    private var cueVideoId: String?
 
     private static let handlerName = "lilt"
     private static let world: WKContentWorld = .page
@@ -94,6 +108,7 @@ final class PlayerBridge: NSObject, PlayerBridging {
     }
 
     func load(videoId: String) {
+        cueVideoId = nil
         if isShellLoaded && isReady {
             call("window.__lilt && window.__lilt.navigate(\(Self.quote(videoId)))")
         } else if isShellLoaded {
@@ -105,6 +120,24 @@ final class PlayerBridge: NSObject, PlayerBridging {
         }
     }
 
+    func cue(videoId: String) {
+        cueVideoId = videoId
+        pendingVideoId = nil
+        if isShellLoaded && isReady {
+            call("window.__lilt && window.__lilt.cue(\(Self.quote(videoId)))")
+        } else if !isShellLoaded {
+            // The shell, not the watch page: it doesn't autoplay, and READY sends the cue.
+            view.load(URLRequest(url: URL(string: "https://music.youtube.com/")!))
+        }
+    }
+
+    func hold() { call("window.__lilt && window.__lilt.hold()") }
+
+    func start() {
+        cueVideoId = nil
+        call("window.__lilt && window.__lilt.start()")
+    }
+
     private var isShellLoaded: Bool { view.url?.host == "music.youtube.com" }
 
     func play() { call("window.__lilt && window.__lilt.play()") }
@@ -112,7 +145,11 @@ final class PlayerBridge: NSObject, PlayerBridging {
     func seek(to seconds: Double) { call("window.__lilt && window.__lilt.seek(\(seconds))") }
     func setVolume(_ volume: Double) { call("window.__lilt && window.__lilt.setVolume(\(volume))") }
     func toggleLike() { call("window.__lilt && window.__lilt.toggleLike()") }
-    func unload() { view.load(URLRequest(url: URL(string: "about:blank")!)) }
+    func unload() {
+        cueVideoId = nil
+        pendingVideoId = nil
+        view.load(URLRequest(url: URL(string: "about:blank")!))
+    }
 
     private func call(_ js: String) {
         view.evaluateJavaScript(js, in: nil, in: Self.world) { _ in }
@@ -131,6 +168,8 @@ final class PlayerBridge: NSObject, PlayerBridging {
             if let videoId = pendingVideoId {
                 pendingVideoId = nil
                 load(videoId: videoId)
+            } else if let videoId = cueVideoId {
+                cue(videoId: videoId)
             }
             onEvent?(.ready)
         case "NAV":
@@ -145,6 +184,14 @@ final class PlayerBridge: NSObject, PlayerBridging {
             onEvent?(.ended(videoId: body["videoId"] as? String))
         case "PLAYING":
             onEvent?(.playing(videoId: body["videoId"] as? String))
+        case "CUED":
+            guard let videoId = body["videoId"] as? String, videoId == cueVideoId else { return }
+            cueVideoId = nil
+            onEvent?(.cued(videoId: videoId))
+        case "CUE_FAILED":
+            guard let videoId = body["videoId"] as? String, videoId == cueVideoId else { return }
+            cueVideoId = nil
+            onEvent?(.cueFailed(videoId: videoId))
         case "STATE_UPDATE":
             let snapshot = PlaybackSnapshot(
                 videoId: body["videoId"] as? String,
