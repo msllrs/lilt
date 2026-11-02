@@ -75,6 +75,16 @@ struct TweakPanel: View {
                 Toggle("Cast on rim (like play capsule)", isOn: $style.platter.castEdge)
                 Toggle("Cast glow inside (like play capsule)", isOn: $style.platter.castGlow)
             }
+            Section("Album page tint") {
+                Toggle("Same shares as the platter", isOn: $style.pageTint.followsPlatter)
+                slider("Text tint", $style.pageTint.textTint, 0...1)
+                    .disabled(style.pageTint.followsPlatter)
+                slider("Controls tint", $style.pageTint.controlsTint, 0...1)
+                    .disabled(style.pageTint.followsPlatter)
+                slider("Playing row (light)", $style.pageTint.highlightOpacity, 0...0.5)
+                slider("Playing row (dark)", $style.pageTint.darkHighlightOpacity, 0...0.5)
+                Toggle("Contrast guard", isOn: $style.pageTint.contrastGuard)
+            }
             Section("Page ambient") {
                 slider("Opacity", $style.pageAmbient.opacity, 0...1)
                 slider("Saturation", $style.pageAmbient.saturation, 0...8)

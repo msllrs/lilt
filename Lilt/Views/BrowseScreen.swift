@@ -123,12 +123,17 @@ struct BrowseScreen: View {
     /// playlist mixes covers and an artist page has an avatar.
     nonisolated static func wearsCoverTint(_ kind: BrowseKind) -> Bool { kind == .album }
 
-    /// The page's tint: the platter's mix of the cover's accent, held to a readable contrast on
-    /// the plain panel (see `CoverTint.guarded`). Nil for every other kind of page.
-    static func coverTint(kind: BrowseKind, accent: Color?, colorScheme: ColorScheme) -> CoverTint? {
+    /// The page's tint: the platter's mix of the cover's accent (or the page's own shares, see
+    /// `PageTintStyle`), held to a readable contrast on the plain panel (see
+    /// `CoverTint.guarded`). Nil for every other kind of page.
+    static func coverTint(kind: BrowseKind, accent: Color?, colorScheme: ColorScheme, style: PageTintStyle = ArtworkStyle.shared.pageTint) -> CoverTint? {
         guard wearsCoverTint(kind) else { return nil }
-        var tint = CoverTint(accent: accent, colorScheme: colorScheme, platter: ArtworkStyle.shared.platter)?.guarded()
-        tint?.highlightOpacity = colorScheme == .dark ? 0.16 : 0.12
+        let platter = ArtworkStyle.shared.platter
+        let text = style.followsPlatter ? platter.textTint : style.textTint
+        let controls = style.followsPlatter ? platter.controlsTint : style.controlsTint
+        guard var tint = CoverTint(accent: accent, colorScheme: colorScheme, textTint: text, controlsTint: controls) else { return nil }
+        if style.contrastGuard { tint = tint.guarded() }
+        tint.highlightOpacity = colorScheme == .dark ? style.darkHighlightOpacity : style.highlightOpacity
         return tint
     }
 

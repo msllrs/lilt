@@ -86,6 +86,23 @@ struct PageCoverTintTests {
         #expect(BrowseScreen.coverTint(kind: .album, accent: nil, colorScheme: .light) == nil)
     }
 
+    /// By default a page takes the platter's shares; the page's own dials apply once it stops
+    /// following, and the guard can be turned off to see the raw mix.
+    @Test func pageSharesFollowThePlatterUntilToldOtherwise() throws {
+        let accent = Color(red: 0.8, green: 0.2, blue: 0.2)
+        var style = PageTintStyle.standard
+        style.contrastGuard = false
+        let platter = ArtworkStyle.shared.platter
+        let following = try #require(BrowseScreen.coverTint(kind: .album, accent: accent, colorScheme: .light, style: style))
+        #expect(following.titleMix == platter.textTint && following.controlMix == platter.controlsTint)
+        style.followsPlatter = false
+        style.textTint = 0.25
+        style.controlsTint = 0.5
+        let own = try #require(BrowseScreen.coverTint(kind: .album, accent: accent, colorScheme: .dark, style: style))
+        #expect(own.titleMix == 0.25 && own.secondaryMix == 0.125 && own.controlMix == 0.5)
+        #expect(own.highlightOpacity == style.darkHighlightOpacity)
+    }
+
     @Test func theEnvironmentStartsUntinted() {
         #expect(EnvironmentValues().coverTint == nil)
     }
