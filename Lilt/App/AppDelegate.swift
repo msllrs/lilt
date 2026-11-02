@@ -21,6 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let ambience = AmbienceService()
     /// Settings ▸ Notifications: a banner when the song changes.
     private lazy var songNotifier = SongNotifier(player: player, panel: { [weak self] in self?.panel })
+    /// The system-wide shortcut that shows or hides the panel; set up at launch.
+    private(set) var showLiltShortcut: ShowLiltShortcut?
 
     private var panel: PanelWindow?
     private var loginWindow: NSWindow?
@@ -51,6 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             if !auth.isSignedIn { auth.isPresentingLogin = true }
         }
         observeSignIn()
+        showLiltShortcut = ShowLiltShortcut { [weak self] in self?.togglePanel() }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -613,6 +616,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.alphaValue = 0
         panel.ignoresMouseEvents = true
         panel.orderBack(nil)
+    }
+
+    /// The global shortcut: from anywhere, it brings the panel up and ready to type; pressed
+    /// again while you're in it, it hides the panel the same way ⌘W does.
+    func togglePanel() {
+        guard let panel else { return }
+        if Self.shortcutHidesPanel(isHidden: navigation.isPanelHidden || !panel.isVisible, isKey: panel.isKeyWindow) {
+            hidePanel()
+        } else {
+            showPanel()
+        }
+    }
+
+    /// Only a panel that's showing and has the keyboard hides; one that's hidden, or showing
+    /// behind whatever you're working in, comes forward.
+    static func shortcutHidesPanel(isHidden: Bool, isKey: Bool) -> Bool {
+        !isHidden && isKey
     }
 
     #if DEBUG
