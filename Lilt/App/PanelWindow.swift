@@ -92,6 +92,15 @@ final class PanelWindow: NSPanel {
     /// platter's inset shrinks by the same amount the radius does, so corners stay concentric.
     func animateNativeFrame(to frame: NSRect, cornerRadius radius: CGFloat, curve: FrameCurve, completion: @escaping () -> Void) {
         radiusLink?.invalidate()
+        // A curve of no time (Reduce Motion) lands now rather than on a tick dividing by zero.
+        guard curve.duration > 0 else {
+            radiusLink = nil
+            setNativeCornerRadius(radius)
+            setFrame(frame, display: false)
+            frameCompletion = nil
+            completion()
+            return
+        }
         frameFrom = self.frame; frameTo = frame
         radiusFrom = nativeCornerRadius; radiusTo = radius
         frameCurve = curve

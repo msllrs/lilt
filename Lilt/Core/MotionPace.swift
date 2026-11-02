@@ -1,13 +1,16 @@
-import Foundation
+import AppKit
 import Observation
 
-/// How fast motion runs. Every `Theme.Motion` token is built from the current pace, so a slower
-/// pace slows each animation by the same factor: SwiftUI's, the native frame's display link and
-/// the disc's Core Animation settle alike. Content and the frame derive their curves from the
-/// same scaled numbers, so the two stay locked in phase at any speed.
+/// How fast motion runs, and whether it should move at all. Every `Theme.Motion` token is built
+/// from the current pace, so a slower pace slows each animation by the same factor: SwiftUI's,
+/// the native frame's display link and the disc's Core Animation settle alike. Content and the
+/// frame derive their curves from the same scaled numbers, so the two stay locked in phase at
+/// any speed. Under Reduce Motion each token turns into what it declares (see Theme.Motion).
 struct MotionPace: Equatable, Sendable {
     /// 1 as designed; 0.25 runs every animation four times as long. Always 1 in release builds.
     var speed: Double = 1
+    /// Reduce Motion, from the system or the tweak panel's override.
+    var reducesMotion = false
 
     /// The pace tokens are resolved at: a test's own, else the live one.
     static var current: MotionPace { override ?? MotionSettings.shared.pace }
@@ -21,7 +24,7 @@ struct MotionPace: Equatable, Sendable {
 }
 
 /// The live pace. Observable, so views whose animations come from tokens re-read them when the
-/// tweak panel moves the speed.
+/// tweak panel moves the speed or Reduce Motion changes.
 @Observable
 final class MotionSettings: @unchecked Sendable {
     static let shared = MotionSettings()
@@ -35,10 +38,30 @@ final class MotionSettings: @unchecked Sendable {
     var speed: Double = 1 {
         didSet { if !Self.speedRange.contains(speed) { speed = min(max(speed, Self.speedRange.lowerBound), Self.speedRange.upperBound) } }
     }
+    /// The tweak panel's override: Reduce Motion on whatever System Settings says.
+    var forcesReduceMotion = false
     #else
     /// Fixed in release builds.
     var speed: Double { 1 }
+    var forcesReduceMotion: Bool { false }
     #endif
 
-    var pace: MotionPace { MotionPace(speed: speed) }
+    /// System Settings ▸ Accessibility ▸ Display ▸ Reduce Motion, kept here rather than asked for
+    /// on every token: rows read tokens in every body.
+    private(set) var systemReducesMotion: Bool
+    @ObservationIgnored private var observer: NSObjectProtocol?
+
+    init() {
+        let workspace = NSWorkspace.shared
+        systemReducesMotion = workspace.accessibilityDisplayShouldReduceMotion
+        observer = workspace.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.systemReducesMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        }
+    }
+
+    deinit {
+        if let observer { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+    }
+
+    var pace: MotionPace { MotionPace(speed: speed, reducesMotion: forcesReduceMotion || systemReducesMotion) }
 }

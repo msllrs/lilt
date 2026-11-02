@@ -225,7 +225,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         navigation.expandedFrameHeight = expandedHeight
         // The layout the window reveals: the expanded one, hanging from the bottom.
         pinHosting(height: max(current.height, target.height, expandedHeight))
-        if animated {
+        // Under Reduce Motion the curve takes no time: the frame snaps, as a drag moves it.
+        if animated, curve.duration > 0 {
             // Loosen the minimum first (setting a larger one would snap the frame), and tighten it
             // once the frame has arrived. The corner eases between the two radii on the same curve.
             panel.minSize = miniMin

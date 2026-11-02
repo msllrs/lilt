@@ -63,42 +63,63 @@ enum Theme {
     /// Every duration here is the designed one stretched to the current `MotionPace`, so the
     /// tweak panel's Animation speed slows them all alike; at 1× each token is exactly its
     /// designed curve.
+    ///
+    /// Each token also says what it becomes under Reduce Motion. Travel (a page sliding, the
+    /// window or the platter changing size, rows shuffling, a disc turning upright) lands at once,
+    /// or keeps only its fade; fades, colour and small in-place changes stay as they are.
     enum Motion {
         private static func scaled(_ seconds: TimeInterval) -> TimeInterval { MotionPace.current.scaled(seconds) }
+        static var reducesMotion: Bool { MotionPace.current.reducesMotion }
+        /// Reduce Motion: no animation, the change lands at once.
+        private static func instantIfReduced(_ animation: Animation) -> Animation? { reducesMotion ? nil : animation }
 
+        /// Reduce Motion: kept, a short fade.
         static var quick: Animation { .easeOut(duration: scaled(0.18)) }
+        /// Reduce Motion: kept; content swapping in place and the disc's morph.
         static var standard: Animation { .snappy(duration: scaled(0.28)) }
-        /// `standard` for motion SwiftUI doesn't drive, like a Core Animation layer settling.
-        static var standardCurve: FrameCurve { .spring(.snappy(duration: scaled(0.28))) }
+        /// `standard` for motion SwiftUI doesn't drive, like a Core Animation layer settling: the
+        /// disc easing upright. Reduce Motion: instant, it's upright at once.
+        static var standardCurve: FrameCurve { reducesMotion ? .instant : .spring(.snappy(duration: scaled(0.28))) }
         /// For a container changing size: `snappy` carries a little bounce, and a frame that
-        /// overshoots smaller than its content squeezes the content for a few frames.
-        static var settle: Animation { .smooth(duration: scaled(0.3)) }
+        /// overshoots smaller than its content squeezes the content for a few frames. Up Next's
+        /// rows shuffling up and the list resizing. Reduce Motion: instant, the window it sits in
+        /// snaps too.
+        static var settle: Animation? { instantIfReduced(.smooth(duration: scaled(0.3))) }
         /// A container growing or shrinking with a little overshoot, like the platter revealing
         /// the queue. Content inside must hold its own size (see NowPlayingBar) or it squeezes.
-        static var bounce: Animation { .spring(duration: scaled(0.42), bounce: 0.22) }
+        /// Reduce Motion: instant.
+        static var bounce: Animation? { instantIfReduced(.spring(duration: scaled(0.42), bounce: 0.22)) }
         /// Colour drawn from one cover handing over to the next: slow enough to read as a change
-        /// of light, not a cut.
+        /// of light, not a cut. Reduce Motion: kept, nothing moves.
         static var cast: Animation { .easeInOut(duration: scaled(0.8)) }
         /// The native frame growing or shrinking between the column and the platter: a quick
         /// ease-out with a definite end. (A critically damped spring crept toward its target for
         /// another 0.3s after the visible motion, which read as lag at the end.) The window steps
         /// along this same curve, so the content and the frame land together.
-        static var frameDuration: TimeInterval { scaled(0.22) }
-        static var frame: Animation { .easeOut(duration: frameDuration) }
+        /// Reduce Motion: the frame snaps, and the content with it. A window edge can't
+        /// crossfade, and a shorter ease only sweeps the same distance faster.
+        static var frameDuration: TimeInterval { reducesMotion ? 0 : scaled(0.22) }
+        static var frame: Animation? { instantIfReduced(.easeOut(duration: frameDuration)) }
         static var frameCurve: FrameCurve { .easeOut(frameDuration) }
         /// The platter revealing the queue under the native frame: the window is the platter
         /// and steps along this same spring, so no bounce, or the two overshoot out of phase and
-        /// a strip of bare material opens between them.
+        /// a strip of bare material opens between them. Reduce Motion: the list and the window
+        /// land at once, opened, closed, or let go after a pull.
         static var queueSpring: Spring { Spring(duration: scaled(0.3), bounce: 0) }
-        static var queue: Animation { .spring(queueSpring) }
-        static var queueCurve: FrameCurve { .spring(queueSpring) }
+        static var queue: Animation? { instantIfReduced(.spring(queueSpring)) }
+        static var queueCurve: FrameCurve { reducesMotion ? .instant : .spring(queueSpring) }
         /// A page arriving on the navigation stack, and the one beneath getting out of its way:
-        /// faster, so the two never read as a double exposure on the glass.
+        /// faster, so the two never read as a double exposure on the glass. Reduce Motion: kept,
+        /// with no `pageTravel` the hand-off is a crossfade.
         static var pageEnter: Animation { .easeOut(duration: scaled(0.2)) }
         static var pageExit: Animation { .easeOut(duration: scaled(0.12)) }
+        /// How far a page slides while entering or leaving. Reduce Motion: none.
+        static var pageTravel: CGFloat { reducesMotion ? 0 : 20 }
         /// One glyph handing over to another in place (play ↔ pause, library ↔ back).
+        /// Reduce Motion: kept, it doesn't travel.
         static var symbol: Animation { .snappy(duration: scaled(0.22)) }
         /// A pressable button giving under the cursor, and springing back when let go.
+        /// Reduce Motion: kept, a few percent of scale under the pointer.
         static var press: Animation { .easeOut(duration: scaled(0.08)) }
         static var release: Animation { .spring(duration: scaled(0.3), bounce: 0.35) }
     }
@@ -111,6 +132,9 @@ enum FrameCurve {
     /// A spring, overshoot included, run to its settling time.
     case spring(Spring)
 
+    /// No time at all: the frame lands where it's going.
+    static let instant = FrameCurve.easeOut(0)
+
     var duration: TimeInterval {
         switch self {
         case .easeOut(let d): d
@@ -122,6 +146,7 @@ enum FrameCurve {
     func value(at elapsed: TimeInterval) -> Double {
         switch self {
         case .easeOut(let d):
+            guard d > 0 else { return 1 }
             let t = min(max(elapsed / d, 0), 1)
             return 1 - pow(1 - t, 3)
         case .spring(let s):

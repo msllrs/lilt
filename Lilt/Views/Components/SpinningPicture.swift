@@ -127,6 +127,9 @@ final class SpinningPictureView: NSView {
             if from - degrees > 180 { from -= 360 } else if from - degrees < -180 { from += 360 }
             guard abs(from - degrees) > 1 else { return }
             let curve = Theme.Motion.standardCurve
+            // Under Reduce Motion it's upright at once (a keyframe of no duration would run
+            // Core Animation's default quarter second instead).
+            guard curve.duration > 0 else { return }
             let steps = max(Int(curve.duration * 60), 2)
             let settle = CAKeyframeAnimation(keyPath: "transform.rotation.z")
             settle.values = (0...steps).map { i in

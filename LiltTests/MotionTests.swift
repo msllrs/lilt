@@ -7,10 +7,11 @@ import Testing
 /// every one alike, and the native frame steps along a curve stretched by the same factor as
 /// the content it reveals, so the two stay in phase in slow motion. Each test resolves tokens at
 /// a pace of its own (a task-local), leaving the live settings to suites running alongside.
+/// Under Reduce Motion each token becomes what it declares: travel lands at once, fades stay.
 @MainActor
 struct MotionTests {
-    private static func at<T>(_ speed: Double, _ body: () throws -> T) rethrows -> T {
-        try MotionPace.$override.withValue(MotionPace(speed: speed), operation: body)
+    private static func at<T>(_ speed: Double, reducing: Bool = false, _ body: () throws -> T) rethrows -> T {
+        try MotionPace.$override.withValue(MotionPace(speed: speed, reducesMotion: reducing), operation: body)
     }
 
     // MARK: Scaling
@@ -106,6 +107,80 @@ struct MotionTests {
             window.applyNativeCornerRadius(Theme.Radius.window)
             #expect(window.frameAnimationDuration == nil)
         }
+    }
+
+    // MARK: Reduce Motion
+
+    @Test func underReduceMotionTravelLandsAtOnceAndFadesStay() {
+        Self.at(1, reducing: true) {
+            // Kept: fades, colour, glyphs swapping in place, a button giving under the pointer.
+            #expect(Theme.Motion.quick == .easeOut(duration: 0.18))
+            #expect(Theme.Motion.standard == .snappy(duration: 0.28))
+            #expect(Theme.Motion.cast == .easeInOut(duration: 0.8))
+            #expect(Theme.Motion.symbol == .snappy(duration: 0.22))
+            #expect(Theme.Motion.press == .easeOut(duration: 0.08))
+            #expect(Theme.Motion.release == .spring(duration: 0.3, bounce: 0.35))
+            // The page hand-off keeps its fades but slides nowhere: a crossfade.
+            #expect(Theme.Motion.pageEnter == .easeOut(duration: 0.2))
+            #expect(Theme.Motion.pageExit == .easeOut(duration: 0.12))
+            #expect(Theme.Motion.pageTravel == 0)
+            // Instant: Up Next shuffling, a container's overshoot, the mini player's frame, the
+            // queue opening, closing or let go after a pull.
+            #expect(Theme.Motion.settle == nil)
+            #expect(Theme.Motion.bounce == nil)
+            #expect(Theme.Motion.frame == nil)
+            #expect(Theme.Motion.queue == nil)
+            // The curves the window and the disc step along take no time and start at the end.
+            for curve in [Theme.Motion.frameCurve, Theme.Motion.queueCurve, Theme.Motion.standardCurve] {
+                #expect(curve.duration == 0)
+                #expect(curve.value(at: 0) == 1)
+            }
+        }
+    }
+
+    @Test func withoutReduceMotionPagesTravel() {
+        #expect(Self.at(1) { Theme.Motion.pageTravel } == 20)
+        #expect(Self.at(0.1) { Theme.Motion.pageTravel } == 20)
+    }
+
+    @Test func keptTokensStillSlowUnderReduceMotion() {
+        Self.at(0.5, reducing: true) {
+            #expect(Theme.Motion.quick == .easeOut(duration: 0.36))
+            #expect(Theme.Motion.pageEnter == .easeOut(duration: 0.4))
+            #expect(Theme.Motion.frameCurve.duration == 0)
+        }
+    }
+
+    @Test func theForcedOverrideTurnsReduceMotionOn() {
+        let settings = MotionSettings()
+        settings.forcesReduceMotion = true
+        #expect(settings.pace.reducesMotion)
+        settings.forcesReduceMotion = false
+        #expect(settings.pace.reducesMotion == settings.systemReducesMotion)
+    }
+
+    /// The mini player's frame under Reduce Motion: snapped there, no display link, done.
+    @Test func underReduceMotionTheWindowSnaps() {
+        let window = PanelWindow(contentRect: NSRect(x: -10_000, y: -10_000, width: 320, height: 600))
+        let target = NSRect(x: -10_000, y: -10_000, width: 320, height: 160)
+        let curve = Self.at(1, reducing: true) { Theme.Motion.frameCurve }
+        var landed = false
+        window.animateNativeFrame(to: target, cornerRadius: Theme.Radius.window, curve: curve) { landed = true }
+        #expect(landed)
+        #expect(window.frameAnimationDuration == nil)
+        #expect(window.frame.height == target.height)
+    }
+
+    /// The disc turning upright under Reduce Motion is there at once, with no settle.
+    @Test func underReduceMotionTheDiscIsUprightAtOnce() {
+        let view = SpinningPictureView(frame: NSRect(x: 0, y: 0, width: 40, height: 40))
+        let dps = SpinningArtwork.degreesPerSecond
+        view.apply(ArtworkSpin(baseAngle: 100, resumedAt: nil, degreesPerSecond: dps, paused: true))
+        Self.at(1, reducing: true) {
+            view.apply(ArtworkSpin(baseAngle: 0, resumedAt: nil, degreesPerSecond: dps, paused: true))
+        }
+        #expect(view.picture.animation(forKey: SpinningPictureView.spinKey) == nil)
+        #expect(abs(view.displayedDegrees) < 1e-9 || abs(view.displayedDegrees - 360) < 1e-9)
     }
 
     // MARK: Regression guard

@@ -27,6 +27,8 @@ struct TweakPanel: View {
                     ForEach([0.1, 0.25, 0.5, 1], id: \.self) { Text("\($0.formatted())×").tag($0) }
                 }
                 .pickerStyle(.segmented)
+                // Each token's Reduce Motion variant without touching System Settings.
+                Toggle("Force Reduce Motion", isOn: $motion.forcesReduceMotion)
             }
             Section("Spotlight") {
                 slider("Centre X", $style.spotlightCenterX, 0...1)

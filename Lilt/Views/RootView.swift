@@ -92,7 +92,7 @@ struct RootView: View {
         // Everything outside a screen (the platter's marquee and disc) pauses while nobody can
         // see the panel too; screens combine this with their own parked state above.
         .environment(\.screenIsParked, navigation.isPanelOutOfSight)
-        .environment(\.discsHoldStill, !spinsPlayingCover || reduceMotion)
+        .environment(\.discsHoldStill, !spinsPlayingCover || reduceMotion || Theme.Motion.reducesMotion)
     }
 }
 
@@ -104,8 +104,8 @@ private struct NavigationColumn: View {
     @Environment(ScrollTracker.self) private var scrollTracker
     @Environment(AuthService.self) private var auth
 
-    /// How far a screen travels while entering or leaving.
-    private static let travel: CGFloat = 20
+    /// How far a screen travels while entering or leaving; under Reduce Motion, nowhere.
+    private static var travel: CGFloat { Theme.Motion.pageTravel }
     /// Softness at the far end of the hand-off. Off: blurring a full column of artwork every
     /// frame is what made the hand-off stutter. Slide and fade are cheap; this isn't.
     private static let blur: CGFloat = 0
