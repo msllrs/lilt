@@ -11,6 +11,7 @@ struct TrackRow: View {
     @Environment(PlayerService.self) private var player
     @Environment(NavigationModel.self) private var navigation
     @Environment(YTMusicClient.self) private var music
+    @Environment(NoticeCenter.self) private var notices: NoticeCenter?
     /// An album page's cover colour, for the text and the playing row's pill.
     @Environment(\.coverTint) private var coverTint
     @State private var isHovering = false
@@ -103,7 +104,7 @@ struct TrackRow: View {
                 playlists: music.ownPlaylists,
                 addedTo: music.addedTo[track.id] ?? [],
                 perform: perform,
-                add: { playlist in Task { try? await music.add(track, to: playlist) } }
+                add: { playlist in RowMenu.add(track, to: playlist, music: music, notices: notices) }
             )
         }
         .onHover { hovering in
@@ -149,24 +150,19 @@ struct TrackRow: View {
     private func perform(_ menuAction: RowAction) {
         switch menuAction {
         case .play: action()
-        case .playNext:
-            player.playNext([track])
-            AppDelegate.shared?.queueDidChange()
+        case .playNext: RowMenu.playNext(track, player: player, notices: notices)
         case .addToQueue: enqueue()
-        case .like, .unlike: RowMenu.setLiked(menuAction == .like, track, player: player, music: music)
-        case .removeFromPlaylist: Task { try? await music.removeFromPlaylist(track) }
+        case .like, .unlike: RowMenu.setLiked(menuAction == .like, track, player: player, music: music, notices: notices)
+        case .removeFromPlaylist: RowMenu.removeFromPlaylist(track, in: source, music: music, notices: notices)
         // The row may have arrived without its links; the menu offered them from a lookup.
         case .goToArtist: RowMenu.open(music.withLinks(track).artistItem, navigation: navigation)
         case .goToAlbum: RowMenu.open(music.withLinks(track).albumItem, navigation: navigation)
-        case .copyLink: RowMenu.copy(RowMenu.webURL(for: track))
+        case .copyLink: RowMenu.copyLink(RowMenu.webURL(for: track), notices: notices)
         default: break
         }
     }
 
-    private func enqueue() {
-        player.enqueue(track)
-        AppDelegate.shared?.queueDidChange()
-    }
+    private func enqueue() { RowMenu.enqueue(track, player: player, notices: notices) }
 
     private static let queueButtonSize: CGFloat = 22
 
