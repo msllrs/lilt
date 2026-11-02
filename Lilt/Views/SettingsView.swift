@@ -59,6 +59,7 @@ struct SettingsView: View {
 /// Transparency on, Glass shows as Solid, and its card says so.
 private struct AppearanceSection: View {
     @AppStorage(SpinningArtwork.spinsKey) private var spinsPlayingCover = true
+    @AppStorage(PanelRest.enabledKey) private var fadesWhenNotInUse = PanelRest.enabledByDefault
     @Bindable private var style = ArtworkStyle.shared
     @Environment(PlayerService.self) private var player
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -90,6 +91,10 @@ private struct AppearanceSection: View {
                 }
             }
             Toggle("Spin the cover of the playing song", isOn: $spinsPlayingCover)
+            Toggle(isOn: $fadesWhenNotInUse) {
+                Text("Fade when not in use")
+                Text("A few seconds after the pointer leaves, the list dims so the panel sits quietly on the edge. The player stays as it is.")
+            }
         } header: {
             Text("Appearance")
         } footer: {
