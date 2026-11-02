@@ -10,10 +10,15 @@ struct TweakPanel: View {
     @State private var copied = false
     @State private var motion = MotionSettings.shared
     @Environment(ScrollTracker.self) private var scrollTracker
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    /// The window style on screen, whose surface values the surface dials edit.
+    private var shownStyle: WindowStyle { style.shownWindowStyle(reduceTransparency: reduceTransparency) }
 
     var body: some View {
         @Bindable var style = style
         @Bindable var motion = motion
+        let cell = (shownStyle, colorScheme)
         Form {
             Section("Live") {
                 LabeledContent("Content under platter", value: String(format: "%.0f pt", scrollTracker.activeRemainingBelow))
@@ -83,14 +88,15 @@ struct TweakPanel: View {
                 slider("Neutral base", shadow(\.baseOpacity), 0...0.6)
             }
             Section("Now playing platter") {
-                slider("Shadow opacity", $style.platter.shadowOpacity, 0...0.6)
-                slider("Shadow radius", $style.platter.shadowRadius, 0...40)
-                slider("Shadow offset", $style.platter.shadowOffsetY, 0...24)
-                slider("Border", $style.platter.borderOpacity, 0...0.4)
-                slider("Ambient opacity", $style.platter.tintOpacity, 0...1)
-                slider("Ambient saturation", $style.platter.tintSaturation, 0...8)
-                slider("Ambient blur", $style.platter.tintBlur, 0...300)
-                slider("Hover brighten", $style.platter.hoverBrightness, 0...1)
+                slider("Shadow opacity", $style.surfaces[cell.0, cell.1].platter.shadowOpacity, 0...0.6)
+                slider("Shadow radius", $style.surfaces[cell.0, cell.1].platter.shadowRadius, 0...40)
+                slider("Shadow offset", $style.surfaces[cell.0, cell.1].platter.shadowOffsetY, 0...24)
+                slider("Border", $style.surfaces[cell.0, cell.1].platter.borderOpacity, 0...0.4)
+                slider("Ambient opacity", $style.surfaces[cell.0, cell.1].platter.tintOpacity, 0...1)
+                slider("Ambient saturation", $style.surfaces[cell.0, cell.1].platter.tintSaturation, 0...8)
+                slider("Ambient blur", $style.surfaces[cell.0, cell.1].platter.tintBlur, 0...300)
+                slider("Hover brighten", $style.surfaces[cell.0, cell.1].platter.hoverBrightness, 0...1)
+                slider("Wash", $style.surfaces[cell.0, cell.1].platter.washOpacity, 0...0.8)
                 slider("Wash reach", $style.platter.cornerAccentRadius, 0.2...1.5)
                 Picker("Wash placement", selection: $style.platter.accentPlacement) {
                     ForEach(AccentPlacement.allCases) { Text($0.label).tag($0) }
@@ -101,9 +107,9 @@ struct TweakPanel: View {
             }
             coverPalette
             Section("Page ambient") {
-                slider("Opacity", $style.pageAmbient.opacity, 0...1)
-                slider("Saturation", $style.pageAmbient.saturation, 0...8)
-                slider("Blur", $style.pageAmbient.blur, 0...300)
+                slider("Opacity", $style.surfaces[cell.0, cell.1].pageAmbient.opacity, 0...1)
+                slider("Saturation", $style.surfaces[cell.0, cell.1].pageAmbient.saturation, 0...8)
+                slider("Blur", $style.surfaces[cell.0, cell.1].pageAmbient.blur, 0...300)
                 slider("Reach", $style.pageAmbient.reach, 80...800)
                 slider("Cover band (h/w)", $style.pageAmbient.band, 0.2...1)
             }
@@ -127,9 +133,9 @@ struct TweakPanel: View {
                 }
                 Toggle("Search field too", isOn: $style.headerControls.appliesToSearch)
                 Toggle("Interactive (SwiftUI glass)", isOn: $style.headerControls.interactive)
-                Toggle("Our lit rim", isOn: $style.headerControls.rim)
-                slider("Rim opacity", $style.headerControls.rimOpacity, 0...1)
-                slider("Cover tint", $style.headerControls.tintOpacity, 0...0.6)
+                Toggle("Our lit rim", isOn: $style.surfaces[cell.0, cell.1].headerControls.rim)
+                slider("Rim opacity", $style.surfaces[cell.0, cell.1].headerControls.rimOpacity, 0...1)
+                slider("Cover tint", $style.surfaces[cell.0, cell.1].headerControls.tintOpacity, 0...0.6)
                 Toggle("AppKit: clear base", isOn: $style.headerControls.clearBase)
                 intSlider("AppKit: variant", $style.headerControls.variant, HeaderControlStyle.variantRange)
                 TextField("AppKit: subvariant", text: $style.headerControls.subvariant, prompt: Text("unset"))
@@ -156,12 +162,12 @@ struct TweakPanel: View {
                     .disabled(!ProgressiveBlurBackdrop.isAvailable)
                 LabeledContent("Available", value: ProgressiveBlurBackdrop.isAvailable ? "yes" : "no")
                 Toggle("Own content only (ignore windows behind)", isOn: $style.headerBlur.ownContentOnly)
-                slider("Radius", $style.headerBlur.radius, 0...60)
-                slider("Saturation", $style.headerBlur.saturation, 0...3)
+                slider("Radius", $style.surfaces[cell.0, cell.1].headerBlur.radius, 0...60)
+                slider("Saturation", $style.surfaces[cell.0, cell.1].headerBlur.saturation, 0...3)
                     .disabled(style.headerBlur.ownContentOnly)
-                slider("Brightness", $style.headerBlur.brightness, -0.5...0.5)
-                slider("Reach", $style.headerBlur.reach, 0...96)
-                slider("Rim", $style.headerBlur.rimOpacity, 0...1)
+                slider("Brightness", $style.surfaces[cell.0, cell.1].headerBlur.brightness, -0.5...0.5)
+                slider("Reach", $style.surfaces[cell.0, cell.1].headerBlur.reach, 0...96)
+                slider("Rim", $style.surfaces[cell.0, cell.1].headerBlur.rimOpacity, 0...1)
             }
             Section("Play capsule cast") {
                 slider("Glass tint", $style.playCast.tintOpacity, 0...0.6)
@@ -232,8 +238,7 @@ struct TweakPanel: View {
             slider("Content share", $style.palette.contentShare, 0...1)
             slider("Dim lines (× content)", $style.palette.dimContentRatio, 0...1)
             slider("Control share", $style.palette.controlShare, 0...1)
-            slider("Platter wash", $style.palette.washOpacity, 0...0.8)
-            slider("Playing row (light)", $style.palette.highlightOpacity, 0...0.5)
+                        slider("Playing row (light)", $style.palette.highlightOpacity, 0...0.5)
             slider("Playing row (dark)", $style.palette.darkHighlightOpacity, 0...0.5)
             slider("Row hover", $style.palette.hoverHighlightOpacity, 0...1)
             slider("Control hover fill", $style.palette.controlHoverOpacity, 0...0.2)

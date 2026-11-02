@@ -100,9 +100,13 @@ struct HeaderControlSurface<S: InsettableShape>: ViewModifier {
     var tint: Color?
 
     private var style: HeaderControlStyle { ArtworkStyle.shared.headerControls }
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func body(content: Content) -> some View {
         let style = style
+        // The rim and tint strengths for the window style on screen.
+        let surface = ArtworkStyle.shared.surface(colorScheme, reduceTransparency: reduceTransparency).headerControls
         Group {
             switch style.mode {
             case .flat:
@@ -110,16 +114,16 @@ struct HeaderControlSurface<S: InsettableShape>: ViewModifier {
             case .glass, .clear:
                 let glass: Glass = style.mode == .clear ? .clear : .regular
                 content
-                    .glassEffect(glass.tint(tint?.opacity(style.tintOpacity)).interactive(style.interactive), in: shape)
+                    .glassEffect(glass.tint(tint?.opacity(surface.tintOpacity)).interactive(style.interactive), in: shape)
             case .appKit:
                 var s = style
-                let _ = { s.tint = tint?.opacity(style.tintOpacity) }()
+                let _ = { s.tint = tint?.opacity(surface.tintOpacity) }()
                 content
                     .background { GlassSurface(shape: shape, cornerRadius: cornerRadius, style: s) }
                     .clipShape(shape)
             }
         }
-        .glassEdge(shape, opacity: style.mode == .flat ? 0 : (style.rim ? style.rimOpacity : 0))
+        .glassEdge(shape, opacity: style.mode == .flat ? 0 : (surface.rim ? surface.rimOpacity : 0))
         // Glass pixels are transparent to the window server; keep the control clickable.
         .background { if style.mode != .flat { shape.fill(Color.black.opacity(0.012)) } }
         .contentShape(shape)

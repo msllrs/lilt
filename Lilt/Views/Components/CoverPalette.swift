@@ -67,13 +67,15 @@ struct CoverPalette: Equatable {
         if surface == .page, style.contrastGuard { guardContrast() }
     }
 
-    /// With the tweak panel's live dials.
+    /// With the tweak panel's live dials, and the wash of `windowStyle` (the one chosen, unless
+    /// a caller knows the one on screen) in `colorScheme`.
     @MainActor
-    init(accent: Color?, cast: Color? = nil, colorScheme: ColorScheme, surface: Surface) {
+    init(accent: Color?, cast: Color? = nil, colorScheme: ColorScheme, surface: Surface, windowStyle: WindowStyle? = nil) {
         let shared = ArtworkStyle.shared
         self.init(
             accent: accent, cast: cast, colorScheme: colorScheme, surface: surface,
-            style: shared.palette, container: shared.leadingCast, washOpacity: shared.palette.washOpacity
+            style: shared.palette, container: shared.leadingCast,
+            washOpacity: shared.surfaces[windowStyle ?? shared.windowStyle, colorScheme].platter.washOpacity
         )
     }
 

@@ -186,7 +186,7 @@ struct CoverPaletteTests {
 
     /// The palette at the shipped dials, whatever the tweak panel holds right now.
     static func palette(_ seed: Color?, _ scheme: ColorScheme, _ surface: CoverPalette.Surface) -> CoverPalette {
-        CoverPalette(accent: seed, cast: seed, colorScheme: scheme, surface: surface, style: .standard, container: .standard, washOpacity: CoverPaletteStyle.standard.washOpacity)
+        CoverPalette(accent: seed, cast: seed, colorScheme: scheme, surface: surface, style: .standard, container: .standard, washOpacity: 0.32)
     }
 
     static func role(_ name: String) -> (CoverPalette.Surface, KeyPath<CoverPalette, Color?>) {
@@ -249,7 +249,7 @@ struct CoverPaletteTests {
         #expect(style.accentSaturation == 1.3)
         #expect(style.contentShare == 0.4 && style.dimContentRatio == 0.5 && style.controlShare == 0.64)
         #expect(style.highlightOpacity == 0.12 && style.darkHighlightOpacity == 0.16)
-        #expect(style.hoverHighlightOpacity == 0.6 && style.washOpacity == 0.32 && style.contrastGuard)
+        #expect(style.hoverHighlightOpacity == 0.6 && style.contrastGuard)
     }
 
     /// No accent, no tinted roles: callers keep their plain label colours. The cast is its own
@@ -285,7 +285,7 @@ struct CoverPaletteTests {
     /// "Copy values" carries the palette's dials, and none of the per-surface tints it replaced.
     @Test func copyValuesCarriesThePalette() {
         let snippet = ArtworkStyle().swiftSnippet
-        #expect(snippet.contains("palette = CoverPaletteStyle(accentSaturation: 1.30, contentShare: 0.40, dimContentRatio: 0.50, controlShare: 0.64, highlightOpacity: 0.12, darkHighlightOpacity: 0.16, hoverHighlightOpacity: 0.60, controlHoverOpacity: 0.050, controlPressedOpacity: 0.085, washOpacity: 0.32, contrastGuard: true)"))
+        #expect(snippet.contains("palette = CoverPaletteStyle(accentSaturation: 1.30, contentShare: 0.40, dimContentRatio: 0.50, controlShare: 0.64, highlightOpacity: 0.12, darkHighlightOpacity: 0.16, hoverHighlightOpacity: 0.60, controlHoverOpacity: 0.050, controlPressedOpacity: 0.085, contrastGuard: true)"))
         #expect(!snippet.contains("pageTint") && !snippet.contains("textTint") && !snippet.contains("cornerAccentOpacity"))
     }
 }

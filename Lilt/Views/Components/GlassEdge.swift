@@ -14,20 +14,27 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
     var blend: BlendMode = .normal
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    /// The rim's strengths for the window style on screen, in this appearance.
+    private var edge: SurfaceStyle.Edge { ArtworkStyle.shared.surface(colorScheme, reduceTransparency: reduceTransparency).glassEdge }
+    /// Where the highlight hands over to the fainter middle of the rim.
+    private static var middleLocation: Double { 0.45 }
 
     func body(content: Content) -> some View {
+        let edge = edge
         content.overlay {
             shape.inset(by: -0.5).stroke(
                 LinearGradient(
                     stops: [
-                        .init(color: topColor, location: 0),
-                        .init(color: .white.opacity(colorScheme == .dark ? 0.12 : 0.35), location: 0.45),
-                        .init(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.10), location: 1),
+                        .init(color: topColor(edge), location: 0),
+                        .init(color: .white.opacity(edge.middleOpacity), location: Self.middleLocation),
+                        .init(color: .black.opacity(edge.bottomOpacity), location: 1),
                     ],
                     startPoint: .top,
                     endPoint: .bottom
                 ),
-                lineWidth: 1 + blur * 0.5
+                lineWidth: edge.lineWidth + blur * 0.5
             )
             .blur(radius: blur)
             .blendMode(blend)
@@ -36,8 +43,8 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
         }
     }
 
-    private var topColor: Color {
-        let white = Color.white.opacity(colorScheme == .dark ? 0.45 : 0.9)
+    private func topColor(_ edge: SurfaceStyle.Edge) -> Color {
+        let white = Color.white.opacity(edge.topOpacity)
         guard let cast else { return white }
         // The cast reads strongest right where the highlight is.
         return white.mix(with: cast, by: castMix)

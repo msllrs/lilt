@@ -14,15 +14,18 @@ struct HeaderBackdrop: ViewModifier {
     var visibility: CGFloat = 1
 
     private var style: HeaderBlurStyle { ArtworkStyle.shared.headerBlur }
-    /// The surface `PanelBackground` actually mounts decides whether there is a glass rim to redraw.
+    /// The surface `PanelBackground` actually mounts decides whether there is a glass rim to
+    /// redraw, and the blur's values are that surface's.
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
     /// The panel corner the backdrop is clipped to. Behind-window layers ignore the window's own
     /// corner clip, so this applies under the native frame too.
     static let clipRadius: CGFloat = Theme.Radius.window
 
     func body(content: Content) -> some View {
         let useBackdrop = style.useBackdrop && ProgressiveBlurBackdrop.isAvailable
-        let reach = useBackdrop ? CGFloat(style.reach) : self.reach
+        let blur = ArtworkStyle.shared.surface(colorScheme, reduceTransparency: reduceTransparency).headerBlur
+        let reach = useBackdrop ? CGFloat(blur.reach) : self.reach
         content.background(alignment: .top) {
             GeometryReader { geometry in
                 let fadeStart = geometry.size.height / (geometry.size.height + reach)
@@ -32,7 +35,7 @@ struct HeaderBackdrop: ViewModifier {
                         // saturation boost re-saturates what a material's grey tint washes out;
                         // blurring Lilt's own content there is no tint, and a boost turns a red
                         // cover passing under the header into a magenta flare, so it is left at 1.
-                        ProgressiveBlurBackdrop(radius: style.radius, saturation: style.ownContentOnly ? 1 : style.saturation, brightness: style.brightness, fadeStart: fadeStart, cornerRadius: Self.clipRadius, ownContentOnly: style.ownContentOnly)
+                        ProgressiveBlurBackdrop(radius: blur.radius, saturation: style.ownContentOnly ? 1 : blur.saturation, brightness: blur.brightness, fadeStart: fadeStart, cornerRadius: Self.clipRadius, ownContentOnly: style.ownContentOnly)
                     } else {
                         Rectangle()
                             .fill(.thinMaterial)
@@ -58,7 +61,7 @@ struct HeaderBackdrop: ViewModifier {
                     if useBackdrop, ArtworkStyle.shared.panel.effective(reduceTransparency: reduceTransparency).surface == .glass {
                         Color.clear
                             .frame(height: Theme.Radius.window * 4)
-                            .glassEdge(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous).inset(by: 0.5), opacity: style.rimOpacity)
+                            .glassEdge(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous).inset(by: 0.5), opacity: blur.rimOpacity)
                             .frame(height: geometry.size.height + reach, alignment: .top)
                             // Fades out with the blur, so it hands back to the real rim below.
                             .mask {

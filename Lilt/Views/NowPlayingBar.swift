@@ -7,12 +7,17 @@ struct NowPlayingBar: View {
     @Environment(NoticeCenter.self) private var notices: NoticeCenter?
     @Environment(ScrollTracker.self) private var scrollTracker
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous) }
     private var platter: PlatterStyle { ArtworkStyle.shared.platter }
     private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
     /// The cover's colour as every part of the platter wears it, from the interpolated accent.
-    private func coverPalette(_ accent: Color?) -> CoverPalette { CoverPalette(accent: accent, colorScheme: colorScheme, surface: .platter) }
+    private func coverPalette(_ accent: Color?) -> CoverPalette {
+        CoverPalette(accent: accent, colorScheme: colorScheme, surface: .platter, windowStyle: ArtworkStyle.shared.shownWindowStyle(reduceTransparency: reduceTransparency))
+    }
+    /// The platter's shadow, rim and fill strengths for the window style on screen.
+    private var surface: SurfaceStyle.Platter { ArtworkStyle.shared.surface(colorScheme, reduceTransparency: reduceTransparency).platter }
 
     /// The cover's colour as the play capsule samples it, for the rim and glow.
     private var cast: Color? {
@@ -30,7 +35,7 @@ struct NowPlayingBar: View {
 
     /// The current artwork, for the ambient fill (any cached size will do once blurred).
     private var ambientImage: NSImage? {
-        guard platter.tintOpacity > 0, let url = player.displayArtworkURL else { return nil }
+        guard surface.tintOpacity > 0, let url = player.displayArtworkURL else { return nil }
         return ImageCache.shared.cached(url) ?? ImageCache.shared.anyVariant(for: url)
     }
 
@@ -178,9 +183,9 @@ struct NowPlayingBar: View {
                     // In mini the window's own shadow does this job; a soft shadow in the app's
                     // pixels would just grow the window's hit shape and get a hard shadow of its own.
                     .shadow(
-                        color: .black.opacity(navigation.isMiniPlayer ? 0 : platter.shadowOpacity),
-                        radius: platter.shadowRadius,
-                        y: platter.shadowOffsetY
+                        color: .black.opacity(navigation.isMiniPlayer ? 0 : surface.shadowOpacity),
+                        radius: surface.shadowRadius,
+                        y: surface.shadowOffsetY
                     )
                 // The artwork itself, blurred across the platter: vibrant for any cover, where a
                 // flat average colour turns rainbow art into mud.
@@ -191,13 +196,13 @@ struct NowPlayingBar: View {
                             Image(nsImage: ambientImage)
                                 .resizable()
                                 .scaledToFill()
-                                .saturation(platter.tintSaturation)
-                                .blur(radius: platter.tintBlur)
+                                .saturation(surface.tintSaturation)
+                                .blur(radius: surface.tintBlur)
                                 .id(player.displayArtworkURL)
                                 .transition(.opacity)
                         }
                         // A touch brighter under the pointer, like glass catching more light.
-                        .opacity(platter.tintOpacity * (isHoveringPlatter ? 1 + platter.hoverBrightness : 1))
+                        .opacity(surface.tintOpacity * (isHoveringPlatter ? 1 + surface.hoverBrightness : 1))
                         .clipShape(shape)
                 }
                 // The dominant colour pooled behind the cover (or along the top), as if it spilled.
@@ -281,7 +286,7 @@ struct NowPlayingBar: View {
             InterpolatedColor(cast) { cast in
                 Color.clear.glassEdge(
                     shape,
-                    opacity: min(platter.borderOpacity * 6, 1) * glassVisibility,
+                    opacity: min(surface.borderOpacity * 6, 1) * glassVisibility,
                     cast: platter.castEdge ? cast : nil,
                     castMix: playCast.rimMix,
                     blur: platter.castEdge ? playCast.rimBlur : 0,

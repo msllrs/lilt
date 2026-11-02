@@ -1,0 +1,224 @@
+{
+  "glass": {
+    "dark": {
+      "glassEdge": {
+        "bottomOpacity": 0.35,
+        "lineWidth": 1,
+        "middleOpacity": 0.12,
+        "topOpacity": 0.45
+      },
+      "headerBlur": {
+        "brightness": 0,
+        "radius": 24,
+        "reach": 32,
+        "rimOpacity": 0.45,
+        "saturation": 1
+      },
+      "headerControls": {
+        "rim": false,
+        "rimOpacity": 0.5,
+        "tintOpacity": 0.6
+      },
+      "pageAmbient": {
+        "blur": 120,
+        "opacity": 0.28,
+        "saturation": 3
+      },
+      "platter": {
+        "borderOpacity": 0.4,
+        "hoverBrightness": 0.8,
+        "shadowOffsetY": 8,
+        "shadowOpacity": 0.18,
+        "shadowRadius": 16,
+        "tintBlur": 160,
+        "tintOpacity": 0.2,
+        "tintSaturation": 4,
+        "washOpacity": 0.32
+      }
+    },
+    "light": {
+      "glassEdge": {
+        "bottomOpacity": 0.1,
+        "lineWidth": 1,
+        "middleOpacity": 0.35,
+        "topOpacity": 0.9
+      },
+      "headerBlur": {
+        "brightness": 0,
+        "radius": 24,
+        "reach": 32,
+        "rimOpacity": 0.45,
+        "saturation": 1
+      },
+      "headerControls": {
+        "rim": false,
+        "rimOpacity": 0.5,
+        "tintOpacity": 0.6
+      },
+      "pageAmbient": {
+        "blur": 120,
+        "opacity": 0.28,
+        "saturation": 3
+      },
+      "platter": {
+        "borderOpacity": 0.4,
+        "hoverBrightness": 0.8,
+        "shadowOffsetY": 8,
+        "shadowOpacity": 0.18,
+        "shadowRadius": 16,
+        "tintBlur": 160,
+        "tintOpacity": 0.2,
+        "tintSaturation": 4,
+        "washOpacity": 0.32
+      }
+    }
+  },
+  "normal": {
+    "dark": {
+      "glassEdge": {
+        "bottomOpacity": 0.35,
+        "lineWidth": 1,
+        "middleOpacity": 0.12,
+        "topOpacity": 0.45
+      },
+      "headerBlur": {
+        "brightness": 0,
+        "radius": 24,
+        "reach": 32,
+        "rimOpacity": 0.45,
+        "saturation": 1
+      },
+      "headerControls": {
+        "rim": false,
+        "rimOpacity": 0.5,
+        "tintOpacity": 0.6
+      },
+      "pageAmbient": {
+        "blur": 120,
+        "opacity": 0.28,
+        "saturation": 3
+      },
+      "platter": {
+        "borderOpacity": 0.4,
+        "hoverBrightness": 0.8,
+        "shadowOffsetY": 8,
+        "shadowOpacity": 0.18,
+        "shadowRadius": 16,
+        "tintBlur": 160,
+        "tintOpacity": 0.2,
+        "tintSaturation": 4,
+        "washOpacity": 0.32
+      }
+    },
+    "light": {
+      "glassEdge": {
+        "bottomOpacity": 0.1,
+        "lineWidth": 1,
+        "middleOpacity": 0.35,
+        "topOpacity": 0.9
+      },
+      "headerBlur": {
+        "brightness": 0,
+        "radius": 24,
+        "reach": 32,
+        "rimOpacity": 0.45,
+        "saturation": 1
+      },
+      "headerControls": {
+        "rim": false,
+        "rimOpacity": 0.5,
+        "tintOpacity": 0.6
+      },
+      "pageAmbient": {
+        "blur": 120,
+        "opacity": 0.28,
+        "saturation": 3
+      },
+      "platter": {
+        "borderOpacity": 0.4,
+        "hoverBrightness": 0.8,
+        "shadowOffsetY": 8,
+        "shadowOpacity": 0.18,
+        "shadowRadius": 16,
+        "tintBlur": 160,
+        "tintOpacity": 0.2,
+        "tintSaturation": 4,
+        "washOpacity": 0.32
+      }
+    }
+  },
+  "solid": {
+    "dark": {
+      "glassEdge": {
+        "bottomOpacity": 0.35,
+        "lineWidth": 1,
+        "middleOpacity": 0.12,
+        "topOpacity": 0.45
+      },
+      "headerBlur": {
+        "brightness": 0,
+        "radius": 24,
+        "reach": 32,
+        "rimOpacity": 0.45,
+        "saturation": 1
+      },
+      "headerControls": {
+        "rim": false,
+        "rimOpacity": 0.5,
+        "tintOpacity": 0.6
+      },
+      "pageAmbient": {
+        "blur": 120,
+        "opacity": 0.28,
+        "saturation": 3
+      },
+      "platter": {
+        "borderOpacity": 0.4,
+        "hoverBrightness": 0.8,
+        "shadowOffsetY": 8,
+        "shadowOpacity": 0.18,
+        "shadowRadius": 16,
+        "tintBlur": 160,
+        "tintOpacity": 0.2,
+        "tintSaturation": 4,
+        "washOpacity": 0.32
+      }
+    },
+    "light": {
+      "glassEdge": {
+        "bottomOpacity": 0.1,
+        "lineWidth": 1,
+        "middleOpacity": 0.35,
+        "topOpacity": 0.9
+      },
+      "headerBlur": {
+        "brightness": 0,
+        "radius": 24,
+        "reach": 32,
+        "rimOpacity": 0.45,
+        "saturation": 1
+      },
+      "headerControls": {
+        "rim": false,
+        "rimOpacity": 0.5,
+        "tintOpacity": 0.6
+      },
+      "pageAmbient": {
+        "blur": 120,
+        "opacity": 0.28,
+        "saturation": 3
+      },
+      "platter": {
+        "borderOpacity": 0.4,
+        "hoverBrightness": 0.8,
+        "shadowOffsetY": 8,
+        "shadowOpacity": 0.18,
+        "shadowRadius": 16,
+        "tintBlur": 160,
+        "tintOpacity": 0.2,
+        "tintSaturation": 4,
+        "washOpacity": 0.32
+      }
+    }
+  }
+}

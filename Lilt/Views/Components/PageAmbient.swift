@@ -5,10 +5,15 @@ import SwiftUI
 struct PageAmbient: View {
     let url: URL?
 
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
     private var style: PageAmbientStyle { ArtworkStyle.shared.pageAmbient }
+    /// Its strength, saturation and blur, for the window style on screen.
+    private var surface: SurfaceStyle.PageAmbient { ArtworkStyle.shared.surface(colorScheme, reduceTransparency: reduceTransparency).pageAmbient }
 
     private var image: NSImage? {
-        guard style.opacity > 0, let url else { return nil }
+        guard surface.opacity > 0, let url else { return nil }
         return ImageCache.shared.cached(url) ?? ImageCache.shared.anyVariant(for: url)
     }
 
@@ -25,9 +30,9 @@ struct PageAmbient: View {
                         .scaledToFill()
                         .frame(width: geometry.size.width, height: bandHeight)
                         .clipped()
-                        .saturation(style.saturation)
+                        .saturation(surface.saturation)
                         .scaleEffect(x: 1, y: style.reach / bandHeight, anchor: .top)
-                        .blur(radius: style.blur)
+                        .blur(radius: surface.blur)
                 }
                 .id(url)
                 .transition(.opacity)
@@ -39,7 +44,7 @@ struct PageAmbient: View {
         .mask {
             LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
         }
-        .opacity(style.opacity)
+        .opacity(surface.opacity)
         .ignoresSafeArea(edges: .top)
         .allowsHitTesting(false)
         .animation(Theme.Motion.cast, value: url)

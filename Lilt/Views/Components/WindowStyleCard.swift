@@ -74,7 +74,8 @@ struct WindowStylePreview: View {
     private var platter: some View {
         let shape = RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous)
         let dials = ArtworkStyle.shared.platter
-        let palette = CoverPalette(accent: accent, colorScheme: colorScheme, surface: .platter)
+        // The wash this style's surface gives the real platter.
+        let palette = CoverPalette(accent: accent, colorScheme: colorScheme, surface: .platter, windowStyle: WindowStyle(shown))
         return HStack(spacing: Theme.Space.md) {
             cover
             VStack(alignment: .leading, spacing: Theme.Space.sm) {

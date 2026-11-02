@@ -69,22 +69,9 @@ struct ShadowStyle: Equatable {
     var isVisible: Bool { opacity > 0 || baseOpacity > 0 }
 }
 
-/// The now-playing platter's own finish. Shadow and border only appear while content scrolls
-/// beneath it; the tint is a wash of the artwork's average colour.
+/// The now-playing platter's own finish. Its shadow, rim, ambient fill and wash strengths are
+/// surface values, per window style and appearance (`SurfaceStyle.Platter`); these are the rest.
 struct PlatterStyle: Equatable {
-    var shadowOpacity: Double = 0.18
-    /// Points.
-    var shadowRadius: Double = 16
-    /// Points.
-    var shadowOffsetY: Double = 8
-    var borderOpacity: Double = 0.40
-    /// The ambient fill: the artwork itself, blurred across the platter.
-    var tintOpacity: Double = 0.20
-    var tintSaturation: Double = 4.0
-    /// Blur radius in points.
-    var tintBlur: Double = 160
-    /// How much brighter the ambient fill gets while the pointer is over the platter (0 = none).
-    var hoverBrightness: Double = 0.80
     /// Reach of the palette's wash (`CoverPalette.wash`), as a fraction of the platter's size.
     /// Its strength is the palette's.
     var cornerAccentRadius: Double = 1.0
@@ -110,7 +97,8 @@ struct PlatterStyle: Equatable {
 }
 
 /// The dials `CoverPalette` builds its roles from: each role's share of the cover's accent, and
-/// the strengths of the surfaces that wear it. One set for the platter, Up Next, album pages, the
+/// the strengths of the rows that wear it (the platter's wash is a surface value, per window
+/// style, in `SurfaceStyle.Platter`). One set for the platter, Up Next, album pages, the
 /// back button and Settings' miniatures, so tuning one tunes them all.
 struct CoverPaletteStyle: Equatable {
     /// Saturation boost on the cover's dominant colour as it is sampled for the accent.
@@ -130,8 +118,6 @@ struct CoverPaletteStyle: Equatable {
     /// Nothing draws these yet.
     var controlHoverOpacity: Double = 0.05
     var controlPressedOpacity: Double = 0.085
-    /// The platter's wash of the accent, behind the cover or along the top.
-    var washOpacity: Double = 0.32
     /// On a page, lower a share where it would take a line below its contrast floor on the panel.
     var contrastGuard: Bool = true
 
@@ -168,17 +154,13 @@ enum AccentPlacement: String, CaseIterable, Identifiable {
     var unitPoint: UnitPoint { self == .corner ? .topLeading : .top }
 }
 
-/// The cover's light spilling down from the top of an album, artist or playlist page.
+/// The cover's light spilling down from the top of an album, artist or playlist page. Its
+/// strength, saturation and blur are surface values (`SurfaceStyle.PageAmbient`).
 struct PageAmbientStyle: Equatable {
     /// The slice of the cover the wash is made from, as height over width: the platter's own
     /// wide shape is about 0.5, so the page's light comes from the same band of the cover and the
     /// two agree. 1 uses the whole cover.
     var band: Double = 0.5
-    /// Strength of the blurred cover wash at the very top.
-    var opacity: Double = 0.28
-    var saturation: Double = 3.0
-    /// Blur radius in points.
-    var blur: Double = 120
     /// How far down the page the wash reaches before fading out, in points.
     var reach: Double = 360
 
@@ -354,17 +336,14 @@ enum WindowStyle: String, CaseIterable, Identifiable {
 }
 
 /// The header controls' surface (see `HeaderControlMode`), with AppKit's private glass dials.
+/// Their rim and cover tint strengths are surface values (`SurfaceStyle.HeaderControls`).
 struct HeaderControlStyle: Equatable {
     var mode: HeaderControlMode = .clear
     /// Also draw the search field in this mode (otherwise it keeps the flat fill).
     var appliesToSearch: Bool = true
-    /// Our lit hairline over the system's own edge treatment.
-    var rim: Bool = false
-    var rimOpacity: Double = 0.5
     /// SwiftUI glass responds under the pointer.
     var interactive: Bool = true
-    /// Tint the glass with the cover's colour (0 = none).
-    var tintOpacity: Double = 0.6
+    /// The cover's colour handed to the glass, already at the surface's tint strength.
     var tint: Color? = nil
 
     // NSGlassEffectView private knobs (AppKit mode only). Tuned by Matt in the tweak panel on
@@ -399,23 +378,14 @@ struct HeaderControlStyle: Equatable {
     static let standard = HeaderControlStyle()
 }
 
-/// The blur behind floating headers.
+/// The blur behind floating headers. Its radius, saturation, brightness, reach and rim are
+/// surface values (`SurfaceStyle.HeaderBlur`): a saturation of 1 blurs what is there and
+/// amplifies nothing (a boost turned the cover's wash under the header into a strong cast of its
+/// own), and the rim is the window's, redrawn over the blur that hides it.
 struct HeaderBlurStyle: Equatable {
     /// Use a Core Animation backdrop with a variable blur ramp (private API, guarded), rather
     /// than a system material faded out with a mask.
     var useBackdrop: Bool = true
-    /// Blur radius in points at the top of the header.
-    var radius: Double = 24
-    /// Saturation of what shows through. 1 blurs what is there and amplifies nothing: a boost
-    /// turned the cover's wash under the header into a strong cast of its own.
-    var saturation: Double = 1.0
-    /// Brightness shift of what shows through (-1...1).
-    var brightness: Double = 0.0
-    /// How far below the header the blur reaches before fading to nothing.
-    var reach: Double = 32
-    /// Strength of the window rim redrawn over the blur (the backdrop blurs the glass's own
-    /// hairline away); 1 is the full glass-edge highlight.
-    var rimOpacity: Double = 0.45
     /// Blur Lilt's own layers only, rendered in-process, instead of letting the window server
     /// composite the backdrop from everything beneath it. Off: in-process, the capture includes
     /// the sidebar material's tint layer, and painting the blurred result back over the same
@@ -552,11 +522,24 @@ final class ArtworkStyle {
         didSet { WindowStyle(panel).store() }
     }
     var leadingCast: LeadingCastStyle = .standard
+    /// The panel-surface values for every window style and appearance, from
+    /// `SurfaceDefaults.json`. The tweak panel edits the cell on screen.
+    var surfaces: SurfaceMatrix = .defaults
     /// Library title centred between the back button and the avatar, rather than leading.
     var centredLibraryTitle: Bool = true
     var heroSnap: HeroSnapStyle = .standard
     var attention: AttentionStyle = .standard
     var shine: ShineStyle = .standard
+
+    /// The window style actually on screen: with Reduce Transparency on, glass shows as solid.
+    func shownWindowStyle(reduceTransparency: Bool) -> WindowStyle {
+        WindowStyle(panel.effective(reduceTransparency: reduceTransparency))
+    }
+
+    /// The surface values for the window style on screen, in `scheme`.
+    func surface(_ scheme: ColorScheme, reduceTransparency: Bool) -> SurfaceStyle {
+        surfaces[shownWindowStyle(reduceTransparency: reduceTransparency), scheme]
+    }
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
@@ -608,13 +591,15 @@ final class ArtworkStyle {
         headerControls = .standard
         panel = .standard
         leadingCast = .standard
+        surfaces = .defaults
         centredLibraryTitle = true
         heroSnap = .standard
         attention = .standard
         shine = .standard
     }
 
-    /// The current values as Swift, ready to paste back into `reset()`.
+    /// The current values as Swift, ready to paste back into `reset()`. The surface values are
+    /// data, not Swift: the tweak panel's Export JSON copies those for `SurfaceDefaults.json`.
     var swiftSnippet: String {
         """
         spotlightCenterX = \(f(spotlightCenterX))
@@ -635,14 +620,14 @@ final class ArtworkStyle {
         heroShadow = \(snippet(heroShadow))
         headerShadow = \(snippet(headerShadow))
         avatarShadow = \(snippet(avatarShadow))
-        platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)), hoverBrightness: \(f(platter.hoverBrightness)), cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberLikeControls: \(platter.scrubberLikeControls), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow), alwaysGlass: \(platter.alwaysGlass))
-        palette = CoverPaletteStyle(accentSaturation: \(f(palette.accentSaturation)), contentShare: \(f(palette.contentShare)), dimContentRatio: \(f(palette.dimContentRatio)), controlShare: \(f(palette.controlShare)), highlightOpacity: \(f(palette.highlightOpacity)), darkHighlightOpacity: \(f(palette.darkHighlightOpacity)), hoverHighlightOpacity: \(f(palette.hoverHighlightOpacity)), controlHoverOpacity: \(f3(palette.controlHoverOpacity)), controlPressedOpacity: \(f3(palette.controlPressedOpacity)), washOpacity: \(f(palette.washOpacity)), contrastGuard: \(palette.contrastGuard))
+        platter = PlatterStyle(cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberLikeControls: \(platter.scrubberLikeControls), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow), alwaysGlass: \(platter.alwaysGlass))
+        palette = CoverPaletteStyle(accentSaturation: \(f(palette.accentSaturation)), contentShare: \(f(palette.contentShare)), dimContentRatio: \(f(palette.dimContentRatio)), controlShare: \(f(palette.controlShare)), highlightOpacity: \(f(palette.highlightOpacity)), darkHighlightOpacity: \(f(palette.darkHighlightOpacity)), hoverHighlightOpacity: \(f(palette.hoverHighlightOpacity)), controlHoverOpacity: \(f3(palette.controlHoverOpacity)), controlPressedOpacity: \(f3(palette.controlPressedOpacity)), contrastGuard: \(palette.contrastGuard))
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))
-        headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), radius: \(f(headerBlur.radius)), saturation: \(f(headerBlur.saturation)), brightness: \(f(headerBlur.brightness)), reach: \(f(headerBlur.reach)), rimOpacity: \(f(headerBlur.rimOpacity)), ownContentOnly: \(headerBlur.ownContentOnly))
-        pageAmbient = PageAmbientStyle(band: \(f(pageAmbient.band)), opacity: \(f(pageAmbient.opacity)), saturation: \(f(pageAmbient.saturation)), blur: \(f(pageAmbient.blur)), reach: \(f(pageAmbient.reach)))
+        headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), ownContentOnly: \(headerBlur.ownContentOnly))
+        pageAmbient = PageAmbientStyle(band: \(f(pageAmbient.band)), reach: \(f(pageAmbient.reach)))
         dockTile = DockTileStyle(plateTint: \(f(dockTile.plateTint)), plateSaturation: \(f(dockTile.plateSaturation)), shadowOpacity: \(f(dockTile.shadowOpacity)), shadowBlur: \(f(dockTile.shadowBlur)), shadowOffsetY: \(f(dockTile.shadowOffsetY)))
-        headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), rim: \(headerControls.rim), rimOpacity: \(f(headerControls.rimOpacity)), interactive: \(headerControls.interactive), tintOpacity: \(f(headerControls.tintOpacity)), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
+        headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), interactive: \(headerControls.interactive), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
         panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent))
         centredLibraryTitle = \(centredLibraryTitle)
         heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), minFlick: \(f(heroSnap.minFlick)), deadZone: \(f(heroSnap.deadZone)))
