@@ -92,3 +92,43 @@ struct DockMenuPlaybackModeTests {
         }
     }
 }
+
+/// What's coming up, and what played before, each a submenu to jump straight to a song.
+@MainActor
+struct DockMenuQueueTests {
+    private func song(_ id: String) -> Track { Track(id: id, title: id, artist: "Tool") }
+
+    private func withPlayer(_ queue: [Track], _ body: (PlayerService) throws -> Void) throws {
+        let key = "playbackState"
+        let saved = UserDefaults.standard.data(forKey: key)
+        defer { if let saved { UserDefaults.standard.set(saved, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) } }
+        let state: [String: Any] = ["queue": try JSONSerialization.jsonObject(with: JSONEncoder().encode(queue)), "index": 0, "time": 0]
+        UserDefaults.standard.set(try JSONSerialization.data(withJSONObject: state), forKey: key)
+        try body(PlayerService(auth: AuthService()))
+    }
+
+    private func menu(_ player: PlayerService) -> NSMenu {
+        DockMenu.build(player: player, music: YTMusicClient(auth: AuthService()), recents: RecentsStore(), actions: .none)
+    }
+
+    @Test func upNextListsYourAddsThenTheList() throws {
+        try withPlayer([song("now"), song("list1"), song("list2")]) { player in
+            player.enqueue(song("queued"))
+            let upNext = try #require(menu(player).item(withTitle: "Up Next")?.submenu)
+            #expect(upNext.items.map { $0.isSeparatorItem ? "—" : $0.title } == ["queued — Tool", "—", "list1 — Tool", "list2 — Tool"])
+        }
+    }
+
+    @Test func nothingUpNextLeavesItOut() throws {
+        try withPlayer([song("now")]) { player in
+            #expect(menu(player).item(withTitle: "Up Next") == nil)
+        }
+    }
+
+    @Test func upNextIsCapped() throws {
+        try withPlayer([song("now")] + (1...30).map { song("s\($0)") }) { player in
+            let upNext = try #require(menu(player).item(withTitle: "Up Next")?.submenu)
+            #expect(upNext.items.count == DockMenu.upNextShown)
+        }
+    }
+}

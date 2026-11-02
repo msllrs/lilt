@@ -32,6 +32,10 @@ enum DockMenu {
             menu.addItem(.separator())
             addPlaybackModes(to: menu, player: player)
             menu.addItem(.separator())
+            if let upNext = upNextMenu(player: player) {
+                menu.addItem(upNext)
+                menu.addItem(.separator())
+            }
         }
         menu.addItem(ActionItem("Show Lilt", perform: actions.show))
         return menu
@@ -55,6 +59,33 @@ enum DockMenu {
                 break
             }
         }
+    }
+
+    /// How many songs the Up Next submenu lists, your adds first.
+    static let upNextShown = 10
+
+    /// What plays next: your adds, then the rest of the list you started from. Choosing one
+    /// jumps to it, as clicking it in the queue does. Nil when nothing follows.
+    private static func upNextMenu(player: PlayerService) -> NSMenuItem? {
+        let manual = Array(player.upcoming.prefix(upNextShown).enumerated())
+        let automatic = Array(player.automaticUpcoming.prefix(upNextShown - manual.count).enumerated())
+        guard !manual.isEmpty || !automatic.isEmpty else { return nil }
+        let submenu = NSMenu()
+        for (offset, track) in manual {
+            submenu.addItem(ActionItem(label(track)) { player.playUpcoming(at: offset) })
+        }
+        // The separator takes a slot, so the cap holds for the whole list.
+        if !manual.isEmpty, !automatic.isEmpty { submenu.addItem(.separator()) }
+        for (offset, track) in automatic.prefix(upNextShown - submenu.items.count) {
+            submenu.addItem(ActionItem(label(track)) { player.playAutomatic(at: offset) })
+        }
+        let item = NSMenuItem(title: "Up Next", action: nil, keyEquivalent: "")
+        item.submenu = submenu
+        return item
+    }
+
+    private static func label(_ track: Track) -> String {
+        track.artist.isEmpty ? track.title : "\(track.title) — \(track.artist)"
     }
 
     /// Shuffle, and the repeat modes in a submenu, each ticked when on.
