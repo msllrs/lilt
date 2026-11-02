@@ -30,19 +30,19 @@ struct WindowStyleTests {
         #expect(WindowStyle(PanelStyle(surface: .glass, translucent: false)) == .glass)
     }
 
-    @Test func theDefaultIsTodaysLook() {
-        #expect(WindowStyle.standard == .normal)
+    @Test func theDefaultIsGlass() {
+        #expect(WindowStyle.standard == .glass)
         #expect(WindowStyle.standard.panelStyle == PanelStyle.standard)
-        #expect(PanelStyle.standard == PanelStyle(surface: .sidebar, translucent: true))
+        #expect(PanelStyle.standard == PanelStyle(surface: .glass, translucent: true))
     }
 
     @Test func nothingStoredOrAnUnknownNameIsTheDefault() throws {
         let suite = "WindowStyleTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        #expect(WindowStyle.stored(in: defaults) == .normal)
+        #expect(WindowStyle.stored(in: defaults) == .glass)
         defaults.set("frosted", forKey: WindowStyle.key)
-        #expect(WindowStyle.stored(in: defaults) == .normal)
+        #expect(WindowStyle.stored(in: defaults) == .glass)
     }
 
     @Test func aChoiceSurvivesARoundTrip() {

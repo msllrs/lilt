@@ -246,7 +246,7 @@ enum PanelSurface: String, CaseIterable, Identifiable {
 }
 
 struct PanelStyle: Equatable {
-    var surface: PanelSurface = .sidebar
+    var surface: PanelSurface = .glass
     /// Sidebar only: the desktop shows through, as it does behind a Finder sidebar. Off gives the
     /// flat look of an inactive window (the same choice Reduce Transparency makes).
     var translucent: Bool = true
@@ -272,8 +272,8 @@ enum WindowStyle: String, CaseIterable, Identifiable {
     case solid
 
     static let key = "windowStyle"
-    /// Today's look; nothing changes until someone picks another.
-    static let standard = WindowStyle.normal
+    /// Liquid Glass until someone picks another look.
+    static let standard = WindowStyle.glass
 
     var id: String { rawValue }
 
