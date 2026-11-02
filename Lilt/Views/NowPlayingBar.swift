@@ -415,7 +415,7 @@ struct NowPlayingBar: View {
         // The player resolves the playing song's links itself, but a lookup may land first.
         case .goToArtist: RowMenu.open(music.withLinks(track).artistItem, navigation: navigation)
         case .goToAlbum: RowMenu.open(music.withLinks(track).albumItem, navigation: navigation)
-        case .copyLink: RowMenu.copyLink(RowMenu.webURL(for: track), notices: notices)
+        case .copyLink: RowMenu.copyLink(RowMenu.webURL(for: track), named: track.title, notices: notices)
         default: break
         }
     }

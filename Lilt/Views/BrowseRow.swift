@@ -66,7 +66,7 @@ struct BrowseRow: View {
         case .playNext: withTracks { RowMenu.playNext($0, named: item.title, artwork: item.artworkURL, player: player, notices: notices) }
         case .addToQueue: withTracks { RowMenu.enqueue($0, named: item.title, artwork: item.artworkURL, player: player, notices: notices) }
         case .goToArtist: if let artist = item.artistItem { navigation.open(artist) }
-        case .copyLink: RowMenu.copyLink(RowMenu.webURL(for: item), notices: notices)
+        case .copyLink: RowMenu.copyLink(RowMenu.webURL(for: item), named: item.title, notices: notices)
         default: break
         }
     }

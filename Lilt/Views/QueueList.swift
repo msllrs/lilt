@@ -284,7 +284,7 @@ private struct QueueRow: View {
         // Radio continuation arrives without links; the menu offered them from a lookup.
         case .goToArtist: RowMenu.open(music.withLinks(track).artistItem, navigation: navigation)
         case .goToAlbum: RowMenu.open(music.withLinks(track).albumItem, navigation: navigation)
-        case .copyLink: RowMenu.copyLink(RowMenu.webURL(for: track), notices: notices)
+        case .copyLink: RowMenu.copyLink(RowMenu.webURL(for: track), named: track.title, notices: notices)
         default: break
         }
     }

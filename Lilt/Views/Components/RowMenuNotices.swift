@@ -43,7 +43,7 @@ extension RowMenu {
         let track = player.upcoming[offset]
         withAnimation(Theme.Motion.settle) { player.removeUpcoming(at: offset) }
         AppDelegate.shared?.queueDidChange()
-        notices?.post("Removed \(track.title)", icon: .artwork(track.artworkURL), action: .undo {
+        notices?.post("Removed from queue: \(track.title)", icon: .artwork(track.artworkURL), action: .undo {
             withAnimation(Theme.Motion.settle) { _ = player.insertUpcoming(track, at: offset) }
             AppDelegate.shared?.queueDidChange()
         })
@@ -55,7 +55,7 @@ extension RowMenu {
     static func setLiked(_ liked: Bool, _ track: Track, player: PlayerService, music: YTMusicClient, notices: NoticeCenter?) {
         setLiked(liked, track, player: player, music: music)
         notices?.post(
-            liked ? "Added to Liked Music" : "Removed from Liked Music",
+            "\(liked ? "Added to Liked Music" : "Removed from Liked Music"): \(track.title)",
             icon: .symbol(liked ? "hand.thumbsup.fill" : "hand.thumbsup"),
             action: .undo { setLiked(!liked, track, player: player, music: music) }
         )
@@ -66,7 +66,7 @@ extension RowMenu {
     static func add(_ track: Track, to playlist: OwnPlaylist, music: YTMusicClient, notices: NoticeCenter?) {
         Task {
             guard let added = try? await music.add(track, to: playlist) else { return }
-            postAdded(added, key: track.id, artwork: track.artworkURL, to: playlist, music: music, notices: notices)
+            postAdded(added, key: track.id, named: track.title, artwork: track.artworkURL, to: playlist, music: music, notices: notices)
         }
     }
 
@@ -74,12 +74,12 @@ extension RowMenu {
     static func add(_ item: BrowseItem, to playlist: OwnPlaylist, music: YTMusicClient, notices: NoticeCenter?) {
         Task {
             guard let added = try? await music.add(item, to: playlist) else { return }
-            postAdded(added, key: item.id, artwork: item.artworkURL, to: playlist, music: music, notices: notices)
+            postAdded(added, key: item.id, named: item.title, artwork: item.artworkURL, to: playlist, music: music, notices: notices)
         }
     }
 
-    private static func postAdded(_ added: [YTMusicClient.AddedSong], key: String, artwork: URL?, to playlist: OwnPlaylist, music: YTMusicClient, notices: NoticeCenter?) {
-        notices?.post("Added to \(playlist.title)", icon: .artwork(artwork), action: added.isEmpty ? nil : .undo {
+    private static func postAdded(_ added: [YTMusicClient.AddedSong], key: String, named name: String, artwork: URL?, to playlist: OwnPlaylist, music: YTMusicClient, notices: NoticeCenter?) {
+        notices?.post("Added to \(playlist.title): \(name)", icon: .artwork(artwork), action: added.isEmpty ? nil : .undo {
             Task { try? await music.undoAdd(added, key: key, from: playlist) }
         })
     }
@@ -90,15 +90,15 @@ extension RowMenu {
     static func removeFromPlaylist(_ track: Track, in source: BrowseItem?, music: YTMusicClient, notices: NoticeCenter?) {
         Task {
             guard (try? await music.removeFromPlaylist(track)) != nil else { return }
-            notices?.post(source.map { "Removed from \($0.title)" } ?? "Removed from playlist", icon: .artwork(track.artworkURL))
+            notices?.post("\(source.map { "Removed from \($0.title)" } ?? "Removed from playlist"): \(track.title)", icon: .artwork(track.artworkURL))
         }
     }
 
     // MARK: Links
 
-    static func copyLink(_ url: URL?, notices: NoticeCenter?) {
+    static func copyLink(_ url: URL?, named name: String, notices: NoticeCenter?) {
         guard url != nil else { return }
         copy(url)
-        notices?.post("Link copied", icon: .symbol("link"))
+        notices?.post("Link copied: \(name)", icon: .symbol("link"))
     }
 }

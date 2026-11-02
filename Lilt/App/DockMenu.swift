@@ -55,7 +55,7 @@ enum DockMenu {
             case .goToAlbum:
                 menu.addItem(ActionItem(action.title) { if let item = track.albumItem { actions.open(item) } })
             case .copyLink:
-                menu.addItem(ActionItem(action.title) { RowMenu.copyLink(RowMenu.webURL(for: track), notices: notices) })
+                menu.addItem(ActionItem(action.title) { RowMenu.copyLink(RowMenu.webURL(for: track), named: track.title, notices: notices) })
             default:
                 break
             }
