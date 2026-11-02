@@ -34,6 +34,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
             DockSection()
+            NotificationsSection()
             UpdatesSection()
         }
         .formStyle(.grouped)
@@ -54,6 +55,43 @@ private struct DockSection: View {
             )) {
                 ForEach(DockSpin.allCases) { Text($0.title).tag($0) }
             }
+        }
+    }
+}
+
+/// A banner when the song changes. Permission is asked for only when this is turned on; a
+/// refusal turns it back off and says where to change that.
+private struct NotificationsSection: View {
+    @AppStorage(SongNotifier.enabledKey) private var enabled = false
+    @State private var isDenied = false
+
+    var body: some View {
+        Section {
+            Toggle("Show a notification when the song changes", isOn: Binding(get: { enabled }, set: setEnabled))
+        } header: {
+            Text("Notifications")
+        } footer: {
+            if isDenied {
+                VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                    Text("Lilt isn't allowed to show notifications. Turn them on in System Settings ▸ Notifications.")
+                    Button("Open Notifications…") {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") { NSWorkspace.shared.open(url) }
+                    }
+                    .buttonStyle(.link)
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+        .task { if enabled { isDenied = await SongNotifier.isDenied() } }
+    }
+
+    private func setEnabled(_ on: Bool) {
+        enabled = on
+        guard on else { isDenied = false; return }
+        Task {
+            let allowed = await SongNotifier.requestAuthorization()
+            isDenied = !allowed
+            if !allowed { enabled = false }
         }
     }
 }

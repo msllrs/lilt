@@ -19,6 +19,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     let collapsedSections = CollapsedSections()
     let ambience = AmbienceService()
+    /// Settings ▸ Notifications: a banner when the song changes.
+    private lazy var songNotifier = SongNotifier(player: player, panel: { [weak self] in self?.panel })
 
     private var panel: PanelWindow?
     private var loginWindow: NSWindow?
@@ -43,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         observeQueue()
         remoteCommands = RemoteCommandBridge(player: player)
         observeMiniPlayer()
+        songNotifier.start()
         Task {
             await auth.refresh()
             if !auth.isSignedIn { auth.isPresentingLogin = true }
