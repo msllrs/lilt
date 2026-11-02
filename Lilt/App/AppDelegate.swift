@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         observeLoginPresentation()
         observeDockIcon()
         observeDockSpin()
+        observeCurrentForDockMenu()
         observeWindowTitle()
         observeQueue()
         remoteCommands = RemoteCommandBridge(player: player)
@@ -310,26 +311,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// Right-click menu on the Dock tile: what's playing, transport, and show.
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
-        let menu = NSMenu()
-        if let track = player.current {
-            let title = NSMenuItem(title: "\(track.title) — \(track.artist)", action: nil, keyEquivalent: "")
-            title.isEnabled = false
-            menu.addItem(title)
-            menu.addItem(.separator())
-            menu.addItem(withTitle: player.isPlaying ? "Pause" : "Play", action: #selector(dockTogglePlayPause), keyEquivalent: "")
-            let next = menu.addItem(withTitle: "Next", action: #selector(dockNext), keyEquivalent: "")
-            next.isEnabled = player.hasNext
-            menu.addItem(withTitle: "Previous", action: #selector(dockPrevious), keyEquivalent: "")
-            menu.addItem(.separator())
-        }
-        menu.addItem(withTitle: "Show Lilt", action: #selector(dockShow), keyEquivalent: "")
-        return menu
+        DockMenu.build(player: player, music: music, recents: recents, actions: DockMenu.Actions(
+            open: { [weak self] item in
+                guard let self else { return }
+                showPanel()
+                RowMenu.open(item, navigation: navigation)
+            },
+            show: { [weak self] in self?.showPanel() }
+        ))
     }
 
-    @objc private func dockTogglePlayPause() { player.togglePlayPause() }
-    @objc private func dockNext() { player.next() }
-    @objc private func dockPrevious() { player.previous() }
-    @objc private func dockShow() { showPanel() }
+    /// The Dock menu can't wait for anything once it's open, so what it offers for a song is
+    /// fetched as the song starts: your playlists and the song's album and artist.
+    private func observeCurrentForDockMenu() {
+        withObservationTracking {
+            _ = player.current?.id
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.observeCurrentForDockMenu()
+            }
+        }
+        guard let track = player.current else { return }
+        music.warmOwnPlaylists(videoId: track.id)
+        music.warmLinks(for: track)
+    }
 
     /// The Dock tile is a disc: generic when idle, the current cover when a track is loaded.
     private var dockArtworkURL: URL?
