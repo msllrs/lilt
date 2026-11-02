@@ -30,11 +30,29 @@ enum RemoteAction: String {
     case next, previous
 }
 
+/// What `PlayerService` needs from a web player, so tests can stand in a fake that never loads
+/// a web view.
+@MainActor
+protocol PlayerBridging: AnyObject {
+    var onEvent: ((PlayerEvent) -> Void)? { get set }
+    /// The view to keep in a window while it plays; nil for a fake.
+    var webView: WKWebView? { get }
+    func warmUp()
+    func load(videoId: String)
+    func play()
+    func pause()
+    func seek(to seconds: Double)
+    func setVolume(_ volume: Double)
+    func toggleLike()
+    func unload()
+}
+
 /// Owns the hidden `WKWebView` that actually plays audio and translates its script messages into
 /// `PlayerEvent`s. WebKit handles DRM; this type only drives and observes it.
 @MainActor
-final class PlayerBridge: NSObject {
-    let webView: WKWebView
+final class PlayerBridge: NSObject, PlayerBridging {
+    private let view: WKWebView
+    var webView: WKWebView? { view }
     var onEvent: ((PlayerEvent) -> Void)?
 
     /// True once the observer script has announced itself in the current document.
@@ -58,13 +76,13 @@ final class PlayerBridge: NSObject {
                 in: Self.world
             )
         )
-        webView = WKWebView(frame: .zero, configuration: config)
-        webView.customUserAgent = InnerTubeClient.safariUserAgent
+        view = WKWebView(frame: .zero, configuration: config)
+        view.customUserAgent = InnerTubeClient.safariUserAgent
         #if DEBUG
-        webView.isInspectable = true
+        view.isInspectable = true
         #endif
         super.init()
-        webView.navigationDelegate = self
+        view.navigationDelegate = self
         config.userContentController.add(MessageProxy(bridge: self), contentWorld: Self.world, name: Self.handlerName)
     }
 
@@ -72,7 +90,7 @@ final class PlayerBridge: NSObject {
     /// navigation rather than a cold page load.
     func warmUp() {
         guard !isShellLoaded else { return }
-        webView.load(URLRequest(url: URL(string: "https://music.youtube.com/")!))
+        view.load(URLRequest(url: URL(string: "https://music.youtube.com/")!))
     }
 
     func load(videoId: String) {
@@ -83,21 +101,21 @@ final class PlayerBridge: NSObject {
             pendingVideoId = videoId
         } else {
             pendingVideoId = nil
-            webView.load(URLRequest(url: URL(string: "https://music.youtube.com/watch?v=\(videoId)")!))
+            view.load(URLRequest(url: URL(string: "https://music.youtube.com/watch?v=\(videoId)")!))
         }
     }
 
-    private var isShellLoaded: Bool { webView.url?.host == "music.youtube.com" }
+    private var isShellLoaded: Bool { view.url?.host == "music.youtube.com" }
 
     func play() { call("window.__lilt && window.__lilt.play()") }
     func pause() { call("window.__lilt && window.__lilt.pause()") }
     func seek(to seconds: Double) { call("window.__lilt && window.__lilt.seek(\(seconds))") }
     func setVolume(_ volume: Double) { call("window.__lilt && window.__lilt.setVolume(\(volume))") }
     func toggleLike() { call("window.__lilt && window.__lilt.toggleLike()") }
-    func unload() { webView.load(URLRequest(url: URL(string: "about:blank")!)) }
+    func unload() { view.load(URLRequest(url: URL(string: "about:blank")!)) }
 
     private func call(_ js: String) {
-        webView.evaluateJavaScript(js, in: nil, in: Self.world) { _ in }
+        view.evaluateJavaScript(js, in: nil, in: Self.world) { _ in }
     }
 
     private static func quote(_ s: String) -> String {

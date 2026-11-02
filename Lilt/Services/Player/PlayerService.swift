@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WebKit
 
 /// Playback state and queue. Lilt's queue is the source of truth: next/previous navigate the
 /// hidden web view explicitly rather than trusting YouTube Music's own autoplay.
@@ -57,7 +58,14 @@ final class PlayerService {
     }
     var displayArtworkURL: URL? { current?.artworkURL ?? liveArtworkURL }
 
-    let bridge: PlayerBridge
+    /// The web player you hear.
+    private(set) var bridge: any PlayerBridging
+    /// Makes a web player (a real one signed in on the app's data store, or a test's fake).
+    @ObservationIgnored private let makeBridge: @MainActor () -> any PlayerBridging
+    /// Puts a web player's view in a window, where it has to be to keep playing. Wired by the app.
+    @ObservationIgnored var hostWebView: ((WKWebView) -> Void)? {
+        didSet { if let view = bridge.webView { hostWebView?(view) } }
+    }
     /// Looks up artist/album ids for a track that arrived without them. Wired by the app.
     @ObservationIgnored var linkResolver: ((String) async throws -> TrackLinks?)?
     /// Reports each like the player makes, so rows elsewhere agree. Wired by the app.
@@ -116,8 +124,10 @@ final class PlayerService {
         let track: Track
     }
 
-    init(auth: AuthService) {
-        bridge = PlayerBridge(dataStore: auth.dataStore)
+    init(auth: AuthService, makeBridge: (@MainActor () -> any PlayerBridging)? = nil) {
+        let make = makeBridge ?? { [dataStore = auth.dataStore] in PlayerBridge(dataStore: dataStore) }
+        self.makeBridge = make
+        bridge = make()
         bridge.onEvent = { [weak self] event in self?.handle(event) }
         restore()
     }

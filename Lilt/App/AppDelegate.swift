@@ -529,17 +529,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let container = NSView(frame: window.contentLayoutRect)
         container.autoresizingMask = [.width, .height]
 
-        // The audio engine lives in a 1x1 web view underneath the SwiftUI content. It must stay
-        // in a window to keep playing, which is why the panel hides rather than closes.
-        // Tucked well inside the rounded glass; at the corner it peeks out as a dot because the
-        // borderless window is transparent there.
-        let webView = player.bridge.webView
-        webView.frame = NSRect(x: Theme.Radius.window, y: Theme.Radius.window, width: 1, height: 1)
-        container.addSubview(webView)
-
         hosting.frame = container.bounds
         hosting.autoresizingMask = [.width, .height]
         container.addSubview(hosting)
+
+        // The audio engine lives in 1x1 web views underneath the SwiftUI content (a second one
+        // holds the next song for gapless playback). They must stay in a window to keep playing,
+        // which is why the panel hides rather than closes.
+        // Tucked well inside the rounded glass; at the corner one peeks out as a dot because the
+        // borderless window is transparent there.
+        player.hostWebView = { [weak container] webView in
+            webView.frame = NSRect(x: Theme.Radius.window, y: Theme.Radius.window, width: 1, height: 1)
+            container?.addSubview(webView, positioned: .below, relativeTo: nil)
+        }
 
         window.contentView = container
         if !window.setFrameUsingName(PanelWindow.autosaveName) {
