@@ -209,7 +209,7 @@ struct TrackRow: View {
                         .id(symbol)
                         .transition(.blurScale)
                 }
-                .animation(.snappy(duration: 0.22), value: symbol)
+                .animation(Theme.Motion.symbol, value: symbol)
                 .foregroundStyle(coverTint.style(\.secondary, or: .secondary))
                 .frame(width: Self.queueButtonSize, height: Self.queueButtonSize)
                 .contentShape(Circle())

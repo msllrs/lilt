@@ -31,6 +31,12 @@ struct MotionTests {
             #expect(Theme.Motion.frameDuration == 0.88)
             #expect(Theme.Motion.frame == .easeOut(duration: 0.88))
             #expect(Theme.Motion.queueSpring == Spring(duration: 1.2, bounce: 0))
+            #expect(Theme.Motion.queue == .spring(Spring(duration: 1.2, bounce: 0)))
+            #expect(Theme.Motion.pageEnter == .easeOut(duration: 0.8))
+            #expect(Theme.Motion.pageExit == .easeOut(duration: 0.48))
+            #expect(Theme.Motion.symbol == .snappy(duration: 0.88))
+            #expect(Theme.Motion.press == .easeOut(duration: 0.32))
+            #expect(Theme.Motion.release == .spring(duration: 1.2, bounce: 0.35))
         }
     }
 
@@ -115,6 +121,12 @@ struct MotionTests {
             #expect(Theme.Motion.frameDuration == 0.22)
             #expect(Theme.Motion.frame == .easeOut(duration: 0.22))
             #expect(Theme.Motion.queueSpring == Spring(duration: 0.3, bounce: 0))
+            #expect(Theme.Motion.queue == .spring(Spring(duration: 0.3, bounce: 0)))
+            #expect(Theme.Motion.pageEnter == .easeOut(duration: 0.2))
+            #expect(Theme.Motion.pageExit == .easeOut(duration: 0.12))
+            #expect(Theme.Motion.symbol == .snappy(duration: 0.22))
+            #expect(Theme.Motion.press == .easeOut(duration: 0.08))
+            #expect(Theme.Motion.release == .spring(duration: 0.3, bounce: 0.35))
             #expect(Theme.Motion.frameCurve.duration == 0.22)
             #expect(Theme.Motion.queueCurve.duration == Spring(duration: 0.3, bounce: 0).settlingDuration)
             #expect(Theme.Motion.standardCurve.duration == Spring.snappy(duration: 0.28).settlingDuration)

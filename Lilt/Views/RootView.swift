@@ -111,8 +111,8 @@ private struct NavigationColumn: View {
     private static let blur: CGFloat = 0
     /// The outgoing screen gets out of the way faster than the incoming one arrives, so the two
     /// never read as a double exposure on the glass.
-    private static let exit: Animation = .easeOut(duration: 0.12)
-    private static let enter: Animation = .easeOut(duration: 0.2)
+    private static var exit: Animation { Theme.Motion.pageExit }
+    private static var enter: Animation { Theme.Motion.pageEnter }
 
     var body: some View {
         let path = navigation.path
@@ -190,7 +190,7 @@ private struct LeadingButton: View {
                         .transition(.blurScale)
                 }
             }
-            .animation(.snappy(duration: 0.22), value: symbol)
+            .animation(Theme.Motion.symbol, value: symbol)
             .headerControl()
             // Beside the compact now-playing header, the artwork's colour reaches the edge that
             // faces it: a lit rim on the trailing side and a faint wash just inside it. As the

@@ -112,7 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard visible != navigation.isQueueVisible else { return }
         // The window is the platter: it and the list ride one spring, either way.
         if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: visible ? 1 : 0, animated: true, curve: Theme.Motion.queueCurve) }
-        withAnimation(.spring(Theme.Motion.queueSpring)) {
+        withAnimation(Theme.Motion.queue) {
             navigation.isQueueVisible = visible
             navigation.queueReveal = visible ? 1 : 0
         }
@@ -152,7 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         // Back to where it was.
         if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: open ? 1 : 0, animated: true, curve: Theme.Motion.queueCurve) }
-        withAnimation(.spring(Theme.Motion.queueSpring)) { navigation.queueReveal = open ? 1 : 0 }
+        withAnimation(Theme.Motion.queue) { navigation.queueReveal = open ? 1 : 0 }
         autoHideQueueIfEmpty()
     }
 

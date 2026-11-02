@@ -90,7 +90,17 @@ enum Theme {
         /// and steps along this same spring, so no bounce, or the two overshoot out of phase and
         /// a strip of bare material opens between them.
         static var queueSpring: Spring { Spring(duration: scaled(0.3), bounce: 0) }
+        static var queue: Animation { .spring(queueSpring) }
         static var queueCurve: FrameCurve { .spring(queueSpring) }
+        /// A page arriving on the navigation stack, and the one beneath getting out of its way:
+        /// faster, so the two never read as a double exposure on the glass.
+        static var pageEnter: Animation { .easeOut(duration: scaled(0.2)) }
+        static var pageExit: Animation { .easeOut(duration: scaled(0.12)) }
+        /// One glyph handing over to another in place (play ↔ pause, library ↔ back).
+        static var symbol: Animation { .snappy(duration: scaled(0.22)) }
+        /// A pressable button giving under the cursor, and springing back when let go.
+        static var press: Animation { .easeOut(duration: scaled(0.08)) }
+        static var release: Animation { .spring(duration: scaled(0.3), bounce: 0.35) }
     }
 }
 

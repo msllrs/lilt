@@ -8,7 +8,7 @@ struct PressableButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? scale : 1)
-            .animation(configuration.isPressed ? .easeOut(duration: 0.08) : .spring(duration: 0.3, bounce: 0.35), value: configuration.isPressed)
+            .animation(configuration.isPressed ? Theme.Motion.press : Theme.Motion.release, value: configuration.isPressed)
     }
 }
 

@@ -428,7 +428,7 @@ struct NowPlayingBar: View {
         Button {
             // Option-click: the ambience drawer, the platter's one hidden door.
             if NSEvent.modifierFlags.contains(.option) {
-                withAnimation(.spring(Theme.Motion.queueSpring)) { AppDelegate.shared?.setAmbienceVisible(!navigation.isAmbienceVisible) }
+                withAnimation(Theme.Motion.queue) { AppDelegate.shared?.setAmbienceVisible(!navigation.isAmbienceVisible) }
                 return
             }
             // In mini there is no column to show the album in: expand first, then open it.
@@ -508,7 +508,7 @@ private struct ModeButton: View {
                     .id(symbol)
                     .transition(.blurScale)
             }
-            .animation(.snappy(duration: 0.22), value: symbol)
+            .animation(Theme.Motion.symbol, value: symbol)
             .foregroundStyle(isOn ? (tint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary)) : (dimTint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.secondary)))
             .frame(width: 28, height: 28)
             .contentShape(Circle())
@@ -535,7 +535,7 @@ private struct TransportButton: View {
                     .id(symbol)
                     .transition(.blurScale)
             }
-            .animation(.snappy(duration: 0.22), value: symbol)
+            .animation(Theme.Motion.symbol, value: symbol)
             .frame(width: 36, height: 36)
             .contentShape(Circle())
         }
