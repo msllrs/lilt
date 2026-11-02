@@ -164,7 +164,11 @@ final class PlayerService {
     }
 
     func cycleRepeat() {
-        repeatMode = repeatMode.next
+        setRepeat(repeatMode.next)
+    }
+
+    func setRepeat(_ mode: RepeatMode) {
+        repeatMode = mode
         save()
     }
 

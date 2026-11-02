@@ -30,6 +30,8 @@ enum DockMenu {
             menu.addItem(.separator())
             addSongActions(for: track, to: menu, player: player, music: music, actions: actions)
             menu.addItem(.separator())
+            addPlaybackModes(to: menu, player: player)
+            menu.addItem(.separator())
         }
         menu.addItem(ActionItem("Show Lilt", perform: actions.show))
         return menu
@@ -53,6 +55,22 @@ enum DockMenu {
                 break
             }
         }
+    }
+
+    /// Shuffle, and the repeat modes in a submenu, each ticked when on.
+    private static func addPlaybackModes(to menu: NSMenu, player: PlayerService) {
+        let shuffle = ActionItem("Shuffle") { player.toggleShuffle() }
+        shuffle.state = player.isShuffled ? .on : .off
+        menu.addItem(shuffle)
+        let item = NSMenuItem(title: "Repeat", action: nil, keyEquivalent: "")
+        let modes = NSMenu()
+        for (mode, title) in [(PlayerService.RepeatMode.off, "Off"), (.all, "All"), (.one, "One")] {
+            let entry = ActionItem(title) { player.setRepeat(mode) }
+            entry.state = player.repeatMode == mode ? .on : .off
+            modes.addItem(entry)
+        }
+        item.submenu = modes
+        menu.addItem(item)
     }
 
     /// Your playlists, ticking the ones the song was added to. The Dock shows a snapshot of the

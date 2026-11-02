@@ -55,3 +55,40 @@ struct DockMenuTests {
         }
     }
 }
+
+/// Shuffle and repeat, ticked to show what's on.
+@MainActor
+struct DockMenuPlaybackModeTests {
+    private let song = Track(id: "v1", title: "Schism", artist: "Tool")
+
+    private func withPlayer(_ body: (PlayerService) throws -> Void) throws {
+        let key = "playbackState"
+        let saved = UserDefaults.standard.data(forKey: key)
+        defer { if let saved { UserDefaults.standard.set(saved, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) } }
+        let state: [String: Any] = ["queue": try JSONSerialization.jsonObject(with: JSONEncoder().encode([song])), "index": 0, "time": 0]
+        UserDefaults.standard.set(try JSONSerialization.data(withJSONObject: state), forKey: key)
+        try body(PlayerService(auth: AuthService()))
+    }
+
+    private func menu(_ player: PlayerService) -> NSMenu {
+        DockMenu.build(player: player, music: YTMusicClient(auth: AuthService()), recents: RecentsStore(), actions: .none)
+    }
+
+    @Test func shuffleIsTickedWhenOn() throws {
+        try withPlayer { player in
+            #expect(menu(player).item(withTitle: "Shuffle")?.state == .off)
+            player.toggleShuffle()
+            #expect(menu(player).item(withTitle: "Shuffle")?.state == .on)
+        }
+    }
+
+    @Test func repeatTicksTheModeInUse() throws {
+        try withPlayer { player in
+            let modes = try #require(menu(player).item(withTitle: "Repeat")?.submenu)
+            #expect(modes.items.map(\.title) == ["Off", "All", "One"])
+            #expect(modes.items.map(\.state) == [.on, .off, .off])
+            player.setRepeat(.one)
+            #expect(try #require(menu(player).item(withTitle: "Repeat")?.submenu).items.map(\.state) == [.off, .off, .on])
+        }
+    }
+}
