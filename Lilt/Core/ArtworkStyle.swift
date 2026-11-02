@@ -132,6 +132,36 @@ struct PageTintStyle: Equatable {
     static let standard = PageTintStyle()
 }
 
+/// The dials `CoverPalette` builds its roles from: each role's share of the cover's accent, and
+/// the strengths of the surfaces that wear it. One set for the platter, Up Next, album pages, the
+/// back button and Settings' miniatures, so tuning one tunes them all.
+struct CoverPaletteStyle: Equatable {
+    /// Saturation boost on the cover's dominant colour as it is sampled for the accent.
+    var accentSaturation: Double = 1.3
+    /// How far the title moves from black or white toward the accent (0 = plain label)…
+    var contentShare: Double = 0.4
+    /// …and the fraction of that the secondary and tertiary lines take.
+    var dimContentRatio: Double = 0.5
+    /// The controls' share, bright (`control`) and dim (`dimControl`) alike.
+    var controlShare: Double = 0.64
+    /// The playing row's pill on a page: how much of the accent it takes, per scheme (0 = plain).
+    var highlightOpacity: Double = 0.12
+    var darkHighlightOpacity: Double = 0.16
+    /// How much of the plain row pill hover shows (a playing row shows all of it).
+    var hoverHighlightOpacity: Double = 0.6
+    /// A control's fill under the pointer and while pressed, as a share of its glyph colour.
+    /// Nothing draws these yet.
+    var controlHoverOpacity: Double = 0.05
+    var controlPressedOpacity: Double = 0.085
+    /// The platter's wash of the accent, behind the cover or along the top.
+    var washOpacity: Double = 0.32
+    /// On a page, lower a share where it would take a line below its contrast floor on the panel.
+    var contrastGuard: Bool = true
+
+    /// Tuned by Matt in the tweak panel on 2026-10-02 (as the platter's text and controls tint).
+    static let standard = CoverPaletteStyle()
+}
+
 /// How the hero artwork's colour is cast onto the Play capsule beneath it.
 struct PlayCastStyle: Equatable {
     /// Saturation boost on the sampled artwork colour.
@@ -533,6 +563,7 @@ final class ArtworkStyle {
 
     var platter: PlatterStyle = .standard
     var pageTint: PageTintStyle = .standard
+    var palette: CoverPaletteStyle = .standard
     var notes: NotesStyle = .standard
     var playCast: PlayCastStyle = .standard
     var headerBlur: HeaderBlurStyle = .standard
@@ -593,6 +624,7 @@ final class ArtworkStyle {
         avatarShadow = .avatar
         platter = .standard
         pageTint = .standard
+        palette = .standard
         notes = .standard
         playCast = .standard
         headerBlur = .standard
@@ -630,6 +662,7 @@ final class ArtworkStyle {
         avatarShadow = \(snippet(avatarShadow))
         platter = PlatterStyle(shadowOpacity: \(f(platter.shadowOpacity)), shadowRadius: \(f(platter.shadowRadius)), shadowOffsetY: \(f(platter.shadowOffsetY)), borderOpacity: \(f(platter.borderOpacity)), tintOpacity: \(f(platter.tintOpacity)), tintSaturation: \(f(platter.tintSaturation)), tintBlur: \(f(platter.tintBlur)), hoverBrightness: \(f(platter.hoverBrightness)), cornerAccentOpacity: \(f(platter.cornerAccentOpacity)), cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberSaturation: \(f(platter.scrubberSaturation)), scrubberLikeControls: \(platter.scrubberLikeControls), controlsTint: \(f(platter.controlsTint)), textTint: \(f(platter.textTint)), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow), alwaysGlass: \(platter.alwaysGlass))
         pageTint = PageTintStyle(followsPlatter: \(pageTint.followsPlatter), textTint: \(f(pageTint.textTint)), controlsTint: \(f(pageTint.controlsTint)), highlightOpacity: \(f(pageTint.highlightOpacity)), darkHighlightOpacity: \(f(pageTint.darkHighlightOpacity)), contrastGuard: \(pageTint.contrastGuard))
+        palette = CoverPaletteStyle(accentSaturation: \(f(palette.accentSaturation)), contentShare: \(f(palette.contentShare)), dimContentRatio: \(f(palette.dimContentRatio)), controlShare: \(f(palette.controlShare)), highlightOpacity: \(f(palette.highlightOpacity)), darkHighlightOpacity: \(f(palette.darkHighlightOpacity)), hoverHighlightOpacity: \(f(palette.hoverHighlightOpacity)), controlHoverOpacity: \(f3(palette.controlHoverOpacity)), controlPressedOpacity: \(f3(palette.controlPressedOpacity)), washOpacity: \(f(palette.washOpacity)), contrastGuard: \(palette.contrastGuard))
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))
         headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), radius: \(f(headerBlur.radius)), saturation: \(f(headerBlur.saturation)), brightness: \(f(headerBlur.brightness)), reach: \(f(headerBlur.reach)), rimOpacity: \(f(headerBlur.rimOpacity)), ownContentOnly: \(headerBlur.ownContentOnly))
@@ -650,4 +683,6 @@ final class ArtworkStyle {
     }
 
     private func f(_ value: Double) -> String { String(format: "%.2f", value) }
+    /// For the fine fills, which live below a hundredth's resolution.
+    private func f3(_ value: Double) -> String { String(format: "%.3f", value) }
 }
