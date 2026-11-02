@@ -40,6 +40,13 @@ struct TweakPanel: View {
                 slider("Reduced: dip to", $style.attention.pulseOpacity, 0...1)
                 slider("Reduced: dip (s)", $style.attention.pulse, 0.05...0.5)
             }
+            Section("Row shine") {
+                // The sweep across a row after Copy Link, Play Next or Add to Queue from its menu.
+                slider("Duration (s)", $style.shine.duration, 0.2...1.5)
+                slider("Band width", $style.shine.band, 0.1...1)
+                slider("Dark: peak (plus lighter)", $style.shine.darkOpacity, 0...0.5)
+                slider("Light: peak (overlay)", $style.shine.lightOpacity, 0...1)
+            }
             Section("Spotlight") {
                 slider("Centre X", $style.spotlightCenterX, 0...1)
                 slider("Centre Y", $style.spotlightCenterY, -0.5...1)

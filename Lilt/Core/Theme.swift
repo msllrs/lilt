@@ -143,6 +143,12 @@ enum Theme {
             )
         }
 
+        /// A band of light crossing a row to confirm its menu's action (see `ShineStyle`), at an
+        /// even pace with soft ends. Reduce Motion: none, the row doesn't shine; the notice says it.
+        static func shine(_ style: ShineStyle) -> Animation? {
+            instantIfReduced(.easeInOut(duration: scaled(style.duration)))
+        }
+
         enum Attention: Equatable {
             /// Up by `jump` and to `scale` over `rise` seconds, then back on `settle`.
             case hop(rise: TimeInterval, settle: Spring, jump: Double, scale: Double)

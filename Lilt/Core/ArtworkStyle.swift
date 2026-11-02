@@ -250,6 +250,21 @@ struct AttentionStyle: Equatable, Sendable {
     static let standard = AttentionStyle()
 }
 
+/// One soft band of light crossing a row once, leading edge to trailing, to confirm what its
+/// menu just did (Copy Link, Play Next, Add to Queue). Clipped to the row's highlight shape.
+/// Under Reduce Motion there's no sweep (see Theme.Motion.shine).
+struct ShineStyle: Equatable, Sendable {
+    /// Seconds for the band to cross the row.
+    var duration: Double = 0.5
+    /// The band's width as a share of the row's.
+    var band: Double = 0.4
+    /// Peak white at the band's centre: added light in dark mode, an overlay in light mode,
+    /// which lifts what's beneath less than it would on dark, so it takes more.
+    var darkOpacity: Double = 0.12
+    var lightOpacity: Double = 0.45
+    static let standard = ShineStyle()
+}
+
 /// What the panel itself is made of.
 enum PanelSurface: String, CaseIterable, Identifiable {
     /// One sheet of Liquid Glass over the desktop; content and controls sit on the glass.
@@ -534,6 +549,7 @@ final class ArtworkStyle {
     var centredLibraryTitle: Bool = true
     var heroSnap: HeroSnapStyle = .standard
     var attention: AttentionStyle = .standard
+    var shine: ShineStyle = .standard
 
     func shadow(for context: ArtworkContext) -> ShadowStyle {
         switch context {
@@ -588,6 +604,7 @@ final class ArtworkStyle {
         centredLibraryTitle = true
         heroSnap = .standard
         attention = .standard
+        shine = .standard
     }
 
     /// The current values as Swift, ready to paste back into `reset()`.
@@ -623,6 +640,7 @@ final class ArtworkStyle {
         centredLibraryTitle = \(centredLibraryTitle)
         heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), minFlick: \(f(heroSnap.minFlick)), deadZone: \(f(heroSnap.deadZone)))
         attention = AttentionStyle(jump: \(f(attention.jump)), scale: \(f(attention.scale)), rise: \(f(attention.rise)), response: \(f(attention.response)), damping: \(f(attention.damping)), pulseOpacity: \(f(attention.pulseOpacity)), pulse: \(f(attention.pulse)))
+        shine = ShineStyle(duration: \(f(shine.duration)), band: \(f(shine.band)), darkOpacity: \(f(shine.darkOpacity)), lightOpacity: \(f(shine.lightOpacity)))
         leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)), darkLighten: \(f(leadingCast.darkLighten)), darkWashScale: \(f(leadingCast.darkWashScale)), darkSaturation: \(f(leadingCast.darkSaturation)))
         """
     }

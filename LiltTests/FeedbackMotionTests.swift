@@ -2,7 +2,8 @@ import SwiftUI
 import Testing
 @testable import Lilt
 
-/// The quiet confirmations that go alongside a notice: a control's attention hop. Their timing
+/// The quiet confirmations that go alongside a notice: a control's attention hop, and a band of
+/// light across the row a menu action was picked from. Their timing
 /// comes from `Theme.Motion`, so the tweak panel's Animation speed slows them like everything
 /// else, and under Reduce Motion they don't move at all.
 @MainActor
@@ -42,5 +43,39 @@ struct FeedbackMotionTests {
         // A fade, so it still slows with the pace.
         let slowed = Self.at(0.5, reducing: true) { Theme.Motion.attention(style) }
         #expect(slowed == .pulse(duration: style.pulse / 0.5, opacity: style.pulseOpacity))
+    }
+
+    // MARK: Shine
+
+    @Test func theShineCrossesInItsDurationAndSlowsWithThePace() {
+        let style = ShineStyle.standard
+        #expect(Self.at(1) { Theme.Motion.shine(style) } == .easeInOut(duration: style.duration))
+        #expect(Self.at(0.25) { Theme.Motion.shine(style) } == .easeInOut(duration: style.duration / 0.25))
+        #expect(style.duration == 0.5)
+    }
+
+    @Test func underReduceMotionThereIsNoShine() {
+        #expect(Self.at(1, reducing: true) { Theme.Motion.shine(.standard) } == nil)
+        #expect(Self.at(0.1, reducing: true) { Theme.Motion.shine(.standard) } == nil)
+    }
+
+    // MARK: The trigger
+
+    @Test func copyLinkAndTheQueueActionsShineOnceEach() {
+        var trigger = ShineTrigger()
+        trigger.note(.copyLink)
+        #expect(trigger.count == 1)
+        trigger.note(.playNext)
+        #expect(trigger.count == 2)
+        trigger.note(.addToQueue)
+        #expect(trigger.count == 3)
+    }
+
+    @Test func actionsThatShowThemselvesDontShine() {
+        var trigger = ShineTrigger()
+        for action: RowAction in [.play, .shuffle, .like, .unlike, .goToArtist, .goToAlbum, .removeFromQueue, .removeFromPlaylist, .addToPlaylist] {
+            trigger.note(action)
+        }
+        #expect(trigger.count == 0)
     }
 }
