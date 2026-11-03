@@ -217,6 +217,11 @@ struct BrowseScreen: View {
     /// Opposite the back button: a place for page actions as they arrive.
     private func pageMenu(_ page: BrowsePage, palette: CoverPalette) -> some View {
         Menu {
+            // Play and Shuffle Play are the hero's buttons; the page's mix is here.
+            if page.item.kind != .library {
+                Button(RowAction.startMix.title) { RowMenu.startMix(for: page.item, player: player, music: music, notices: notices) }
+                Divider()
+            }
             // The same refresh as pulling the list down or ⌘R.
             if isRefreshable {
                 Button("Refresh") { Task { await load(announce: true) } }
