@@ -292,4 +292,40 @@ struct PageTransitionTests {
         let hidden = WipeMask.stops(leading: 1, trailing: 1, feather: 0.1)
         #expect(hidden.allSatisfy { $0.color == .black.opacity(0) })
     }
+
+    // MARK: Staggered entry
+
+    /// A pushed page's parts stagger in only while the push is fresh: a row built later (scrolled
+    /// to, or loaded late) just appears.
+    @Test func anEntranceIsFreshOnlyForItsWindow() {
+        let plan = Self.choreography(.staggered).entrance!
+        #expect(PageEntrance(plan: plan, startedAt: Date()).isFresh)
+        #expect(!PageEntrance(plan: plan, startedAt: Date().addingTimeInterval(-plan.window - 0.01)).isFresh)
+        // The window covers the last row's start, and grows with a slowed pace.
+        #expect(plan.window > plan.phase(for: .row(plan.rowCap)).delay)
+        #expect(Self.choreography(.staggered, speed: 0.1).entrance!.window > plan.window * 5)
+    }
+
+    /// Only a push stamps the page the entrance belongs to; popping back to a page doesn't.
+    @Test func onlyAPushStampsThePageThatStaggersIn() {
+        let saved = UserDefaults.standard.data(forKey: "navigationState")
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: "navigationState") } else { UserDefaults.standard.removeObject(forKey: "navigationState") }
+        }
+        let navigation = NavigationModel()
+        navigation.path = []
+        // Opening from mini expands the app's own window; this model has nothing to expand.
+        navigation.isMiniPlayer = false
+        let album = BrowseItem(id: "MPREb_test", kind: .album, title: "Lateralus", subtitle: "Tool", artworkURL: nil)
+        let artist = BrowseItem(id: "UC_test", kind: .artist, title: "Tool", subtitle: "Artist", artworkURL: nil)
+        navigation.open(album)
+        #expect(navigation.lastPushed?.id == album.id)
+        navigation.open(artist)
+        #expect(navigation.lastPushed?.id == artist.id)
+        let stamped = navigation.lastPushed?.at
+        navigation.pop()
+        // Re-opening a page further down pops back to it: not a push.
+        navigation.open(album)
+        #expect(navigation.lastPushed?.id == artist.id && navigation.lastPushed?.at == stamped)
+    }
 }

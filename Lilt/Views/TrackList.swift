@@ -21,6 +21,8 @@ struct TrackRows: View {
                 ) {
                     player.play(tracks, startingAt: index, source: source)
                 }
+                // Under a page's section header (row 0) when the page staggers its rows in.
+                .entrance(.row(index + 1))
             }
         }
     }

@@ -329,18 +329,21 @@ struct BrowseScreen: View {
                     }
                     if !page.tracks.isEmpty {
                         SectionHeader(page.item.kind == .artist ? "Top songs" : "Tracks")
+                            .entrance(.row(0))
                         TrackRows(tracks: shownTracks(page), source: page.item)
                         if let allSongsId = page.allSongsId {
                             BrowseRow(item: BrowseItem(
                                 id: allSongsId, kind: .playlist, title: "All songs",
                                 subtitle: page.item.title, artworkURL: page.item.artworkURL
                             ))
+                            .entrance(.row(.max))
                         }
                     }
                     ForEach(page.sections) { section in
                         // The header is this page's; the rows are other albums and artists, with
                         // covers of their own, so they keep the plain colours.
                         CollapsibleSection(title: section.title, scope: "page", items: section.items) { BrowseRow(item: $0).environment(\.coverPalette, nil) }
+                            .entrance(.row(.max))
                     }
                 }
             }
@@ -394,6 +397,7 @@ struct BrowseScreen: View {
                 radius: page.item.kind == .artist ? 70 : Theme.Radius.standalone,
                 context: .hero
             )
+            .entrance(.hero)
             VStack(spacing: 2) {
                 Text(page.item.title)
                     .font(.title3.weight(.semibold))
@@ -409,6 +413,7 @@ struct BrowseScreen: View {
                         .foregroundStyle(palette.style(\.tertiary, or: .tertiary))
                 }
             }
+            .entrance(.title)
             if awaitingContent {
                 Skeleton.PlayCapsule()
                     .placeholderShown(loadingGate.showsPlaceholder)
@@ -441,6 +446,7 @@ struct BrowseScreen: View {
                         }
                     }
                 }
+                .entrance(.controls)
             }
         }
         .frame(maxWidth: .infinity)

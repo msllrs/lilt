@@ -144,3 +144,41 @@ struct StagedScreen<Content: View>: View {
             .onAppear { arrived = true }
     }
 }
+
+/// The page just pushed, for variants that bring its parts in one by one: when it was pushed
+/// and when each part comes in.
+struct PageEntrance: Equatable {
+    let plan: EntrancePlan
+    let startedAt: Date
+
+    /// Parts built after this (a row scrolled to later, content that loaded late) just appear.
+    var isFresh: Bool { Date().timeIntervalSince(startedAt) < plan.window }
+}
+
+extension EnvironmentValues {
+    /// Set on the page just pushed while the variant staggers its parts in; nil everywhere else.
+    @Entry var pageEntrance: PageEntrance? = nil
+}
+
+/// One part of a page coming in on its slot's delay: drawn faded and lowered by the plan's rise
+/// on its first frame, then rising into place. Outside a fresh entrance it is simply there.
+private struct EntranceItem: ViewModifier {
+    let slot: EntrancePlan.Slot
+    @Environment(\.pageEntrance) private var entrance
+    @State private var arrived = false
+
+    func body(content: Content) -> some View {
+        let pending = !arrived && entrance?.isFresh == true
+        content
+            .animation(entrance?.plan.phase(for: slot).animation) {
+                $0.opacity(pending ? 0 : 1)
+                    .offset(y: pending ? entrance?.plan.rise ?? 0 : 0)
+            }
+            .onAppear { if entrance?.isFresh == true { arrived = true } }
+    }
+}
+
+extension View {
+    /// Brings this part of a page in at its place in the entrance (`staggered`, `heroMorph`).
+    func entrance(_ slot: EntrancePlan.Slot) -> some View { modifier(EntranceItem(slot: slot)) }
+}

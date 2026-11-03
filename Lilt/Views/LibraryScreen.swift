@@ -156,7 +156,10 @@ struct LibraryScreen: View {
     /// and the account simply has nothing saved there.
     @ViewBuilder
     private func section(_ title: String, _ items: [BrowseItem], limit: Int) -> some View {
-        CollapsibleSection(title: title, scope: "library", items: items, limit: max(0, limit)) { BrowseRow(item: $0) } empty: {
+        // Rows come in one by one when the library is pushed under a staggering transition.
+        let first = title == "Playlists" ? 0 : title == "Albums" ? content.playlists.count : content.playlists.count + content.albums.count
+        let order = Dictionary(items.enumerated().map { ($1.id, first + $0) }, uniquingKeysWith: { a, _ in a })
+        CollapsibleSection(title: title, scope: "library", items: items, limit: max(0, limit)) { BrowseRow(item: $0).entrance(.row(order[$0.id] ?? .max)) } empty: {
             Text(title == "Albums" ? "Albums you save to your library will show here."
                 : title == "Artists" ? "Artists will show here when you save their music."
                 : "Playlists you create or save will show here.")

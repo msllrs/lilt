@@ -68,6 +68,10 @@ final class NavigationModel {
     /// Bumps when the screen on top should fetch its content again (⌘R). Every screen in the
     /// stack sees it; only the one on top answers. Not persisted.
     private(set) var refreshRequest = 0
+    /// The page last pushed and when, for a page transition that brings a new page's parts in
+    /// one by one. Set before the path changes, so it's there as the page is first built.
+    /// Not observed, not persisted.
+    @ObservationIgnored private(set) var lastPushed: (id: String, at: Date)?
     /// Receives every page opened, for the recents menu. Wired by the app.
     @ObservationIgnored weak var recents: RecentsStore?
 
@@ -103,6 +107,7 @@ final class NavigationModel {
             path.removeSubrange((existing + 1)...)
             return
         }
+        lastPushed = (item.id, Date())
         path.append(item)
         recents?.recordViewed(item)
     }
