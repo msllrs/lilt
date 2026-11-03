@@ -45,6 +45,9 @@ struct BrowseScreen: View {
     @State private var extraBottom: CGFloat = 0
     @State private var isHoveringCompactArtwork = false
     @State private var isHoveringHeader = false
+    /// Where the first section after the tracks starts, in the content's own coordinates: it
+    /// changes with layout, not with scrolling. Nil until it has been laid out, or with none.
+    @State private var sectionsStart: CGFloat?
     /// Bumped once the cover has loaded, so an accent measured from it is read again (the image
     /// cache isn't observable).
     @State private var coverLoads = 0
@@ -63,8 +66,15 @@ struct BrowseScreen: View {
                 .safeAreaBar(edge: .top, spacing: 0) { navigationHeader(palette) }
                 .environment(\.coverPalette, palette)
         }
-        // The cover's light spills down from the top of the page, behind everything.
-        .background(alignment: .top) { PageAmbient(url: (page?.item.artworkURL) ?? item.artworkURL) }
+        // The cover's light spills down from the top of the page, behind everything. It reacts to
+        // scrolling only through an offset and an opacity on the outside, read from the offset
+        // the page already tracks, so it adds no state and its own body isn't rebuilt.
+        .background(alignment: .top) {
+            PageAmbient(url: (page?.item.artworkURL) ?? item.artworkURL)
+                .offset(y: ambientStyle.offset(scrollOffset: scrollOffset))
+                // A refresh that drops the sections leaves the last measurement behind; ignore it.
+                .opacity(ambientStyle.opacity(scrollOffset: scrollOffset, sectionsStart: (page?.sections.isEmpty ?? true) ? nil : sectionsStart))
+        }
         .task(id: item.id) { await load() }
         .loadingGate(loadingGate, isLoading: phase == .loading)
         // ⌘R takes the same path as pulling the list down.
@@ -132,6 +142,10 @@ struct BrowseScreen: View {
     }
 
     private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
+    private var ambientStyle: PageAmbientStyle { ArtworkStyle.shared.pageAmbient }
+
+    /// The content's own coordinates, for measuring where things sit in it whatever the scroll.
+    private static let contentSpace = "BrowseScreen.content"
 
     /// Only an album wears its cover's colour: it is one cover with one palette, where a
     /// playlist mixes covers and an artist page has an avatar.
@@ -339,6 +353,12 @@ struct BrowseScreen: View {
                             .entrance(.row(.max))
                         }
                     }
+                    if !page.sections.isEmpty {
+                        // Marks where the related sections begin, for the ambient's fade.
+                        Color.clear
+                            .frame(height: 0)
+                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(Self.contentSpace)).minY } action: { sectionsStart = $0 }
+                    }
                     ForEach(page.sections) { section in
                         // The header is this page's; the rows are other albums and artists, with
                         // covers of their own, so they keep the plain colours.
@@ -347,6 +367,7 @@ struct BrowseScreen: View {
                     }
                 }
             }
+            .coordinateSpace(.named(Self.contentSpace))
             .padding(.horizontal, Theme.Space.rowInset)
             .padding(.bottom, Theme.Space.sm + extraBottom)
         }
