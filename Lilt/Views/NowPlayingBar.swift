@@ -198,6 +198,13 @@ struct NowPlayingBar: View {
                         radius: surface.shadowRadius,
                         y: surface.shadowOffsetY
                     )
+                // Frost: the regular glass over the clear, at its strength, for a clear platter
+                // that would otherwise show too much of what passes beneath.
+                if layers.frost > 0 {
+                    Color.clear
+                        .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
+                        .opacity(layers.frost)
+                }
                 // The artwork itself, blurred across the platter: vibrant for any cover, where a
                 // flat average colour turns rainbow art into mud.
                 if let ambientImage {

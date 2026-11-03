@@ -97,6 +97,9 @@ struct PlatterStyle: Equatable {
     /// How strongly the colour layers (the blurred cover and the wash) sit over the glass, as a
     /// share of the surface's own strengths: 1 is today, lower lets more glass show.
     var colorStrength: Double = 1.0
+    /// How frosted the clear glass is: the regular glass laid over it at this strength, from 0
+    /// (all clear) to 1 (as frosted as the regular glass). Only the clear glass has any.
+    var frost: Double = 0
 
     /// Tuned by Matt in the tweak panel on 2026-10-01; colour dials on 2026-10-02.
     static let standard = PlatterStyle()
@@ -108,7 +111,8 @@ struct PlatterStyle: Equatable {
             // Clear is all about seeing through; with Reduce Transparency it stays regular.
             material: glass == .clear && !reduceTransparency ? .clear : .regular,
             coverOpacity: tintOpacity * (hovering ? 1 + hoverBrightness : 1) * colorStrength,
-            washOpacity: colorStrength
+            washOpacity: colorStrength,
+            frost: glass == .clear && !reduceTransparency ? frost : 0
         )
     }
 }
@@ -134,6 +138,8 @@ struct PlatterLayers: Equatable {
     var material: Material
     var coverOpacity: Double
     var washOpacity: Double
+    /// The regular glass's opacity over the clear (0: none drawn).
+    var frost: Double
 }
 
 /// The dials `CoverPalette` builds its roles from: each role's share of the cover's accent, and
@@ -701,7 +707,7 @@ final class ArtworkStyle {
         heroShadow = \(snippet(heroShadow))
         headerShadow = \(snippet(headerShadow))
         avatarShadow = \(snippet(avatarShadow))
-        platter = PlatterStyle(cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberLikeControls: \(platter.scrubberLikeControls), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow), alwaysGlass: \(platter.alwaysGlass), glass: .\(platter.glass.rawValue), colorStrength: \(f(platter.colorStrength)))
+        platter = PlatterStyle(cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberLikeControls: \(platter.scrubberLikeControls), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow), alwaysGlass: \(platter.alwaysGlass), glass: .\(platter.glass.rawValue), colorStrength: \(f(platter.colorStrength)), frost: \(f(platter.frost)))
         palette = CoverPaletteStyle(accentSaturation: \(f(palette.accentSaturation)), contentShare: \(f(palette.contentShare)), dimContentRatio: \(f(palette.dimContentRatio)), controlShare: \(f(palette.controlShare)), highlightOpacity: \(f(palette.highlightOpacity)), darkHighlightOpacity: \(f(palette.darkHighlightOpacity)), hoverHighlightOpacity: \(f(palette.hoverHighlightOpacity)), controlHoverOpacity: \(f3(palette.controlHoverOpacity)), controlPressedOpacity: \(f3(palette.controlPressedOpacity)), contrastGuard: \(palette.contrastGuard), darkChromaCap: \(f(palette.darkChromaCap)))
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))

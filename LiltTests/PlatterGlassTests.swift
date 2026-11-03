@@ -42,6 +42,23 @@ struct PlatterGlassTests {
         #expect(layers.washOpacity == 0.48)
     }
 
+    /// Frost lays the regular glass over the clear at its strength, from 0 (all clear, as Clear
+    /// has been) to 1 (all frosted, today's glass); the colour above is untouched. The regular
+    /// glass needs none, and Reduce Transparency is regular already.
+    @Test func frostBlendsClearTowardsRegular() {
+        var style = PlatterStyle.standard
+        #expect(style.frost == 0)
+        style.glass = .clear
+        #expect(style.layers(tintOpacity: tint, hoverBrightness: hover, hovering: false, reduceTransparency: false).frost == 0)
+        style.frost = 0.32
+        let frosted = style.layers(tintOpacity: tint, hoverBrightness: hover, hovering: false, reduceTransparency: false)
+        #expect(frosted.material == .clear && frosted.frost == 0.32)
+        #expect(frosted.coverOpacity == tint && frosted.washOpacity == 1)
+        #expect(style.layers(tintOpacity: tint, hoverBrightness: hover, hovering: false, reduceTransparency: true).frost == 0)
+        style.glass = .current
+        #expect(style.layers(tintOpacity: tint, hoverBrightness: hover, hovering: false, reduceTransparency: false).frost == 0)
+    }
+
     /// Reduce Transparency keeps the regular glass: clear's whole point is seeing through.
     @Test func reduceTransparencyFallsBackToRegular() {
         var style = PlatterStyle.standard
@@ -51,9 +68,10 @@ struct PlatterGlassTests {
 
     @Test func copyValuesCarriesTheGlass() {
         let style = ArtworkStyle()
-        #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .current, colorStrength: 1.00)"))
+        #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .current, colorStrength: 1.00, frost: 0.00)"))
         style.platter.glass = .clear
         style.platter.colorStrength = 0.64
-        #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .clear, colorStrength: 0.64)"))
+        style.platter.frost = 0.32
+        #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .clear, colorStrength: 0.64, frost: 0.32)"))
     }
 }

@@ -140,6 +140,7 @@ struct TweakPanel: View {
                     ForEach(PlatterGlass.allCases) { Text($0.label).tag($0) }
                 }
                 slider("Colour strength (cover + wash)", $style.platter.colorStrength, 0...1)
+                slider("Frost (clear glass)", $style.platter.frost, 0...1)
             }
             Section("Dock tile") {
                 slider("Plate tint", $style.dockTile.plateTint, 0...0.8)
