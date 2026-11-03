@@ -224,6 +224,25 @@ struct PageTransitionTests {
         #expect(wipe.front.maskLeading == 1 && wipe.behind.maskTrailing == 0)
     }
 
+    /// The complaint: going to a page and back weren't the same transition. Every staged variant
+    /// treats a move by role, so a pop is a push mirrored: the page coming back (unpark) arrives
+    /// exactly as a pushed page does (insert), and the page popped (remove) leaves exactly as the
+    /// page beneath a push does (park), towards the far side. Root → Library → back, root →
+    /// album → back and album → artist → back are all the same two roles, so this covers each.
+    /// Current keeps its own timing (the page beneath always moves on pageExit).
+    @Test func stagedVariantsMirrorPushAndPop() {
+        for transition in PageTransition.allCases where transition != .current {
+            for speed in [1, 0.1] {
+                let c = Self.choreography(transition, speed: speed)
+                let push = c.pair(for: .push)!, pop = c.pair(for: .pop(levels: 1))!
+                #expect(pop.incoming.timing == push.incoming.timing, "\(transition) at \(speed)×: the page come back to arrives unlike a pushed one")
+                #expect(pop.outgoing.timing == push.outgoing.timing, "\(transition) at \(speed)×: the popped page leaves unlike a parked one")
+                // Mirrored in space: what a push sends behind, a pop brings back from behind.
+                #expect(pop.incoming.look == push.outgoing.look && pop.outgoing.look == push.incoming.look)
+            }
+        }
+    }
+
     // MARK: Double exposure
 
     /// The complaint: mid-transition both pages' text and covers show at once. Sampled at
@@ -306,8 +325,10 @@ struct PageTransitionTests {
         #expect(Self.choreography(.staggered, speed: 0.1).entrance!.window > plan.window * 5)
     }
 
-    /// Only a push stamps the page the entrance belongs to; popping back to a page doesn't.
-    @Test func onlyAPushStampsThePageThatStaggersIn() {
+    /// A pushed page's parts come in one by one, and so do a page's come back to: popping (or
+    /// opening a page further down, which pops back to it) stamps the page revealed, so going to
+    /// a page and back are the same entrance.
+    @Test func pushAndPopBothStampThePageThatComesIn() {
         let saved = UserDefaults.standard.data(forKey: "navigationState")
         defer {
             if let saved { UserDefaults.standard.set(saved, forKey: "navigationState") } else { UserDefaults.standard.removeObject(forKey: "navigationState") }
@@ -324,8 +345,10 @@ struct PageTransitionTests {
         #expect(navigation.lastPushed?.id == artist.id)
         let stamped = navigation.lastPushed?.at
         navigation.pop()
-        // Re-opening a page further down pops back to it: not a push.
+        #expect(navigation.lastPushed?.id == album.id && navigation.lastPushed?.at != stamped)
+        navigation.open(artist)
+        // Re-opening a page further down pops back to it: the page revealed comes in.
         navigation.open(album)
-        #expect(navigation.lastPushed?.id == artist.id && navigation.lastPushed?.at == stamped)
+        #expect(navigation.lastPushed?.id == album.id)
     }
 }
