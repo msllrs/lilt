@@ -157,6 +157,7 @@ struct TrackRow: View {
     private func perform(_ menuAction: RowAction) {
         switch menuAction {
         case .play: action()
+        case .startMix: RowMenu.startMix(for: track, player: player, music: music, notices: notices)
         case .playNext: RowMenu.playNext(track, player: player, notices: notices)
         case .addToQueue: enqueue()
         case .like, .unlike: RowMenu.setLiked(menuAction == .like, track, player: player, music: music, notices: notices)

@@ -70,6 +70,7 @@ struct BrowseRow: View {
         switch action {
         case .play: withTracks { player.play($0, startingAt: 0, source: item) }
         case .shuffle: withTracks { player.playShuffled($0, source: item) }
+        case .startMix: RowMenu.startMix(for: item, player: player, music: music, notices: notices)
         // The queue actions wait for the page's songs; the row shines when they go in, with the
         // notice, and not at all if they never arrive.
         case .playNext: withTracks { RowMenu.playNext($0, named: item.title, artwork: item.artworkURL, player: player, notices: notices); shine.note(action) }

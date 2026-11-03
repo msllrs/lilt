@@ -420,6 +420,7 @@ struct NowPlayingBar: View {
 
     private func perform(_ action: RowAction, on track: Track) {
         switch action {
+        case .startMix: RowMenu.startMix(for: track, player: player, music: music, notices: notices)
         case .like, .unlike: RowMenu.setLiked(action == .like, track, player: player, music: music, notices: notices)
         // The player resolves the playing song's links itself, but a lookup may land first.
         case .goToArtist: RowMenu.open(music.withLinks(track).artistItem, navigation: navigation)

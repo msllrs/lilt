@@ -38,6 +38,7 @@ struct DockMenuTests {
             #expect(all.first == "Schism — Tool")
             for title in ["Pause", "Next", "Previous"] where title != "Pause" { #expect(all.contains(title)) }
             #expect(all.contains("Like"))
+            #expect(all.contains("Start Mix"))
             #expect(all.contains("Add to Playlist"))
             #expect(all.contains("Go to Artist") && all.contains("Go to Album"))
             #expect(all.contains("Copy Link"))

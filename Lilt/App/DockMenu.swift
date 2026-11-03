@@ -46,6 +46,8 @@ enum DockMenu {
     private static func addSongActions(for track: Track, to menu: NSMenu, player: PlayerService, music: YTMusicClient, actions: Actions, notices: NoticeCenter?) {
         for action in RowMenu.nowPlaying(track, isLiked: player.isLiked).joined() {
             switch action {
+            case .startMix:
+                menu.addItem(ActionItem(action.title) { RowMenu.startMix(for: track, player: player, music: music, notices: notices) })
             case .addToPlaylist:
                 menu.addItem(playlistMenu(for: track, music: music, notices: notices))
             case .like, .unlike:

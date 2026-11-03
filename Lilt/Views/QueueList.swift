@@ -291,6 +291,7 @@ private struct QueueRow: View {
     private func perform(_ action: RowAction) {
         switch action {
         case .play: play()
+        case .startMix: RowMenu.startMix(for: track, player: player, music: music, notices: notices)
         case .removeFromQueue: remove?()
         case .like, .unlike: RowMenu.setLiked(action == .like, track, player: player, music: music, notices: notices)
         // Radio continuation arrives without links; the menu offered them from a lookup.

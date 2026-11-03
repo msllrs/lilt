@@ -40,19 +40,21 @@ enum RowMenu {
         if track.playlistEntry != nil, !inLikedMusic {
             playlist.append(.removeFromPlaylist)
         }
-        return [[.play, .playNext, .addToQueue], playlist, library, links(track, except: source), [.copyLink]].filter { !$0.isEmpty }
+        return [[.play, .startMix, .playNext, .addToQueue], playlist, library, links(track, except: source), [.copyLink]].filter { !$0.isEmpty }
     }
 
-    /// A row in the up-next list. Only songs you queued by hand can come out of it.
+    /// A row in the up-next list. Only songs you queued by hand can come out of it. Its mix
+    /// starts from it and replaces the queue, as Play jumps to it.
     static func queued(_ track: Track, removable: Bool, isLiked: Bool?) -> [[RowAction]] {
-        [[.play], removable ? [.removeFromQueue] : [], [.addToPlaylist], [isLiked == true ? .unlike : .like], links(track), [.copyLink]]
+        [[.play, .startMix], removable ? [.removeFromQueue] : [], [.addToPlaylist], [isLiked == true ? .unlike : .like], links(track), [.copyLink]]
             .filter { !$0.isEmpty }
     }
 
     /// The now-playing bar. Playing, queueing and its place in the queue are the bar's own
-    /// controls, so the menu is about the song itself.
+    /// controls, so the menu is about the song itself: its mix (which carries on from it
+    /// without starting it over), its like, playlists and links.
     static func nowPlaying(_ track: Track, isLiked: Bool) -> [[RowAction]] {
-        [[isLiked ? .unlike : .like], [.addToPlaylist], links(track), [.copyLink]].filter { !$0.isEmpty }
+        [[.startMix], [isLiked ? .unlike : .like], [.addToPlaylist], links(track), [.copyLink]].filter { !$0.isEmpty }
     }
 
     private static func links(_ track: Track, except source: BrowseItem? = nil) -> [RowAction] {
@@ -66,10 +68,10 @@ enum RowMenu {
     static func item(_ item: BrowseItem) -> [[RowAction]] {
         switch item.kind {
         case .artist:
-            return [[.play, .shuffle], [.copyLink]]
+            return [[.play, .shuffle, .startMix], [.copyLink]]
         case .album, .playlist:
             let go: [RowAction] = item.artistItem != nil ? [.goToArtist] : []
-            return [[.play, .shuffle, .playNext, .addToQueue], [.addToPlaylist], go, [.copyLink]].filter { !$0.isEmpty }
+            return [[.play, .shuffle, .startMix, .playNext, .addToQueue], [.addToPlaylist], go, [.copyLink]].filter { !$0.isEmpty }
         case .library:
             return []
         }
