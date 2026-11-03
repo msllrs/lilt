@@ -280,52 +280,17 @@ private struct LeadingButton: View {
             // header rises into place the light climbs the edge with it, bottom to top, and is
             // fully drawn once the header is stuck.
             .overlay {
-                let style = ArtworkStyle.shared.leadingCast
                 let amount = navigation.leadingCastAmount
                 InterpolatedColor(navigation.leadingCast) { sampled in
                     // The cast is the palette's accent container: on dark glass, which has no
                     // tonal range for a dim colour to sit on, lifted towards white and added as
                     // light rather than laid over.
-                    let palette = CoverPalette(accent: nil, cast: sampled, colorScheme: colorScheme, surface: .page)
-                    if let wash = palette.containerWash, let rim = palette.containerRim {
-                        ZStack {
-                            // The wash: light from the side falling off across the button, not from
-                            // a point. It simply fades in with the header (a wipe cut it in half).
-                            Circle().fill(LinearGradient(
-                                stops: [.init(color: wash, location: 0), .init(color: .clear, location: style.washReach)],
-                                startPoint: .trailing, endPoint: .leading
-                            ))
-                            .opacity(amount)
-                            // The rim climbs the edge, bottom to top, as the header rises. On the
-                            // glass highlight's own path, centred on the outline, so it colours
-                            // that highlight rather than lining the inside of it.
-                            Circle().inset(by: -0.5)
-                                .stroke(
-                                    LinearGradient(stops: [.init(color: .clear, location: style.rimStart), .init(color: rim, location: 1)], startPoint: .leading, endPoint: .trailing),
-                                    lineWidth: style.rimWidth
-                                )
-                                .mask {
-                                    // The soft edge runs past the top at the end of the travel, so
-                                    // the rim is complete once the header is in (a feather ending
-                                    // exactly at the top left the top fifth missing).
-                                    let feather = 0.2
-                                    let edge = amount * (1 + feather)
-                                    LinearGradient(
-                                        stops: [
-                                            .init(color: .black, location: 0),
-                                            .init(color: .black, location: min(max(edge - feather, 0), 1)),
-                                            .init(color: .clear, location: min(max(edge, 0.0001), 1)),
-                                        ],
-                                        startPoint: .bottom, endPoint: .top
-                                    )
-                                    .opacity(amount > 0 ? 1 : 0)
-                                    // The stroke straddles the outline; a mask the size of the
-                                    // frame would cut away its outer half.
-                                    .padding(-1)
-                                }
-                        }
-                        .blendMode(palette.containerBlend)
-                    }
+                    GlassCast(
+                        shape: Circle(),
+                        palette: CoverPalette(accent: nil, cast: sampled, colorScheme: colorScheme, surface: .page),
+                        litEdge: .trailing,
+                        reveal: amount
+                    )
                 }
                 // Only while a browse page is on top: the library page (or any page without a
                 // now-playing header) gets a clean button, even though the amount a page beneath

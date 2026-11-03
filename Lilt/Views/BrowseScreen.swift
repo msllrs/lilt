@@ -595,30 +595,12 @@ struct HeroGlass<S: InsettableShape>: ViewModifier {
     @Environment(\.appearsActive) private var appearsActive
 
     func body(content: Content) -> some View {
-        let style = palette.container
         content
             .modifier(HeaderControlSurface(shape: shape, cornerRadius: BrowseScreen.heroControlHeight / 2, tint: nil))
             .overlay {
-                if let wash = palette.containerWash, let rim = palette.containerRim {
-                    ZStack {
-                        // The wash falls from the top edge, as far as the reach dial says.
-                        shape.fill(LinearGradient(
-                            stops: [.init(color: wash, location: 0), .init(color: .clear, location: style.washReach)],
-                            startPoint: .top, endPoint: .bottom
-                        ))
-                        // The rim catches the light along the top, fading out below the start. It
-                        // runs on the glass highlight's own path, centred on the outline, so the
-                        // cast colours that highlight rather than lining the inside of it.
-                        shape.inset(by: -0.5).stroke(
-                            LinearGradient(stops: [.init(color: rim, location: 0), .init(color: .clear, location: 1 - style.rimStart)], startPoint: .top, endPoint: .bottom),
-                            lineWidth: style.rimWidth
-                        )
-                    }
-                    .blendMode(palette.containerBlend)
+                GlassCast(shape: shape, palette: palette, litEdge: .top)
                     .opacity(appearsActive ? 1 : 0)
                     .animation(Theme.Motion.quick, value: appearsActive)
-                    .allowsHitTesting(false)
-                }
             }
             .contentShape(shape)
     }
