@@ -461,7 +461,8 @@ struct PageChoreography: Equatable, Sendable {
 
         case .heroMorph:
             // The page itself fades through quickly; the cover flies, and the title, buttons and
-            // rows follow it in (title at 0.08s, buttons 0.04s later, rows from 0.08s after
+            // rows follow it in (a page come back to the same way, its cover flying back to its
+            // row) (title at 0.08s, buttons 0.04s later, rows from 0.08s after
             // that, `stagger` apart, capped at six).
             let arrive = timing(phase(0.08, 0.15, .easeOut))
             let plan = EntrancePlan(
@@ -471,14 +472,16 @@ struct PageChoreography: Equatable, Sendable {
             return PageChoreography(
                 transition: transition,
                 behind: PageLook(opacity: 0), front: PageLook(opacity: 0),
-                park: timing(leave), unpark: timing(phase(0.07, 0.24, .spring)), insert: arrive, remove: timing(leave),
+                park: timing(leave), unpark: arrive, insert: arrive, remove: timing(leave),
                 entrance: plan, flight: phase(0, d.duration, .spring)
             )
 
         case .staggered:
             // A quick fade out; the new page's frame (header, ambient light) fades in behind it
-            // and its parts rise in order, `stagger` apart, capped at twelve rows.
+            // and its parts rise in order, `stagger` apart, capped at twelve rows. A page come
+            // back to by a pop comes in the same way.
             let start = 0.08
+            let arrive = timing(phase(start, 0.12, .easeOut))
             let plan = EntrancePlan(
                 hero: s(start), title: s(start + d.stagger), controls: s(start + 2 * d.stagger),
                 firstRow: s(start + 3 * d.stagger), rowStep: s(d.stagger), rowCap: 12,
@@ -487,7 +490,7 @@ struct PageChoreography: Equatable, Sendable {
             return PageChoreography(
                 transition: transition,
                 behind: PageLook(opacity: 0), front: PageLook(opacity: 0),
-                park: timing(leave), unpark: timing(phase(start, d.duration, .spring)), insert: timing(phase(start, 0.12, .easeOut)), remove: timing(leave),
+                park: timing(leave), unpark: arrive, insert: arrive, remove: timing(leave),
                 entrance: plan
             )
 
