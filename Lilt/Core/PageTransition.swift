@@ -25,6 +25,10 @@ enum PageTransition: String, CaseIterable, Identifiable, Codable, Sendable {
     case staggered
     /// The old page blurs as it fades; the new one sharpens in.
     case blurCut
+    /// Current's hand-off, 20pt aside on its ease-out, but sequenced and through the blur: the
+    /// old page blurs as it fades and drifts away, the new one sharpens in as it slides into
+    /// place.
+    case blurSlide
     /// A soft-edged mask sweeps across: every point shows one page or the other, never both.
     case maskedWipe
 
@@ -39,6 +43,7 @@ enum PageTransition: String, CaseIterable, Identifiable, Codable, Sendable {
         case .heroMorph: "Hero morph"
         case .staggered: "Staggered entry"
         case .blurCut: "Blur-through cut"
+        case .blurSlide: "Blur + slide"
         case .maskedWipe: "Masked wipe"
         }
     }
@@ -53,6 +58,7 @@ enum PageTransition: String, CaseIterable, Identifiable, Codable, Sendable {
         case .heroMorph: [.duration, .travel, .stagger]
         case .staggered: [.duration, .travel, .stagger]
         case .blurCut: [.duration, .stagger, .scale, .blur]
+        case .blurSlide: [.duration, .travel, .stagger, .blur]
         case .maskedWipe: [.duration, .travel, .blur]
         }
     }
@@ -92,6 +98,7 @@ struct PageTransitionDials: Codable, Equatable, Sendable {
         case .heroMorph: PageTransitionDials(duration: 0.36, travel: 6, stagger: 0.02, scale: 0, blur: 0)
         case .staggered: PageTransitionDials(duration: 0.22, travel: 10, stagger: 0.025, scale: 0, blur: 0)
         case .blurCut: PageTransitionDials(duration: 0.2, travel: 0, stagger: 0.08, scale: 0, blur: 8)
+        case .blurSlide: PageTransitionDials(duration: 0.2, travel: 20, stagger: 0.08, scale: 0, blur: 8)
         case .maskedWipe: PageTransitionDials(duration: 0.26, travel: 6, stagger: 0, scale: 0, blur: 32)
         }
     }
@@ -520,6 +527,20 @@ struct PageChoreography: Equatable, Sendable {
             return PageChoreography(
                 transition: transition,
                 behind: PageLook(opacity: 0, scale: 1 - d.scale), front: PageLook(opacity: 0, scale: 1 + d.scale),
+                park: away, unpark: arrive, insert: arrive, remove: away,
+                veilBlur: d.blur
+            )
+
+        case .blurSlide:
+            // Current's travel and curve: the page going away drifts `travel` aside over 0.2s on
+            // an ease-out as Current's does, but is faded within 0.1s; the page arriving fades
+            // and slides in together from `stagger`, over `duration`. The veil blurs the hand-over,
+            // so each page is sharp only where it is fully there.
+            let away = PageTiming(opacity: phase(0, 0.1, .easeOut), motion: phase(0, 0.2, .easeOut))
+            let arrive = timing(phase(d.stagger, d.duration, .easeOut))
+            return PageChoreography(
+                transition: transition,
+                behind: PageLook(opacity: 0, x: -d.travel), front: PageLook(opacity: 0, x: d.travel),
                 park: away, unpark: arrive, insert: arrive, remove: away,
                 veilBlur: d.blur
             )

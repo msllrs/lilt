@@ -113,7 +113,7 @@ struct PageMotionRenderTests {
     /// for the sequenced fade, 120pt for the parallax) on the first frame: `offset` moves a
     /// page's scroll view by its frame, which a scoped animation doesn't reach.
     @Test func aPoppedPageSlidesRatherThanJumps() async throws {
-        for transition in [PageTransition.sequencedFade, .pushParallax] {
+        for transition in [PageTransition.sequencedFade, .pushParallax, .blurSlide] {
             let choreography = PageChoreography.make(transition, dials: .defaults(for: transition), pace: MotionPace(speed: 0.5))
             let travel = choreography.front.x
             let timeline = try await popTimeline(choreography, seconds: choreography.remove.end + 0.5)
@@ -142,7 +142,7 @@ struct PageMotionRenderTests {
             return (firstChange, fading - firstChange, arrived)
         }
         let plain = try await start(.sequencedFade)
-        for transition in [PageTransition.blurCut] {
+        for transition in [PageTransition.blurCut, .blurSlide] {
             let blurred = try await start(transition)
             #expect(blurred.fading < plain.fading + 0.04, "\(transition): the popped page began fading \(Int(blurred.fading * 1000))ms after the pop's first frame (a plain fade: \(Int(plain.fading * 1000))ms)")
             let designed = PageChoreography.make(transition, dials: .defaults(for: transition)).unpark.opacity.end

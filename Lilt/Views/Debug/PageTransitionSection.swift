@@ -45,7 +45,7 @@ struct PageTransitionSection: View {
         case (.staggered, .duration): "Each piece (s)"
         case (.maskedWipe, .duration): "Sweep (s)"
         case (_, .duration): "Arrival (s)"
-        case (.pushParallax, .travel): "Travel (pt)"
+        case (.pushParallax, .travel), (.blurSlide, .travel): "Travel (pt)"
         case (.maskedWipe, .travel): "Drift (pt)"
         case (.heroMorph, .travel), (.staggered, .travel): "Rise (pt)"
         case (_, .travel): "Nudge (pt)"
@@ -67,6 +67,7 @@ struct PageTransitionSection: View {
         case .heroMorph: "The tapped row's cover flies to the hero (and back on pop while the row is on screen); title, buttons and rows follow."
         case .staggered: "Hero, title, buttons, then rows one by one (capped at 12); the old page fades out in 0.09s."
         case .blurCut: "Blur follows the fade: strongest as a page all but disappears, none once it has settled. One backdrop blur over the stack, only while a move runs."
+        case .blurSlide: "Current's 20pt slide and ease-out, sequenced: out in 0.1s still drifting, in from the delay; the hand-over passes through the blur."
         case .maskedWipe: "A soft edge sweeps trailing to leading on push, back on pop; each point shows one page only."
         }
     }

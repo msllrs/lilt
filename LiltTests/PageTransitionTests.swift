@@ -126,6 +126,15 @@ struct PageTransitionTests {
         let blur = Self.choreography(.blurCut)
         #expect(blur.veilBlur == 8)
 
+        // Current's travel and curve, sequenced, through the veil.
+        let slide = Self.choreography(.blurSlide)
+        #expect(slide.front.x == 20 && slide.behind.x == -20)
+        #expect(slide.park.motion == PagePhase(delay: 0, duration: 0.2, curve: .easeOut))
+        #expect(slide.park.opacity == PagePhase(delay: 0, duration: 0.1, curve: .easeOut))
+        #expect(slide.insert.opacity == PagePhase(delay: 0.08, duration: 0.2, curve: .easeOut))
+        #expect(slide.insert.motion == slide.insert.opacity)
+        #expect(slide.veilBlur == 8)
+
         let wipe = Self.choreography(.maskedWipe)
         #expect(wipe.insert.motion == PagePhase(delay: 0, duration: 0.26, curve: .bezier(0.3, 0, 0, 1)))
         #expect(wipe.maskFeather == 32)
@@ -250,7 +259,7 @@ struct PageTransitionTests {
     /// 240fps (as the recording was), the sequenced variants never have both pages above 5%
     /// opacity at the same moment, pushing or popping, at full speed or slowed.
     @Test func sequencedVariantsNeverShowBothPagesAtOnce() {
-        let sequenced: [PageTransition] = [.sequencedFade, .scaleDepth, .heroMorph, .staggered, .blurCut]
+        let sequenced: [PageTransition] = [.sequencedFade, .scaleDepth, .heroMorph, .staggered, .blurCut, .blurSlide]
         for transition in sequenced {
             for speed in [1, 0.1] {
                 let c = Self.choreography(transition, speed: speed)
@@ -277,7 +286,7 @@ struct PageTransitionTests {
             let c = Self.choreography(transition)
             for move in [PageMove.push, .pop(levels: 1)] {
                 let samples = (0...Int(c.longest * 240)).map { c.veil(at: Double($0) / 240, for: move) }
-                if transition == .blurCut {
+                if transition == .blurCut || transition == .blurSlide {
                     #expect(c.veil(at: 0, for: move) == 0)
                     #expect(c.veil(at: c.longest + 0.01, for: move) == 0)
                     #expect((samples.max() ?? 0) > Double(c.veilBlur) * 0.9, "\(transition) \(move): the veil peaks at \(samples.max() ?? 0)")
