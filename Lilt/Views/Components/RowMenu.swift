@@ -12,7 +12,7 @@ enum RowAction: Hashable {
     var title: String {
         switch self {
         case .play: "Play"
-        case .shuffle: "Shuffle"
+        case .shuffle: "Shuffle Play"
         case .playNext: "Play Next"
         case .addToQueue: "Add to Queue"
         case .removeFromQueue: "Remove from Queue"

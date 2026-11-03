@@ -54,6 +54,15 @@ struct RowMenuTests {
         #expect(RowMenu.item(page("library", .library)).isEmpty)
     }
 
+    /// Named as YouTube Music names it; only lists have anything to shuffle.
+    @Test func shufflePlayIsForLists() {
+        #expect(RowAction.shuffle.title == "Shuffle Play")
+        for kind in [BrowseKind.album, .playlist, .artist] {
+            #expect(RowMenu.item(page("x", kind)).first?.contains(.shuffle) == true)
+        }
+        #expect(!RowMenu.track(song, in: nil).joined().contains(.shuffle))
+    }
+
     @Test func linksPointAtYouTubeMusic() {
         #expect(RowMenu.webURL(for: song)?.absoluteString == "https://music.youtube.com/watch?v=v1")
         #expect(RowMenu.webURL(for: page("VLPLmine", .playlist))?.absoluteString == "https://music.youtube.com/playlist?list=PLmine")
