@@ -5,8 +5,9 @@ import SwiftUI
 /// composited the palette's way (added as light on dark glass). The album hero's controls are
 /// lit from the top, by the cover above them; the compact header's back button from its
 /// trailing side, by the header beside it, and is revealed as the header rises (`reveal`): the
-/// wash fades in and the rim climbs the edge, bottom to top. Draws nothing when the palette
-/// casts nothing.
+/// wash fades in and the rim climbs the edge, bottom to top. While the window isn't active the
+/// cast goes, as colour does from the rest of an inactive window, and the control is its plain
+/// surface. Draws nothing when the palette casts nothing.
 struct GlassCast<S: InsettableShape>: View {
     let shape: S
     let palette: CoverPalette
@@ -16,6 +17,7 @@ struct GlassCast<S: InsettableShape>: View {
     /// always whole. (Only a revealed rim is masked: the mask changes how a whole rim adds its
     /// light on dark glass.)
     var reveal: Double? = nil
+    @Environment(\.appearsActive) private var appearsActive
 
     /// The soft edge of the rim's climb, as a share of the edge's length. It runs past the end
     /// of the travel, so the rim is complete once the reveal is (a feather ending exactly at the
@@ -52,6 +54,8 @@ struct GlassCast<S: InsettableShape>: View {
                 }
             }
             .blendMode(palette.containerBlend)
+            .opacity(appearsActive ? 1 : 0)
+            .animation(Theme.Motion.quick, value: appearsActive)
             .allowsHitTesting(false)
         }
     }

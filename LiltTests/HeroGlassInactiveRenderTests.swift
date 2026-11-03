@@ -81,4 +81,21 @@ struct HeroGlassInactiveRenderTests {
         // Inactive: the plain surface, no wash or rim.
         #expect(Self.distance(inactive, plain) < 0.01, "inactive \(f(inactive)) against plain \(f(plain))")
     }
+
+    /// The compact header's back button wears the same cast, lit from its trailing side and
+    /// revealed as the header rises (here fully risen): it goes with the window's focus too.
+    @Test func inactiveWindowDropsTheBackButtonCast() async throws {
+        let palette = CoverPaletteGlassDarkTests.palette(Self.red, .page, .glass).casting(Self.red)
+        let surface = HeaderControlSurface(shape: Circle(), cornerRadius: BrowseScreen.heroControlHeight / 2, tint: nil)
+        let backButton = button(surface).overlay { GlassCast(shape: Circle(), palette: palette, litEdge: .trailing, reveal: 1) }
+
+        let plain = topBand(await render(button(surface)))
+        let active = topBand(await render(backButton.environment(\.appearsActive, true)))
+        let inactive = topBand(await render(backButton.environment(\.appearsActive, false)))
+
+        let f = { (c: (r: Double, g: Double, b: Double)) in String(format: "(%.3f, %.3f, %.3f)", c.r, c.g, c.b) }
+        print("HeroGlassInactiveRender back plain \(f(plain)) active \(f(active)) inactive \(f(inactive))")
+        #expect(active.r - active.b > plain.r - plain.b + 0.02, "active back button not tinted red: \(f(active))")
+        #expect(Self.distance(inactive, plain) < 0.01, "inactive \(f(inactive)) against plain \(f(plain))")
+    }
 }

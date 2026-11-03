@@ -592,15 +592,12 @@ struct HeroGlass<S: InsettableShape>: ViewModifier {
     let shape: S
     /// The page's palette with the hero's cast as its container seed.
     let palette: CoverPalette
-    @Environment(\.appearsActive) private var appearsActive
 
     func body(content: Content) -> some View {
         content
             .modifier(HeaderControlSurface(shape: shape, cornerRadius: BrowseScreen.heroControlHeight / 2, tint: nil))
             .overlay {
                 GlassCast(shape: shape, palette: palette, litEdge: .top)
-                    .opacity(appearsActive ? 1 : 0)
-                    .animation(Theme.Motion.quick, value: appearsActive)
             }
             .contentShape(shape)
     }
