@@ -124,12 +124,13 @@ struct CoverPalette: Equatable {
 
     // MARK: Accent
 
-    /// The cast as the glass controls wear it: in dark mode pushed in saturation and lifted
-    /// towards white, so it adds light instead of staining (see `LeadingCastStyle.drawn`).
+    /// The cast as the glass controls wear it: in dark mode the cover's hue at a set OKLCH
+    /// lightness, so it adds clear coloured light instead of staining (see
+    /// `LeadingCastStyle.drawn`).
     var accentContainer: Color? { cast.map { container.drawn($0, dark: dark) } }
     /// The container's wash, falling off from its lit edge, and its lit rim.
     var containerWash: Color? { accentContainer?.opacity(container.washOpacity(dark: dark)) }
-    var containerRim: Color? { accentContainer?.opacity(container.rimOpacity) }
+    var containerRim: Color? { accentContainer?.opacity(container.rimOpacity(dark: dark)) }
     /// How the container's wash and rim are composited: added as light on dark glass.
     var containerBlend: BlendMode { container.blend(dark: dark) }
     /// The glyph and label on the container: the page's control colour.

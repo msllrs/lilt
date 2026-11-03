@@ -206,14 +206,16 @@ struct LeadingCastStyle: Equatable {
     var washReach: Double = 0.8
     /// Saturation boost on the sampled colour.
     var saturation: Double = 2.0
-    /// Dark mode: how far the cast is lifted towards white before being added as light (a dim
-    /// colour at low opacity over dark glass reads as a flat stain, not a lit edge), and how
-    /// much of the light-mode wash opacity to use.
-    var darkLighten: Double = 0.2
-    var darkWashScale: Double = 0.8
-    /// Dark mode: saturation multiplier applied before the lift, so the colour stays a colour
-    /// rather than going pale as it brightens.
-    var darkSaturation: Double = 1.5
+    /// Dark mode: the cast is added as light to dark glass, and light only adds what the colour
+    /// itself holds, so a dim cast reads as a flat stain and a cast lifted towards white reads
+    /// as grey. It keeps the cover's hue at this OKLCH lightness instead…
+    var darkLightness: Double = 0.74
+    /// …with its chroma capped here (and lowered further where sRGB can't hold it)…
+    var darkChromaCap: Double = 0.18
+    /// …and is added more strongly than in light mode: the rim at this opacity, the wash at this
+    /// share of the light-mode wash opacity.
+    var darkRimOpacity: Double = 0.40
+    var darkWashScale: Double = 1.2
     static let standard = LeadingCastStyle()
 }
 
@@ -620,7 +622,7 @@ final class ArtworkStyle {
         centredLibraryTitle = \(centredLibraryTitle)
         heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), minFlick: \(f(heroSnap.minFlick)), deadZone: \(f(heroSnap.deadZone)))
         shine = ShineStyle(duration: \(f(shine.duration)), band: \(f(shine.band)), darkOpacity: \(f(shine.darkOpacity)), lightOpacity: \(f(shine.lightOpacity)))
-        leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)), darkLighten: \(f(leadingCast.darkLighten)), darkWashScale: \(f(leadingCast.darkWashScale)), darkSaturation: \(f(leadingCast.darkSaturation)))
+        leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)), darkLightness: \(f(leadingCast.darkLightness)), darkChromaCap: \(f(leadingCast.darkChromaCap)), darkRimOpacity: \(f(leadingCast.darkRimOpacity)), darkWashScale: \(f(leadingCast.darkWashScale)))
         """
     }
 

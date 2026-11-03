@@ -19,10 +19,15 @@ struct NowPlayingBar: View {
     /// The platter's shadow, rim and fill strengths for the window style on screen.
     private var surface: SurfaceStyle.Platter { ArtworkStyle.shared.surface(colorScheme, reduceTransparency: reduceTransparency).platter }
 
-    /// The cover's colour as the play capsule samples it, for the rim and glow.
+    /// The cover's colour as the play capsule samples it, for the rim and glow. In dark mode it
+    /// is drawn as the glass controls' cast is (the palette's accent container: the cover's hue
+    /// at a set lightness), so the edge catches clear coloured light rather than white mixed with
+    /// a dim colour.
     private var cast: Color? {
         guard platter.castEdge || platter.castGlow, let url = player.displayArtworkURL else { return nil }
-        return ImageCache.shared.tint(for: url, saturationBoost: playCast.saturation)
+        let sampled = ImageCache.shared.tint(for: url, saturationBoost: playCast.saturation)
+        guard colorScheme == .dark else { return sampled }
+        return coverPalette(nil).casting(sampled).accentContainer
     }
 
     /// 0 when nothing scrolls beneath the platter, 1 once rows are passing under it. As a mini

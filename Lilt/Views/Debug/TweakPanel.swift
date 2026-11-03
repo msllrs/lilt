@@ -293,9 +293,10 @@ struct TweakPanel: View {
             slider("Rim start", $style.leadingCast.rimStart, 0...0.9)
             slider("Wash opacity", $style.leadingCast.washOpacity, 0...0.8)
             slider("Wash reach", $style.leadingCast.washReach, 0.1...1)
-            slider("Dark: lighten", $style.leadingCast.darkLighten, 0...0.8)
-            slider("Dark: wash scale", $style.leadingCast.darkWashScale, 0...1.5)
-            slider("Dark: saturation", $style.leadingCast.darkSaturation, 0.5...3)
+            slider("Dark: lightness (OKLCH)", $style.leadingCast.darkLightness, 0.4...0.95)
+            slider("Dark: chroma cap", $style.leadingCast.darkChromaCap, 0...0.3)
+            slider("Dark: rim opacity", $style.leadingCast.darkRimOpacity, 0...1)
+            slider("Dark: wash scale", $style.leadingCast.darkWashScale, 0...2)
         } header: {
             Text("Cover palette: accent container")
         }
