@@ -22,6 +22,8 @@ final class YTMusicClient {
     @ObservationIgnored private var pageCache: [String: BrowsePage] = [:]
     @ObservationIgnored private var homeCache: (sections: [HomeSection], fetched: Date)?
     @ObservationIgnored private var libraryCache: (content: LibraryContent, fetched: Date)?
+    /// The library fetch on its way, which another ask for the library joins.
+    @ObservationIgnored private var libraryFetch: Task<LibraryContent, Error>?
     /// Which account the API answers for. Tests stand in here.
     @ObservationIgnored private let fetchAccount: (@MainActor () async throws -> AccountInfo?)?
     /// Whether the caches come from and go to disk. Tests keep everything in memory.
@@ -170,6 +172,9 @@ final class YTMusicClient {
         pageCache = [:]
         homeCache = nil
         libraryCache = nil
+        // The old account's library mustn't be what the new one's screen joins.
+        libraryFetch?.cancel()
+        libraryFetch = nil
         cachedAccount = nil
         try? FileManager.default.removeItem(at: Self.persistedURL)
         accountGeneration += 1
@@ -182,11 +187,22 @@ final class YTMusicClient {
     private(set) var accountGeneration = 0
 
     /// The signed-in library: playlists (with Liked Music first), saved albums, and artists.
+    /// Asked for while a fetch is on its way (the library button's hover, then the screen it
+    /// opens), it waits for that fetch rather than fetching, parsing and saving it all again; a
+    /// refresh asked for fetches anyway.
     func library(forceRefresh: Bool = false) async throws -> LibraryContent {
         if !forceRefresh, let cached = libraryCache, Date.now.timeIntervalSince(cached.fetched) < Self.homeTTL {
             Self.prefetchArtwork(of: cached.content)
             return cached.content
         }
+        if !forceRefresh, let libraryFetch { return try await libraryFetch.value }
+        let fetch = Task { try await fetchLibrary() }
+        libraryFetch = fetch
+        defer { if libraryFetch == fetch { libraryFetch = nil } }
+        return try await fetch.value
+    }
+
+    private func fetchLibrary() async throws -> LibraryContent {
         async let playlists = fetchPage("FEmusic_liked_playlists")
         async let albums = fetchPage("FEmusic_liked_albums")
         async let artists = fetchPage("FEmusic_library_corpus_track_artists")
