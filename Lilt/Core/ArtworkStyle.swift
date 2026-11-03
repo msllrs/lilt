@@ -170,8 +170,47 @@ struct PageAmbientStyle: Equatable {
     var band: Double = 0.5
     /// How far down the page the wash reaches before fading out, in points.
     var reach: Double = 360
+    /// Whether the wash stays at the panel's top as the page scrolls or leaves with the hero.
+    var scroll: PageAmbientScroll = .pinned
+    /// How far the wash dims once the page scrolls on past an album's tracks, reached as the
+    /// first related section ("More from…", "Fans also like") arrives at the top of the panel:
+    /// 0 leaves it as it is, 1 takes it away. Pages with nothing after the tracks never dim.
+    var sectionFade: Double = 0
+    /// Points of scroll the dimming is spread over, ending as that first section reaches the top.
+    var sectionFadeDistance: Double = 200
+    /// The related sections' headers take the album's colour like the tracks' header; off, they
+    /// go plain like their rows.
+    var tintsSectionHeaders: Bool = true
 
     static let standard = PageAmbientStyle()
+
+    /// How far the wash is moved up for a page scrolled this far (0 when pinned). A pull past
+    /// the top doesn't drag it down off the panel's edge.
+    func offset(scrollOffset: CGFloat) -> CGFloat {
+        scroll == .scrolls ? -max(scrollOffset, 0) : 0
+    }
+
+    /// The wash's strength, 0 to 1, for a page scrolled this far whose first related section
+    /// starts `sectionsStart` points down its content (nil: no sections after the tracks).
+    func opacity(scrollOffset: CGFloat, sectionsStart: CGFloat?) -> Double {
+        guard sectionFade > 0, let sectionsStart else { return 1 }
+        // The section's distance below the top of the panel, against the distance it fades over.
+        let below = Double(sectionsStart - scrollOffset)
+        let progress = sectionFadeDistance > 0
+            ? min(max(1 - below / sectionFadeDistance, 0), 1)
+            : (below <= 0 ? 1 : 0)
+        return 1 - sectionFade * progress
+    }
+}
+
+/// Where the page's cover light sits as the page scrolls.
+enum PageAmbientScroll: String, CaseIterable, Identifiable {
+    /// Fixed to the top of the panel, at full strength however far the page scrolls.
+    case pinned
+    /// Moves up with the content, so it leaves with the hero and the tracks.
+    case scrolls
+    var id: String { rawValue }
+    var label: String { self == .pinned ? "Pinned to top" : "Scrolls away" }
 }
 
 /// The Dock tile while a track plays: the cover's colour on the plate and under the disc.
@@ -611,7 +650,7 @@ final class ArtworkStyle {
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))
         headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), ownContentOnly: \(headerBlur.ownContentOnly))
-        pageAmbient = PageAmbientStyle(band: \(f(pageAmbient.band)), reach: \(f(pageAmbient.reach)))
+        pageAmbient = PageAmbientStyle(band: \(f(pageAmbient.band)), reach: \(f(pageAmbient.reach)), scroll: .\(pageAmbient.scroll.rawValue), sectionFade: \(f(pageAmbient.sectionFade)), sectionFadeDistance: \(f(pageAmbient.sectionFadeDistance)), tintsSectionHeaders: \(pageAmbient.tintsSectionHeaders))
         dockTile = DockTileStyle(plateTint: \(f(dockTile.plateTint)), plateSaturation: \(f(dockTile.plateSaturation)), shadowOpacity: \(f(dockTile.shadowOpacity)), shadowBlur: \(f(dockTile.shadowBlur)), shadowOffsetY: \(f(dockTile.shadowOffsetY)))
         headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), interactive: \(headerControls.interactive), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
         panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent))
