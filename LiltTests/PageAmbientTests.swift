@@ -63,6 +63,21 @@ struct PageAmbientTests {
         #expect(style.opacity(scrollOffset: 1_500, sectionsStart: nil) == 1)
     }
 
+    /// An EP or single: its related sections start a short way down, already in view, and the
+    /// page can only scroll a little. The wash still opens at full strength, and reaches its
+    /// dimming as the page bottoms out, since the section can never reach the top.
+    @Test func aShortPageOpensFullAndDimsAsItBottomsOut() {
+        var style = PageAmbientStyle.standard
+        style.sectionFade = 0.6
+        style.sectionFadeDistance = 480
+        let start: CGFloat = 300, range: CGFloat = 200
+        #expect(style.opacity(scrollOffset: 0, sectionsStart: start, scrollRange: range) == 1)
+        #expect(abs(style.opacity(scrollOffset: 100, sectionsStart: start, scrollRange: range) - 0.7) < 1e-9)
+        #expect(abs(style.opacity(scrollOffset: 200, sectionsStart: start, scrollRange: range) - 0.4) < 1e-9)
+        // A page that can't scroll at all keeps its wash.
+        #expect(style.opacity(scrollOffset: 0, sectionsStart: start, scrollRange: 0) == 1)
+    }
+
     /// A fade of 1 takes the wash away entirely; a zero distance is a cut at the top.
     @Test func fullFadeAndZeroDistance() {
         var style = PageAmbientStyle.standard

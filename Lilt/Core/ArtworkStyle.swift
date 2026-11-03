@@ -191,14 +191,21 @@ struct PageAmbientStyle: Equatable {
     }
 
     /// The wash's strength, 0 to 1, for a page scrolled this far whose first related section
-    /// starts `sectionsStart` points down its content (nil: no sections after the tracks).
-    func opacity(scrollOffset: CGFloat, sectionsStart: CGFloat?) -> Double {
+    /// starts `sectionsStart` points down its content (nil: no sections after the tracks) and
+    /// which can scroll `scrollRange` points in all.
+    ///
+    /// The dimming runs over the fade distance and is complete as that section reaches the top.
+    /// The ramp never starts above the page's resting position, so every page opens at full
+    /// strength, and on a short page (an EP or single, its sections already in view) it ends where
+    /// the page bottoms out instead, since the section can never reach the top.
+    func opacity(scrollOffset: CGFloat, sectionsStart: CGFloat?, scrollRange: CGFloat = .infinity) -> Double {
         guard sectionFade > 0, let sectionsStart else { return 1 }
-        // The section's distance below the top of the panel, against the distance it fades over.
-        let below = Double(sectionsStart - scrollOffset)
-        let progress = sectionFadeDistance > 0
-            ? min(max(1 - below / sectionFadeDistance, 0), 1)
-            : (below <= 0 ? 1 : 0)
+        let end = Double(min(sectionsStart, scrollRange))
+        let start = max(Double(sectionsStart) - sectionFadeDistance, 0)
+        let scrolled = Double(scrollOffset)
+        let progress = end > start
+            ? min(max((scrolled - start) / (end - start), 0), 1)
+            : (end > 0 && scrolled >= end ? 1 : 0)
         return 1 - sectionFade * progress
     }
 }

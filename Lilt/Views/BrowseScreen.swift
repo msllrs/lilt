@@ -48,6 +48,8 @@ struct BrowseScreen: View {
     /// Where the first section after the tracks starts, in the content's own coordinates: it
     /// changes with layout, not with scrolling. Nil until it has been laid out, or with none.
     @State private var sectionsStart: CGFloat?
+    /// How far the page can scroll in all, for the cover light's dimming on a short page.
+    @State private var scrollRange: CGFloat = .infinity
     /// Bumped once the cover has loaded, so an accent measured from it is read again (the image
     /// cache isn't observable).
     @State private var coverLoads = 0
@@ -73,7 +75,7 @@ struct BrowseScreen: View {
             PageAmbient(url: (page?.item.artworkURL) ?? item.artworkURL)
                 .offset(y: ambientStyle.offset(scrollOffset: scrollOffset))
                 // A refresh that drops the sections leaves the last measurement behind; ignore it.
-                .opacity(ambientStyle.opacity(scrollOffset: scrollOffset, sectionsStart: (page?.sections.isEmpty ?? true) ? nil : sectionsStart))
+                .opacity(ambientStyle.opacity(scrollOffset: scrollOffset, sectionsStart: (page?.sections.isEmpty ?? true) ? nil : sectionsStart, scrollRange: scrollRange))
         }
         .task(id: item.id) { await load() }
         .loadingGate(loadingGate, isLoading: phase == .loading)
@@ -393,6 +395,8 @@ struct BrowseScreen: View {
             )
         } action: { _, metrics in
             scrollOffset = metrics.offset
+            let range = max(metrics.contentHeight - metrics.visibleHeight, 0)
+            if range != scrollRange { scrollRange = range }
             scrollTracker.report(remainingBelow: metrics.remainingBelow, for: item.id)
 
             // How far the list could scroll on its own, before our padding (negative when the
