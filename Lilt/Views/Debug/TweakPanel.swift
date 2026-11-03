@@ -275,7 +275,7 @@ struct TweakPanel: View {
             slider("Content share", $style.palette.contentShare, 0...1)
             slider("Dim lines (× content)", $style.palette.dimContentRatio, 0...1)
             slider("Control share", $style.palette.controlShare, 0...1)
-                        slider("Playing row (light)", $style.palette.highlightOpacity, 0...0.5)
+            slider("Playing row (light)", $style.palette.highlightOpacity, 0...0.5)
             slider("Playing row (dark)", $style.palette.darkHighlightOpacity, 0...0.5)
             slider("Row hover", $style.palette.hoverHighlightOpacity, 0...1)
             slider("Control hover fill", $style.palette.controlHoverOpacity, 0...0.2)
@@ -284,7 +284,20 @@ struct TweakPanel: View {
         } header: {
             Text("Cover palette")
         } footer: {
-            Text("Platter, Up Next, album pages, the back button and the Window style cards. Hover and pressed fills are roles nothing draws yet.")
+            Text("Platter, Up Next, album pages, the back button and the Window style cards. Hover and pressed fills are roles nothing draws yet. The shares are light mode's; dark mode's roles are below.")
+        }
+        // Dark mode's roles: the accent's hue at each role's OKLCH lightness, chroma capped.
+        Section {
+            slider("Title lightness", $style.palette.darkPrimaryLightness, 0.5...1)
+            slider("Control lightness", $style.palette.darkControlLightness, 0.5...1)
+            slider("Secondary lightness", $style.palette.darkSecondaryLightness, 0.4...1)
+            slider("Tertiary lightness", $style.palette.darkTertiaryLightness, 0.3...1)
+            slider("Dim control lightness", $style.palette.darkDimControlLightness, 0.3...1)
+            slider("Chroma cap", $style.palette.darkChromaCap, 0...0.3)
+        } header: {
+            Text("Cover palette: dark mode (OKLCH)")
+        } footer: {
+            Text("Each role keeps the cover's hue; chroma drops further where sRGB can't hold it at that lightness. The contrast guard lifts a role that falls below its floor on a page.")
         }
         // The cast the Play capsule, its round buttons and the back button wear.
         Section {
