@@ -188,9 +188,18 @@ struct NowPlayingBar: View {
                 hovering: isHoveringPlatter,
                 reduceTransparency: reduceTransparency
             )
+            // Neutral for the scheme: what the glass tint and the backing calm the glass with.
+            let neutral: Color = colorScheme == .dark ? .black : .white
             ZStack {
+                // Backing: a faint fill behind the glass, so busy rows beneath read quieter.
+                if layers.backing > 0 {
+                    shape.fill(neutral.opacity(layers.backing))
+                }
                 Color.clear
-                    .glassEffect(layers.material == .clear ? .clear : .regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
+                    .glassEffect(
+                        (layers.material == .clear ? Glass.clear : Glass.regular).tint(layers.glassTint > 0 ? neutral.opacity(layers.glassTint) : nil),
+                        in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous)
+                    )
                     // In mini the window's own shadow does this job; a soft shadow in the app's
                     // pixels would just grow the window's hit shape and get a hard shadow of its own.
                     .shadow(

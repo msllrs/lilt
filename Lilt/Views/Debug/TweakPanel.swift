@@ -141,6 +141,8 @@ struct TweakPanel: View {
                 }
                 slider("Colour strength (cover + wash)", $style.platter.colorStrength, 0...1)
                 slider("Frost (clear glass)", $style.platter.frost, 0...1)
+                slider("Glass tint (neutral)", $style.platter.glassTint, 0...1)
+                slider("Backing (behind glass)", $style.platter.backing, 0...1)
             }
             Section("Dock tile") {
                 slider("Plate tint", $style.dockTile.plateTint, 0...0.8)
