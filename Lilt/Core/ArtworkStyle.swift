@@ -176,7 +176,7 @@ struct PageAmbientStyle: Equatable {
     /// How far the wash dims once the page scrolls on past an album's tracks, reached as the
     /// first related section ("More from…", "Fans also like") arrives at the top of the panel:
     /// 0 leaves it as it is, 1 takes it away. Pages with nothing after the tracks never dim.
-    var sectionFade: Double = 0.65
+    var sectionFade: Double = 0.64
     /// Points of scroll the dimming is spread over, ending as that first section reaches the top.
     var sectionFadeDistance: Double = 480
     /// The related sections' headers take the album's colour like the tracks' header; off, they

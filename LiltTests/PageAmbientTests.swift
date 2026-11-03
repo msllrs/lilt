@@ -7,13 +7,13 @@ import Testing
 /// first related section reaches the top, and whether those sections' headers wear the cover.
 @MainActor
 struct PageAmbientTests {
-    /// As tuned on 2026-11-03: pinned to the top, reaching 480pt, dimming by 0.65 over the 480pt
+    /// As tuned on 2026-11-03: pinned to the top, reaching 480pt, dimming by 0.64 over the 480pt
     /// before the first related section reaches the top, the related headers plain.
     @Test func theStandardStyleIsAsTuned() {
         let style = PageAmbientStyle.standard
         #expect(style.band == 0.5 && style.reach == 480)
         #expect(style.scroll == .pinned)
-        #expect(style.sectionFade == 0.65 && style.sectionFadeDistance == 480)
+        #expect(style.sectionFade == 0.64 && style.sectionFadeDistance == 480)
         #expect(!style.tintsSectionHeaders)
         for offset: CGFloat in [-40, 0, 200, 600, 2_000] {
             #expect(style.offset(scrollOffset: offset) == 0)
@@ -100,7 +100,7 @@ struct PageAmbientTests {
     /// "Copy values" carries the new dials.
     @Test func copyValuesCarriesTheNewDials() {
         let style = ArtworkStyle()
-        #expect(style.swiftSnippet.contains("pageAmbient = PageAmbientStyle(band: 0.50, reach: 480.00, scroll: .pinned, sectionFade: 0.65, sectionFadeDistance: 480.00, tintsSectionHeaders: false)"))
+        #expect(style.swiftSnippet.contains("pageAmbient = PageAmbientStyle(band: 0.50, reach: 480.00, scroll: .pinned, sectionFade: 0.64, sectionFadeDistance: 480.00, tintsSectionHeaders: false)"))
         style.pageAmbient.scroll = .scrolls
         style.pageAmbient.sectionFade = 0.65
         style.pageAmbient.sectionFadeDistance = 120
