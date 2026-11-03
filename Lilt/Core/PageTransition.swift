@@ -523,7 +523,7 @@ struct PageChoreography: Equatable, Sendable {
 /// `trailing` (fractions of the width), with a soft edge `feather` wide on each side; outside
 /// the page's width at 0 and 1, so a fully shown page has no soft edge and a hidden one shows
 /// nothing at all.
-enum WipeMask {
+nonisolated enum WipeMask {
     static func alpha(at u: CGFloat, leading: CGFloat, trailing: CGFloat, feather f: CGFloat) -> CGFloat {
         let lo = leading * (1 + f) - f
         let hi = trailing * (1 + f)

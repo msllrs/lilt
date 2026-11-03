@@ -128,28 +128,31 @@ private struct NavigationColumn: View {
     private static var exit: Animation { Theme.Motion.pageExit }
     private static var enter: Animation { Theme.Motion.pageEnter }
 
+    /// The page transition lab's pick (tweak panel ▸ Page transition); always Current in
+    /// release builds.
+    @State private var transitions = PageTransitionSettings.shared
+    /// The column's width, for the masked wipe's soft edge. Changes only as the panel resizes.
+    @State private var width: CGFloat = 320
+    /// The staged stack's pages popped and still on their way out, and the path as last drawn.
+    @State private var leaving: [BrowseItem] = []
+    @State private var shownPath: [BrowseItem] = []
+    /// Pages there when the column first appears (a relaunch) don't slide in.
+    @State private var hasAppeared = false
+
     var body: some View {
         let path = navigation.path
         // In mini the column is still mounted behind the platter, only faded out, so its discs
         // and notes would turn on unseen.
         let outOfSight = navigation.isPanelOutOfSight || navigation.isMiniPlayer
-        ZStack {
-            SearchScreen()
-                .parked(path.isEmpty ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path, outOfSight: outOfSight)
-            ForEach(Array(path.enumerated()), id: \.element.id) { index, item in
-                let isTop = index == path.count - 1
-                Group {
-                    if item.kind == .library {
-                        LibraryScreen()
-                    } else {
-                        BrowseScreen(item: item)
-                    }
-                }
-                .parked(isTop ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path, outOfSight: outOfSight)
-                .transition(.offset(x: Self.travel).combined(with: .opacity).animation(Self.enter))
+        // Switching variants rebuilds the screens (a debug-only change of structure); the
+        // current hand-off keeps its own code, untouched.
+        Group {
+            if transitions.transition == .current {
+                currentStack(path, outOfSight: outOfSight)
+            } else {
+                stagedStack(path, outOfSight: outOfSight, choreography: transitions.choreography)
             }
         }
-        .animation(Self.enter, value: path)
         // One static control in the top-left corner: the library glyph on the search root, the
         // back chevron on every page. Pages slide beneath it; it only swaps glyphs in place.
         .overlay(alignment: .topLeading) {
@@ -171,6 +174,77 @@ private struct NavigationColumn: View {
         }
         .onChange(of: path.last?.id, initial: true) { _, top in
             scrollTracker.activeKey = top ?? ScrollTracker.searchKey
+        }
+    }
+
+    @ViewBuilder
+    private func screen(for item: BrowseItem) -> some View {
+        if item.kind == .library {
+            LibraryScreen()
+        } else {
+            BrowseScreen(item: item)
+        }
+    }
+
+    /// The column's hand-off as it ships: the page beneath parks aside on `pageExit` while the
+    /// new one slides in on `pageEnter`.
+    private func currentStack(_ path: [BrowseItem], outOfSight: Bool) -> some View {
+        ZStack {
+            SearchScreen()
+                .parked(path.isEmpty ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path, outOfSight: outOfSight)
+            ForEach(Array(path.enumerated()), id: \.element.id) { index, item in
+                let isTop = index == path.count - 1
+                Group {
+                    screen(for: item)
+                }
+                .parked(isTop ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path, outOfSight: outOfSight)
+                .transition(.offset(x: Self.travel).combined(with: .opacity).animation(Self.enter))
+            }
+        }
+        .animation(Self.enter, value: path)
+    }
+
+    /// Any other variant: each screen is staged by the choreography (see StagedScreen), with a
+    /// timing of its own for each role (parking, coming back, arriving, leaving), so the page
+    /// going away and the page arriving can be sequenced rather than overlap. No animation on
+    /// the stack as a whole: it would hand every page the same one.
+    private func stagedStack(_ path: [BrowseItem], outOfSight: Bool, choreography: PageChoreography) -> some View {
+        let ids = Set(path.map(\.id))
+        // Popped pages stay until they've left: those already on their way, and, in the very
+        // update that pops them (before onChange has run), the ones just taken off, so their
+        // views carry on rather than being rebuilt. A page pushed again while leaving is simply
+        // the page on top again, from wherever it had got to.
+        var gone = leaving.filter { !ids.contains($0.id) }
+        for item in shownPath where !ids.contains(item.id) && !gone.contains(where: { $0.id == item.id }) { gone.append(item) }
+        return ZStack {
+            StagedScreen(position: path.isEmpty ? .top : .behind, choreography: choreography, width: width, outOfSight: outOfSight, arrives: false) {
+                SearchScreen()
+            }
+            // One ForEach for pages on the path and pages leaving, so a page popped (or pushed
+            // back while leaving) keeps its view as it changes role.
+            let entries = path.enumerated().map { ($1, $0 == path.count - 1 ? StagedPosition.top : .behind) } + gone.map { ($0, StagedPosition.leaving) }
+            ForEach(entries, id: \.0.id) { item, position in
+                StagedScreen(position: position, choreography: choreography, width: width, outOfSight: outOfSight, arrives: hasAppeared) {
+                    screen(for: item)
+                }
+            }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .onAppear { hasAppeared = true; shownPath = path }
+        .onChange(of: path) { old, new in
+            let now = Set(new.map(\.id))
+            let popped = old.filter { !now.contains($0.id) }
+            leaving.removeAll { now.contains($0.id) }
+            leaving.append(contentsOf: popped.filter { item in !leaving.contains(where: { $0.id == item.id }) })
+            shownPath = new
+            guard !popped.isEmpty else { return }
+            // Let them go once they've left; a later pop's own wait sees to its pages.
+            let ids = Set(popped.map(\.id))
+            let wait = choreography.remove.end + 0.05
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(wait))
+                leaving.removeAll { ids.contains($0.id) && !navigation.path.contains($0) }
+            }
         }
     }
 }
