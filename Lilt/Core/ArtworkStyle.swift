@@ -93,16 +93,16 @@ struct PlatterStyle: Equatable {
     var alwaysGlass: Bool = true
     /// The glass beneath the cover's colour: today's regular glass, or the search field's clear
     /// glass, whose lensing and native edge read through the colour above it.
-    var glass: PlatterGlass = .current
+    var glass: PlatterGlass = .clear
     /// How strongly the colour layers (the blurred cover and the wash) sit over the glass, as a
     /// share of the surface's own strengths: 1 is today, lower lets more glass show.
     var colorStrength: Double = 1.0
     /// How frosted the clear glass is: the regular glass laid over it at this strength, from 0
     /// (all clear) to 1 (as frosted as the regular glass). Only the clear glass has any.
-    var frost: Double = 0
+    var frost: Double = 0.8
     /// A neutral tint fed into the glass itself (black in dark mode, white in light), at this
     /// opacity: calms what shows through without frost's milkiness. Either glass.
-    var glassTint: Double = 0
+    var glassTint: Double = 0.2
     /// A faint neutral fill behind the glass, at this opacity: rows passing beneath read
     /// quieter while the glass still lenses them at its edges. Either glass.
     var backing: Double = 0
@@ -110,10 +110,11 @@ struct PlatterStyle: Equatable {
     /// in light mode and in dark: 1 as the other glass has it, lower softens it on the platter
     /// alone.
     var bottomEdge: Double = 1
-    var darkBottomEdge: Double = 1
+    var darkBottomEdge: Double = 0.2
     func bottomEdge(dark: Bool) -> Double { dark ? darkBottomEdge : bottomEdge }
 
-    /// Tuned by Matt in the tweak panel on 2026-10-01; colour dials on 2026-10-02.
+    /// Tuned by Matt in the tweak panel on 2026-10-01; colour dials on 2026-10-02; the glass
+    /// (clear, frost, tint and the dark bottom edge) on 2026-11-03.
     static let standard = PlatterStyle()
 
     /// What the platter's background draws: the glass material, the blurred cover's opacity
