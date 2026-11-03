@@ -22,6 +22,11 @@ final class YTMusicClient {
     @ObservationIgnored private var pageCache: [String: BrowsePage] = [:]
     @ObservationIgnored private var homeCache: (sections: [HomeSection], fetched: Date)?
     @ObservationIgnored private var libraryCache: (content: LibraryContent, fetched: Date)?
+    /// Which account the API answers for. Tests stand in here.
+    @ObservationIgnored private let fetchAccount: (@MainActor () async throws -> AccountInfo?)?
+    /// Whether the caches come from and go to disk. A client made with a library of its own
+    /// (tests) keeps everything in memory.
+    @ObservationIgnored private let persists: Bool
 
     // Disk persistence so a relaunch starts warm: stale-while-revalidate.
     private struct Persisted: Codable {
@@ -38,6 +43,7 @@ final class YTMusicClient {
     }()
 
     private func persist() {
+        guard persists else { return }
         let data = Persisted(
             home: homeCache?.sections, homeFetched: homeCache?.fetched,
             library: libraryCache?.content, libraryFetched: libraryCache?.fetched,
@@ -61,7 +67,9 @@ final class YTMusicClient {
         fetchPage: (@MainActor (_ browseId: String) async throws -> JSONObject)? = nil,
         write: (@MainActor (_ endpoint: String, _ body: [String: Any]) async throws -> JSONObject)? = nil,
         fetchNext: (@MainActor (_ videoId: String) async throws -> JSONObject)? = nil,
-        fetchWatch: (@MainActor (_ playlistId: String, _ videoId: String?) async throws -> JSONObject)? = nil
+        fetchWatch: (@MainActor (_ playlistId: String, _ videoId: String?) async throws -> JSONObject)? = nil,
+        library: LibraryContent? = nil,
+        fetchAccount: (@MainActor () async throws -> AccountInfo?)? = nil
     ) {
         let client = InnerTubeClient(auth: auth)
         self.client = client
@@ -80,7 +88,9 @@ final class YTMusicClient {
             if let videoId { body["videoId"] = videoId }
             return try await client.post("next", body: body)
         }
-        restore()
+        persists = library == nil
+        self.fetchAccount = fetchAccount
+        if let library { libraryCache = (library, .now) } else { restore() }
     }
 
     func search(_ query: String) async throws -> SearchResults {
@@ -137,12 +147,19 @@ final class YTMusicClient {
     /// The menu endpoint names the active account; the switchable channels only appear in the
     /// separate accounts list.
     func account() async throws -> AccountInfo? {
+        let info = if let fetchAccount { try await fetchAccount() } else { try await fetchAccountFromAPI() }
+        if let info {
+            cachedAccount = info
+            persist()
+        }
+        return info
+    }
+
+    private func fetchAccountFromAPI() async throws -> AccountInfo? {
         async let menu = client.post("account/account_menu", body: [:])
         async let list = client.post("account/accounts_list", body: [:])
         guard var info = SearchParser.account(from: try await menu.value) else { return nil }
         info.alternatives = SearchParser.accountAlternatives(from: try await list.value)
-        cachedAccount = info
-        persist()
         return info
     }
 

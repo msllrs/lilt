@@ -18,9 +18,10 @@ struct LibraryScreen: View {
     @State private var account: AccountInfo?
     @State private var scrollOffset: CGFloat = 0
 
-    init() {
+    /// `music` is the client in the environment, which the app's is unless a test hosts its own.
+    init(music: YTMusicClient? = nil) {
         // Render the cached library immediately; the task refreshes if the cache is stale.
-        let music = MainActor.assumeIsolated { AppDelegate.shared?.music }
+        let music = music ?? MainActor.assumeIsolated { AppDelegate.shared?.music }
         if let cached = MainActor.assumeIsolated({ music?.cachedLibrary }) {
             _content = State(initialValue: cached)
             _phase = State(initialValue: .loaded)
