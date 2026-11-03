@@ -21,7 +21,7 @@ struct GlassCast<S: InsettableShape>: View {
     /// of the travel, so the rim is complete once the reveal is (a feather ending exactly at the
     /// top left the top fifth missing).
     private static var feather: Double { 0.2 }
-    /// The rim straddles the outline; a mask the size of the frame would cut away its outer half.
+    /// The rim can run outside the outline; a mask the size of the frame would cut it away.
     private static var maskOverhang: CGFloat { 1 }
 
     var body: some View {
@@ -38,9 +38,9 @@ struct GlassCast<S: InsettableShape>: View {
                 ))
                 .opacity(reveal ?? 1)
                 // The rim catches the light along the lit edge, fading out past the start. It
-                // runs on the glass highlight's own path, centred on the outline, so the cast
-                // colours that highlight rather than lining the inside of it.
-                let stroke = shape.inset(by: -0.5)
+                // runs on the glass's own lit edge (`LeadingCastStyle.rimInset`), so the cast
+                // colours that highlight rather than lining the inside of it or the dark outside.
+                let stroke = shape.inset(by: palette.containerRimInset)
                     .stroke(
                         LinearGradient(stops: [.init(color: rim, location: 0), .init(color: .clear, location: 1 - style.rimStart)], startPoint: litEdge, endPoint: away),
                         lineWidth: style.rimWidth

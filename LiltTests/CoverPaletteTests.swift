@@ -224,6 +224,7 @@ struct CoverPaletteTests {
         let snippet = ArtworkStyle().swiftSnippet
         #expect(snippet.contains("palette = CoverPaletteStyle(accentSaturation: 1.30, contentShare: 0.40, dimContentRatio: 0.50, controlShare: 0.64, highlightOpacity: 0.12, darkHighlightOpacity: 0.16, hoverHighlightOpacity: 0.60, controlHoverOpacity: 0.050, controlPressedOpacity: 0.085, contrastGuard: true, darkChromaCap: 0.12)"))
         #expect(snippet.contains("darkLightness: 0.74, darkChromaCap: 0.18, darkRimOpacity: 0.40, darkWashScale: 1.20)"))
+        #expect(snippet.contains("rimStart: 0.40, rimInset: -0.50, darkRimInset: 0.50, washOpacity"))
         #expect(!snippet.contains("pageTint") && !snippet.contains("textTint") && !snippet.contains("cornerAccentOpacity"))
     }
 }

@@ -243,6 +243,14 @@ struct LeadingCastStyle: Equatable {
     var rimWidth: Double = 1.0
     /// Where across the button the rim starts to show (0 = leading edge, 1 = trailing edge).
     var rimStart: Double = 0.4
+    /// How far in from the control's outline the rim's centre line runs, in points (negative is
+    /// outside it): on the glass's own lit edge. In light mode that edge blends with a rim just
+    /// outside the outline. In dark mode the native glass draws a dark line in the half point
+    /// outside the outline and its highlight in the point inside it (measured from Matt's frames
+    /// at 2x), so a rim outside lands on the dark line and reads as offset; it runs centred on
+    /// the highlight instead.
+    var rimInset: Double = -0.5
+    var darkRimInset: Double = 0.5
     /// The wash falling off from that edge across the button, and how far across it reaches
     /// (fraction of the button's width).
     var washOpacity: Double = 0.2
@@ -665,7 +673,7 @@ final class ArtworkStyle {
         centredLibraryTitle = \(centredLibraryTitle)
         heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), minFlick: \(f(heroSnap.minFlick)), deadZone: \(f(heroSnap.deadZone)))
         shine = ShineStyle(duration: \(f(shine.duration)), band: \(f(shine.band)), darkOpacity: \(f(shine.darkOpacity)), lightOpacity: \(f(shine.lightOpacity)))
-        leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)), darkLightness: \(f(leadingCast.darkLightness)), darkChromaCap: \(f(leadingCast.darkChromaCap)), darkRimOpacity: \(f(leadingCast.darkRimOpacity)), darkWashScale: \(f(leadingCast.darkWashScale)))
+        leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), rimInset: \(f(leadingCast.rimInset)), darkRimInset: \(f(leadingCast.darkRimInset)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)), darkLightness: \(f(leadingCast.darkLightness)), darkChromaCap: \(f(leadingCast.darkChromaCap)), darkRimOpacity: \(f(leadingCast.darkRimOpacity)), darkWashScale: \(f(leadingCast.darkWashScale)))
         """
     }
 

@@ -13,6 +13,8 @@ extension LeadingCastStyle {
     /// Wash and rim opacity for the scheme.
     func washOpacity(dark: Bool) -> Double { washOpacity * (dark ? darkWashScale : 1) }
     func rimOpacity(dark: Bool) -> Double { dark ? darkRimOpacity : rimOpacity }
+    /// How far in from the outline the rim runs for the scheme (negative is outside).
+    func rimInset(dark: Bool) -> Double { dark ? darkRimInset : rimInset }
 
     /// How the cast is composited: added as light on dark glass.
     func blend(dark: Bool) -> BlendMode { dark ? .plusLighter : .normal }

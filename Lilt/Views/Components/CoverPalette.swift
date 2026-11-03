@@ -141,6 +141,8 @@ struct CoverPalette: Equatable {
     /// The container's wash, falling off from its lit edge, and its lit rim.
     var containerWash: Color? { accentContainer?.opacity(container.washOpacity(dark: dark)) }
     var containerRim: Color? { accentContainer?.opacity(container.rimOpacity(dark: dark)) }
+    /// How far in from the container's outline its rim runs, in points (negative is outside).
+    var containerRimInset: Double { container.rimInset(dark: dark) }
     /// How the container's wash and rim are composited: added as light on dark glass.
     var containerBlend: BlendMode { container.blend(dark: dark) }
     /// The glyph and label on the container: the page's control colour.
