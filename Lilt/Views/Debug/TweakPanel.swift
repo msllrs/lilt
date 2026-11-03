@@ -136,6 +136,10 @@ struct TweakPanel: View {
             }
             Section("Platter glass") {
                 Toggle("Always on (off: only when rows pass beneath)", isOn: $style.platter.alwaysGlass)
+                Picker("Glass", selection: $style.platter.glass) {
+                    ForEach(PlatterGlass.allCases) { Text($0.label).tag($0) }
+                }
+                slider("Colour strength (cover + wash)", $style.platter.colorStrength, 0...1)
             }
             Section("Dock tile") {
                 slider("Plate tint", $style.dockTile.plateTint, 0...0.8)
