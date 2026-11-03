@@ -12,6 +12,8 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
     /// Softens the rim into a glow.
     var blur: Double = 0
     var blend: BlendMode = .normal
+    /// This glass's share of the surface's dark bottom line (1: all of it).
+    var bottomScale: Double = 1
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -39,7 +41,7 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
                             stops: [
                                 .init(color: topColor(edge), location: 0),
                                 .init(color: .white.opacity(edge.middleOpacity), location: Self.middleLocation),
-                                .init(color: .black.opacity(edge.bottomOpacity), location: 1),
+                                .init(color: .black.opacity(Self.bottomOpacity(edge.bottomOpacity, scale: bottomScale)), location: 1),
                             ],
                             startPoint: .top,
                             endPoint: .bottom
@@ -61,6 +63,9 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
         dark ? (Color.white.opacity(edge.hairlineOpacity), .plusLighter) : (Color.black.opacity(edge.hairlineOpacity), .plusDarker)
     }
 
+    /// The dark bottom line's opacity for glass taking `scale` of the surface's.
+    static func bottomOpacity(_ surface: Double, scale: Double) -> Double { surface * scale }
+
     private func topColor(_ edge: SurfaceStyle.Edge) -> Color {
         let white = Color.white.opacity(edge.topOpacity)
         guard let cast else { return white }
@@ -70,7 +75,7 @@ struct GlassEdge<S: InsettableShape>: ViewModifier {
 }
 
 extension View {
-    func glassEdge<S: InsettableShape>(_ shape: S, opacity: Double = 1, cast: Color? = nil, castMix: Double = 0.5, blur: Double = 0, blend: BlendMode = .normal) -> some View {
-        modifier(GlassEdge(shape: shape, opacity: opacity, cast: cast, castMix: castMix, blur: blur, blend: blend))
+    func glassEdge<S: InsettableShape>(_ shape: S, opacity: Double = 1, cast: Color? = nil, castMix: Double = 0.5, blur: Double = 0, blend: BlendMode = .normal, bottomScale: Double = 1) -> some View {
+        modifier(GlassEdge(shape: shape, opacity: opacity, cast: cast, castMix: castMix, blur: blur, blend: blend, bottomScale: bottomScale))
     }
 }

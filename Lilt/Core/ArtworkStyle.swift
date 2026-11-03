@@ -106,6 +106,9 @@ struct PlatterStyle: Equatable {
     /// A faint neutral fill behind the glass, at this opacity: rows passing beneath read
     /// quieter while the glass still lenses them at its edges. Either glass.
     var backing: Double = 0
+    /// The platter's share of the glass edge's dark bottom line (the surface's bottom opacity):
+    /// 1 as the other glass has it, lower softens it on the platter alone.
+    var bottomEdge: Double = 1
 
     /// Tuned by Matt in the tweak panel on 2026-10-01; colour dials on 2026-10-02.
     static let standard = PlatterStyle()
@@ -729,7 +732,7 @@ final class ArtworkStyle {
         heroShadow = \(snippet(heroShadow))
         headerShadow = \(snippet(headerShadow))
         avatarShadow = \(snippet(avatarShadow))
-        platter = PlatterStyle(cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberLikeControls: \(platter.scrubberLikeControls), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow), alwaysGlass: \(platter.alwaysGlass), glass: .\(platter.glass.rawValue), colorStrength: \(f(platter.colorStrength)), frost: \(f(platter.frost)), glassTint: \(f(platter.glassTint)), backing: \(f(platter.backing)))
+        platter = PlatterStyle(cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberLikeControls: \(platter.scrubberLikeControls), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow), alwaysGlass: \(platter.alwaysGlass), glass: .\(platter.glass.rawValue), colorStrength: \(f(platter.colorStrength)), frost: \(f(platter.frost)), glassTint: \(f(platter.glassTint)), backing: \(f(platter.backing)), bottomEdge: \(f(platter.bottomEdge)))
         palette = CoverPaletteStyle(accentSaturation: \(f(palette.accentSaturation)), contentShare: \(f(palette.contentShare)), dimContentRatio: \(f(palette.dimContentRatio)), controlShare: \(f(palette.controlShare)), highlightOpacity: \(f(palette.highlightOpacity)), darkHighlightOpacity: \(f(palette.darkHighlightOpacity)), hoverHighlightOpacity: \(f(palette.hoverHighlightOpacity)), controlHoverOpacity: \(f3(palette.controlHoverOpacity)), controlPressedOpacity: \(f3(palette.controlPressedOpacity)), contrastGuard: \(palette.contrastGuard), darkChromaCap: \(f(palette.darkChromaCap)))
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))

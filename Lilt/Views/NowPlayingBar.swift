@@ -318,7 +318,8 @@ struct NowPlayingBar: View {
                     cast: platter.castEdge ? cast : nil,
                     castMix: playCast.rimMix,
                     blur: platter.castEdge ? playCast.rimBlur : 0,
-                    blend: platter.castEdge ? playCast.rimBlend.blendMode : .normal
+                    blend: platter.castEdge ? playCast.rimBlend.blendMode : .normal,
+                    bottomScale: platter.bottomEdge
                 )
             }
             .allowsHitTesting(false)

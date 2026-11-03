@@ -76,6 +76,15 @@ struct PlatterGlassTests {
         }
     }
 
+    /// The platter's own share of the glass edge's dark bottom line: 1 is today, lower softens
+    /// it on the platter alone (the header controls keep the surface's).
+    @Test func theBottomEdgeScalesOnThePlatterAlone() {
+        #expect(PlatterStyle.standard.bottomEdge == 1)
+        #expect(GlassEdge<Circle>.bottomOpacity(0.35, scale: 1) == 0.35)
+        #expect(abs(GlassEdge<Circle>.bottomOpacity(0.35, scale: 0.48) - 0.168) < 1e-9)
+        #expect(GlassEdge<Circle>.bottomOpacity(0.35, scale: 0) == 0)
+    }
+
     /// Reduce Transparency keeps the regular glass: clear's whole point is seeing through.
     @Test func reduceTransparencyFallsBackToRegular() {
         var style = PlatterStyle.standard
@@ -85,12 +94,12 @@ struct PlatterGlassTests {
 
     @Test func copyValuesCarriesTheGlass() {
         let style = ArtworkStyle()
-        #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .current, colorStrength: 1.00, frost: 0.00, glassTint: 0.00, backing: 0.00)"))
+        #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .current, colorStrength: 1.00, frost: 0.00, glassTint: 0.00, backing: 0.00, bottomEdge: 1.00)"))
         style.platter.glass = .clear
         style.platter.colorStrength = 0.64
         style.platter.frost = 0.32
         style.platter.glassTint = 0.16
         style.platter.backing = 0.08
-        #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .clear, colorStrength: 0.64, frost: 0.32, glassTint: 0.16, backing: 0.08)"))
+        #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .clear, colorStrength: 0.64, frost: 0.32, glassTint: 0.16, backing: 0.08, bottomEdge: 1.00)"))
     }
 }
