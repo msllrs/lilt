@@ -555,7 +555,7 @@ private struct HeroSnapBehavior: ScrollTargetBehavior {
 /// compact header casts onto the back button: the palette's accent container, its wash and rim,
 /// lit from the top here since the cover sits above. Lives on the label so the press scale
 /// moves the whole control.
-private struct HeroGlass<S: InsettableShape>: ViewModifier {
+struct HeroGlass<S: InsettableShape>: ViewModifier {
     let shape: S
     /// The page's palette with the hero's cast as its container seed.
     let palette: CoverPalette
