@@ -207,11 +207,12 @@ private struct NavigationColumn: View {
         .animation(Self.enter, value: path)
     }
 
-    /// The page just pushed brings its parts in one by one, if the variant does; any other page
-    /// (one come back to, one leaving) is simply there.
-    private func entrance(for item: BrowseItem, at position: StagedPosition, choreography: PageChoreography) -> PageEntrance? {
-        guard position == .top, let plan = choreography.entrance, let pushed = navigation.lastPushed, pushed.id == item.id else { return nil }
-        return PageEntrance(plan: plan, startedAt: pushed.at)
+    /// The screen that last came in on top, pushed or come back to, brings its parts in one by
+    /// one if the variant does. Read from each screen's own stamp, so a page's entrance doesn't
+    /// change as another is pushed over it.
+    private func entrance(for key: String, choreography: PageChoreography) -> PageEntrance? {
+        guard let plan = choreography.entrance, let at = navigation.arrivals[key] else { return nil }
+        return PageEntrance(plan: plan, startedAt: at)
     }
 
     /// Any other variant: each screen is staged by the choreography (see StagedScreen), with a
@@ -230,6 +231,7 @@ private struct NavigationColumn: View {
         return ZStack {
             StagedScreen(position: path.isEmpty ? .top : .behind, choreography: choreography, width: width, outOfSight: outOfSight, arrives: false) {
                 SearchScreen()
+                    .environment(\.pageEntrance, entrance(for: PageSpace.searchKey, choreography: choreography))
                     .environment(\.pageKey, PageSpace.searchKey)
             }
             // One ForEach for pages on the path and pages leaving, so a page popped (or pushed
@@ -238,7 +240,7 @@ private struct NavigationColumn: View {
             ForEach(entries, id: \.0.id) { item, position in
                 StagedScreen(position: position, choreography: choreography, width: width, outOfSight: outOfSight, arrives: hasAppeared) {
                     screen(for: item)
-                        .environment(\.pageEntrance, entrance(for: item, at: position, choreography: choreography))
+                        .environment(\.pageEntrance, entrance(for: item.id, choreography: choreography))
                         .environment(\.pageKey, item.id)
                 }
             }

@@ -68,10 +68,15 @@ final class NavigationModel {
     /// Bumps when the screen on top should fetch its content again (⌘R). Every screen in the
     /// stack sees it; only the one on top answers. Not persisted.
     private(set) var refreshRequest = 0
-    /// The page last pushed and when, for a page transition that brings a new page's parts in
-    /// one by one. Set before the path changes, so it's there as the page is first built.
-    /// Not observed, not persisted.
-    @ObservationIgnored private(set) var lastPushed: (id: String, at: Date)?
+    /// When each screen last came in on top, for a page transition that brings a page's parts
+    /// in one by one: the page pushed, or the one a pop revealed (the search root as
+    /// `PageSpace.searchKey`), so going to a page and coming back to one are the same entrance.
+    /// Kept per screen, so a page's stamp stays put while another is pushed over it (nothing in
+    /// it changes as it parks). Set before the path changes, so it's there as the page is first
+    /// built. Not observed, not persisted.
+    @ObservationIgnored private(set) var arrivals: [String: Date] = [:]
+    /// The screen that came in last, and when.
+    @ObservationIgnored private(set) var lastArrival: (id: String, at: Date)?
     /// Receives every page opened, for the recents menu. Wired by the app.
     @ObservationIgnored weak var recents: RecentsStore?
 
@@ -104,10 +109,12 @@ final class NavigationModel {
         // no-op; opening one further down the stack pops back to it rather than duplicating it,
         // since two screens with one identity render as nothing at all.
         if let existing = path.firstIndex(where: { $0.id == item.id }) {
+            guard existing < path.count - 1 else { return }
+            arrive(item.id, leaving: path[(existing + 1)...].map(\.id))
             path.removeSubrange((existing + 1)...)
             return
         }
-        lastPushed = (item.id, Date())
+        arrive(item.id, leaving: [])
         path.append(item)
         recents?.recordViewed(item)
     }
@@ -115,8 +122,16 @@ final class NavigationModel {
     func refresh() { refreshRequest += 1 }
 
     func pop() {
-        guard !path.isEmpty else { return }
+        guard let top = path.last else { return }
+        arrive(path.dropLast().last?.id ?? PageSpace.searchKey, leaving: [top.id])
         path.removeLast()
+    }
+
+    private func arrive(_ id: String, leaving: [String]) {
+        let now = Date()
+        for gone in leaving { arrivals[gone] = nil }
+        arrivals[id] = now
+        lastArrival = (id, now)
     }
 
     private func save() {

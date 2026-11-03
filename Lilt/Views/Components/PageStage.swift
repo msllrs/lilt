@@ -147,8 +147,8 @@ struct StagedScreen<Content: View>: View {
     }
 }
 
-/// The page just pushed, for variants that bring its parts in one by one: when it was pushed
-/// and when each part comes in.
+/// The screen that last came in on top (pushed, or revealed by a pop), for variants that bring
+/// its parts in one by one: when it came in and when each part does.
 struct PageEntrance: Equatable {
     let plan: EntrancePlan
     let startedAt: Date
@@ -158,25 +158,31 @@ struct PageEntrance: Equatable {
 }
 
 extension EnvironmentValues {
-    /// Set on the page just pushed while the variant staggers its parts in; nil everywhere else.
+    /// Set on a screen while the variant staggers its parts in, stamped each time the screen
+    /// comes in on top; nil everywhere else.
     @Entry var pageEntrance: PageEntrance? = nil
 }
 
 /// One part of a page coming in on its slot's delay: drawn faded and lowered by the plan's rise
-/// on its first frame, then rising into place. Outside a fresh entrance it is simply there.
+/// on its first frame (or, on a page come back to, the frame its entrance is stamped), then
+/// rising into place. Outside a fresh entrance it is simply there.
 private struct EntranceItem: ViewModifier {
     let slot: EntrancePlan.Slot
     @Environment(\.pageEntrance) private var entrance
-    @State private var arrived = false
+    /// The entrance this part has come in for.
+    @State private var seen: Date?
 
     func body(content: Content) -> some View {
-        let pending = !arrived && entrance?.isFresh == true
+        let pending = entrance.map { $0.startedAt != seen && $0.isFresh } ?? false
         content
-            .animation(entrance?.plan.phase(for: slot).animation) {
+            // Hidden at once (it may be on screen, about to come in again), brought in on its
+            // slot's delay.
+            .animation(pending ? nil : entrance?.plan.phase(for: slot).animation) {
                 $0.opacity(pending ? 0 : 1)
                     .offset(y: pending && (slot != .hero || entrance?.plan.heroRises == true) ? entrance?.plan.rise ?? 0 : 0)
             }
-            .onAppear { if entrance?.isFresh == true { arrived = true } }
+            .onAppear { if let entrance, entrance.isFresh { seen = entrance.startedAt } }
+            .onChange(of: entrance?.startedAt) { _, started in if entrance?.isFresh == true { seen = started } }
     }
 }
 

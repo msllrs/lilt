@@ -53,7 +53,7 @@ struct HomeScreen: View {
     private var feed: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(sections) { section in
+                ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
                     CollapsibleSection(title: section.title, scope: "home", items: section.items) { item in
                         switch item {
                         case .track(let track):
@@ -62,6 +62,8 @@ struct HomeScreen: View {
                             BrowseRow(item: browse)
                         }
                     }
+                    // Shelf by shelf, as the root comes back under a staggering transition.
+                    .entrance(.row(index))
                 }
             }
             .padding(.horizontal, Theme.Space.rowInset)

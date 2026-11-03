@@ -76,15 +76,18 @@ struct SearchScreen: View {
     private var resultsList: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
+                // Section by section, as the root comes back under a staggering transition.
                 if let top = results.top {
                     CollapsibleSection(title: "Top result", scope: "search", items: [top]) { BrowseRow(item: $0) }
+                        .entrance(.row(0))
                 }
                 if !results.songs.isEmpty {
                     CollapsibleSection(title: "Songs", scope: "search", items: results.songs) { TrackRows(tracks: results.songs, only: $0) }
+                        .entrance(.row(1))
                 }
-                browseSection("Artists", results.artists)
-                browseSection("Albums", results.albums)
-                browseSection("Playlists", results.playlists)
+                browseSection("Artists", results.artists).entrance(.row(2))
+                browseSection("Albums", results.albums).entrance(.row(3))
+                browseSection("Playlists", results.playlists).entrance(.row(4))
             }
             .padding(.horizontal, Theme.Space.rowInset)
             .padding(.bottom, Theme.Space.sm)

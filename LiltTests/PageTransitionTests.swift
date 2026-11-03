@@ -340,15 +340,19 @@ struct PageTransitionTests {
         let album = BrowseItem(id: "MPREb_test", kind: .album, title: "Lateralus", subtitle: "Tool", artworkURL: nil)
         let artist = BrowseItem(id: "UC_test", kind: .artist, title: "Tool", subtitle: "Artist", artworkURL: nil)
         navigation.open(album)
-        #expect(navigation.lastPushed?.id == album.id)
+        #expect(navigation.lastArrival?.id == album.id)
         navigation.open(artist)
-        #expect(navigation.lastPushed?.id == artist.id)
-        let stamped = navigation.lastPushed?.at
+        #expect(navigation.lastArrival?.id == artist.id)
+        let stamped = navigation.lastArrival?.at
         navigation.pop()
-        #expect(navigation.lastPushed?.id == album.id && navigation.lastPushed?.at != stamped)
+        #expect(navigation.lastArrival?.id == album.id && navigation.lastArrival?.at != stamped)
         navigation.open(artist)
         // Re-opening a page further down pops back to it: the page revealed comes in.
         navigation.open(album)
-        #expect(navigation.lastPushed?.id == album.id)
+        #expect(navigation.lastArrival?.id == album.id)
+        // Back to the root: the search screen comes in, and the popped page's stamp is let go.
+        navigation.pop()
+        #expect(navigation.lastArrival?.id == PageSpace.searchKey)
+        #expect(navigation.arrivals[album.id] == nil && navigation.arrivals[PageSpace.searchKey] != nil)
     }
 }
