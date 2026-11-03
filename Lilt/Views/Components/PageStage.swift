@@ -4,7 +4,7 @@ import SwiftUI
 /// to (or from) where it waits behind the page on top or in front before it arrives. Offset
 /// and scale ride the timing's motion phase, the fade its opacity phase, each through its own
 /// scoped animation, so a page can be gone long before it has finished moving. Only opacity,
-/// offset and scale animate on the flattened page; blur and the wipe's mask are there only for
+/// travel and scale animate on the flattened page; blur and the wipe's mask are there only for
 /// the variants that use them.
 struct PageStage: ViewModifier {
     let look: PageLook
@@ -20,7 +20,7 @@ struct PageStage: ViewModifier {
     func body(content: Content) -> some View {
         let moved = content
             .animation(timing.motion.animation) {
-                $0.offset(x: look.x, y: look.y)
+                $0.modifier(PageSlide(x: look.x, y: look.y))
                     .scaleEffect(look.scale, anchor: anchor)
             }
         let flat = Group {
@@ -42,6 +42,25 @@ struct PageStage: ViewModifier {
         } else {
             faded
         }
+    }
+}
+
+/// A page's travel as a render transform. Not `offset`: an offset moves a page's AppKit views
+/// (its scroll view) by their frames, and a frame change takes the update's own transaction,
+/// not a scoped animation, so under `PageStage` it landed in one step on the first frame (12pt
+/// for the sequenced fade, 120pt for the parallax) while the fade around it animated. A
+/// transform, like the scale beside it, is drawn, so it animates where it's scoped.
+nonisolated struct PageSlide: GeometryEffect {
+    var x: CGFloat
+    var y: CGFloat
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(x, y) }
+        set { x = newValue.first; y = newValue.second }
+    }
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(translationX: x, y: y))
     }
 }
 
