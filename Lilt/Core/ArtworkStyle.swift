@@ -231,8 +231,8 @@ struct HeroSnapStyle: Equatable {
 /// menu just did (Copy Link, Play Next, Add to Queue). Clipped to the row's highlight shape.
 /// Under Reduce Motion there's no sweep (see Theme.Motion.shine).
 struct ShineStyle: Equatable, Sendable {
-    /// Seconds for the band to cross the row.
-    var duration: Double = 0.5
+    /// Seconds for the band to cross the row. Tuned by Matt in the tweak panel on 2026-11-03.
+    var duration: Double = 0.2
     /// The band's width as a share of the row's.
     var band: Double = 0.4
     /// Peak white at the band's centre: added light in dark mode, an overlay in light mode,

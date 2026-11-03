@@ -17,7 +17,7 @@ struct FeedbackMotionTests {
         let style = ShineStyle.standard
         #expect(Self.at(1) { Theme.Motion.shine(style) } == .easeInOut(duration: style.duration))
         #expect(Self.at(0.25) { Theme.Motion.shine(style) } == .easeInOut(duration: style.duration / 0.25))
-        #expect(style.duration == 0.5)
+        #expect(style.duration == 0.2)
     }
 
     @Test func underReduceMotionThereIsNoShine() {
