@@ -215,3 +215,60 @@ struct MixTests {
         await #expect(throws: (any Error).self) { try await music.mix(for: schism) }
     }
 }
+
+/// What Start Mix does with the mix: plays it as a list of its own, or says it couldn't.
+@MainActor
+struct StartMixTests {
+    private let schism = Track(id: "tuw1ziytBDk", title: "Schism", artist: "Tool")
+    private let forty = Track(id: "ZLDUbN0Gp2M", title: "Forty Six & 2", artist: "Tool")
+    private let lateralus = Track(id: "Y7JG63IuaWs", title: "Lateralus", artist: "Tool")
+
+    private func music(failing: Bool = false) -> YTMusicClient {
+        YTMusicClient(auth: AuthService(), fetchWatch: { _, _ in
+            if failing { throw URLError(.notConnectedToInternet) }
+            return try MixTests.panel()
+        })
+    }
+
+    private func loads(_ fakes: FakePlayers) -> [String] { fakes.all.flatMap(\.calls).filter { $0.hasPrefix("load:") } }
+
+    @Test func aMixReplacesTheQueueQuietly() async throws {
+        try await withFakePlayer([forty, lateralus], gapless: false) { player, fakes in
+            let center = NoticeCenter(clock: ManualNoticeClock())
+            await RowMenu.startMix(for: schism, player: player, music: music(), notices: center).value
+            #expect(player.current?.id == schism.id)
+            #expect(player.queue.map(\.id) == ["tuw1ziytBDk", "VtNxCk5Ag7w", "nspxAG12Cpc"])
+            #expect(player.sourceTitle == "Mix – Schism", "Up Next reads \"Up next from Mix – Schism\"")
+            #expect(player.sourceId == "RDAMVMtuw1ziytBDk")
+            #expect(loads(fakes).last == "load:tuw1ziytBDk")
+            #expect(center.current == nil, "playing is the confirmation")
+        }
+    }
+
+    @Test func theSongPlayingPlaysOnIntoItsMix() async throws {
+        try await withFakePlayer([schism, forty], gapless: false) { player, fakes in
+            let before = loads(fakes)
+            await RowMenu.startMix(for: schism, player: player, music: music(), notices: nil).value
+            #expect(loads(fakes) == before, "the song isn't started over")
+            #expect(player.current?.id == schism.id)
+            #expect(player.automaticUpcoming.map(\.title) == ["Parabola", "Sober"])
+            #expect(player.sourceTitle == "Mix – Schism")
+        }
+    }
+
+    @Test func aMixThatWontLoadSaysSoAndLeavesTheQueue() async throws {
+        try await withFakePlayer([forty, lateralus], gapless: false) { player, _ in
+            let center = NoticeCenter(clock: ManualNoticeClock())
+            await RowMenu.startMix(for: schism, player: player, music: music(failing: true), notices: center).value
+            #expect(center.current?.spoken == "Couldn't start mix Schism")
+            #expect(center.current?.icon == .symbol("exclamationmark.triangle"))
+            #expect(center.current?.action == nil)
+            #expect(player.queue.map(\.id) == [forty.id, lateralus.id])
+        }
+    }
+
+    @Test func startMixNeverShines() {
+        #expect(!ShineTrigger.shines(after: .startMix))
+        #expect(RowAction.startMix.title == "Start Mix")
+    }
+}

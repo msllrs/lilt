@@ -222,6 +222,25 @@ final class PlayerService {
         play(tracks, startingAt: Int.random(in: tracks.indices), source: source)
     }
 
+    /// Plays a mix from its first song, as `play` does, unless that song is the one playing (a
+    /// mix started from the song you're listening to): then it plays on uninterrupted and the
+    /// mix becomes what follows it, in place of the rest of the queue.
+    func playMix(_ tracks: [Track], source: BrowseItem) {
+        guard let first = tracks.first else { return }
+        guard let current, current.id == first.id else {
+            play(tracks, startingAt: 0, source: source)
+            return
+        }
+        sourceId = source.id
+        sourceTitle = source.title
+        queue = [current] + tracks.dropFirst()
+        currentIndex = 0
+        unshuffledQueue = nil
+        manualTokens = []
+        if isShuffled { shuffleRemainder(keeping: 0, reload: false) }
+        save()
+    }
+
     /// Shuffle what's left after the current track; off restores the original order.
     func toggleShuffle() {
         isShuffled.toggle()

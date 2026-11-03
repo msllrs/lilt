@@ -49,6 +49,35 @@ extension RowMenu {
         })
     }
 
+    // MARK: Mixes
+
+    /// Start Mix for a song: its radio replaces the queue. Playback starting is the
+    /// confirmation, so only a failure posts a notice. Returns the fetch, for tests to wait on.
+    @discardableResult
+    static func startMix(for track: Track, player: PlayerService, music: YTMusicClient, notices: NoticeCenter?) -> Task<Void, Never> {
+        startMix(named: track.title, artwork: track.artworkURL, player: player, notices: notices) { try await music.mix(for: track) }
+    }
+
+    /// Start Mix for an album, playlist or artist.
+    @discardableResult
+    static func startMix(for item: BrowseItem, player: PlayerService, music: YTMusicClient, notices: NoticeCenter?) -> Task<Void, Never> {
+        startMix(named: item.title, artwork: item.artworkURL, player: player, notices: notices) { try await music.mix(for: item) }
+    }
+
+    /// Nothing shows while the mix loads. It plays as a list of its own, so Up Next reads
+    /// "Up next from Mix – Schism" (the panel's name for it, or one made the same way).
+    private static func startMix(named name: String, artwork: URL?, player: PlayerService, notices: NoticeCenter?, fetch: @escaping @MainActor () async throws -> Mix) -> Task<Void, Never> {
+        Task {
+            guard let mix = try? await fetch(), !mix.tracks.isEmpty else {
+                notices?.post(name, label: "Couldn't start mix", icon: .symbol("exclamationmark.triangle"))
+                return
+            }
+            let source = BrowseItem(id: mix.playlistId, kind: .playlist, title: mix.title ?? "Mix – \(name)", subtitle: "Mix", artworkURL: artwork)
+            player.playMix(mix.tracks, source: source)
+            AppDelegate.shared?.queueDidChange()
+        }
+    }
+
     // MARK: Library
 
     /// Like or Unlike from a menu; Undo sets it back the same way.

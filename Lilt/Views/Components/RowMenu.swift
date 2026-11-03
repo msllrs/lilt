@@ -3,7 +3,7 @@ import SwiftUI
 
 /// One entry in a row's right-click menu.
 enum RowAction: Hashable {
-    case play, shuffle, playNext, addToQueue, removeFromQueue
+    case play, shuffle, startMix, playNext, addToQueue, removeFromQueue
     case addToPlaylist, removeFromPlaylist
     case like, unlike
     case goToArtist, goToAlbum
@@ -13,6 +13,7 @@ enum RowAction: Hashable {
         switch self {
         case .play: "Play"
         case .shuffle: "Shuffle Play"
+        case .startMix: "Start Mix"
         case .playNext: "Play Next"
         case .addToQueue: "Add to Queue"
         case .removeFromQueue: "Remove from Queue"
