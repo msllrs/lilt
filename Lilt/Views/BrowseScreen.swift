@@ -397,6 +397,7 @@ struct BrowseScreen: View {
                 radius: page.item.kind == .artist ? 70 : Theme.Radius.standalone,
                 context: .hero
             )
+            .heroTarget(item.id, radius: page.item.kind == .artist ? 70 : Theme.Radius.standalone)
             .entrance(.hero)
             VStack(spacing: 2) {
                 Text(page.item.title)

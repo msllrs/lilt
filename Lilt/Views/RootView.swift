@@ -131,8 +131,11 @@ private struct NavigationColumn: View {
     /// The page transition lab's pick (tweak panel ▸ Page transition); always Current in
     /// release builds.
     @State private var transitions = PageTransitionSettings.shared
-    /// The column's width, for the masked wipe's soft edge. Changes only as the panel resizes.
+    /// The column's width, for the masked wipe's soft edge, and its height, for whether a hero
+    /// morph's row is on screen. Change only as the panel resizes.
     @State private var width: CGFloat = 320
+    @State private var height: CGFloat = 600
+    @State private var flights = HeroFlight.shared
     /// The staged stack's pages popped and still on their way out, and the path as last drawn.
     @State private var leaving: [BrowseItem] = []
     @State private var shownPath: [BrowseItem] = []
@@ -223,9 +226,11 @@ private struct NavigationColumn: View {
         // the page on top again, from wherever it had got to.
         var gone = leaving.filter { !ids.contains($0.id) }
         for item in shownPath where !ids.contains(item.id) && !gone.contains(where: { $0.id == item.id }) { gone.append(item) }
+        let tracksHeroes = choreography.flight != nil
         return ZStack {
             StagedScreen(position: path.isEmpty ? .top : .behind, choreography: choreography, width: width, outOfSight: outOfSight, arrives: false) {
                 SearchScreen()
+                    .environment(\.pageKey, PageSpace.searchKey)
             }
             // One ForEach for pages on the path and pages leaving, so a page popped (or pushed
             // back while leaving) keeps its view as it changes role.
@@ -234,12 +239,29 @@ private struct NavigationColumn: View {
                 StagedScreen(position: position, choreography: choreography, width: width, outOfSight: outOfSight, arrives: hasAppeared) {
                     screen(for: item)
                         .environment(\.pageEntrance, entrance(for: item, at: position, choreography: choreography))
+                        .environment(\.pageKey, item.id)
                 }
             }
         }
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .environment(\.heroTracking, tracksHeroes)
+        // The hero morph's ghost, above every page and beneath the header's back button.
+        .overlay {
+            if tracksHeroes, let flight = flights.flight, let phase = choreography.flight {
+                HeroGhost(flight: flight, phase: phase)
+                    .id(flight.id)
+            }
+        }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { width = $0.width; height = $0.height }
         .onAppear { hasAppeared = true; shownPath = path }
         .onChange(of: path) { old, new in
+            if tracksHeroes {
+                // On screen: below the header, within the column (under the platter is fine,
+                // the ghost flies beneath it like the pages).
+                let top = Theme.Space.panelInset + Theme.Size.headerRow + Theme.Space.sm
+                flights.pathChanged(from: old, to: new, bounds: CGRect(x: 0, y: top, width: width, height: max(height - top, 0)))
+            } else {
+                flights.cancel()
+            }
             let now = Set(new.map(\.id))
             let popped = old.filter { !now.contains($0.id) }
             leaving.removeAll { now.contains($0.id) }

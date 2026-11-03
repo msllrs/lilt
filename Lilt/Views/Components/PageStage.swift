@@ -136,6 +136,8 @@ struct StagedScreen<Content: View>: View {
         let parked = position != .top
         let feather: CGFloat? = c.usesMask ? c.maskFeather / max(width, 1) : nil
         return content
+            // Frames measured inside the page (the hero morph's) ignore how it is staged.
+            .coordinateSpace(.named(PageSpace.name))
             .modifier(PageStage(look: look, timing: timing, blur: blur, anchor: c.scaleAnchor, maskFeather: feather, flattens: true))
             .allowsHitTesting(!parked)
             .accessibilityHidden(parked)
@@ -172,7 +174,7 @@ private struct EntranceItem: ViewModifier {
         content
             .animation(entrance?.plan.phase(for: slot).animation) {
                 $0.opacity(pending ? 0 : 1)
-                    .offset(y: pending ? entrance?.plan.rise ?? 0 : 0)
+                    .offset(y: pending && (slot != .hero || entrance?.plan.heroRises == true) ? entrance?.plan.rise ?? 0 : 0)
             }
             .onAppear { if entrance?.isFresh == true { arrived = true } }
     }

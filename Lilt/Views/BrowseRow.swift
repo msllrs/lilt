@@ -17,15 +17,23 @@ struct BrowseRow: View {
     @State private var isHoveringArtwork = false
     /// Copy Link, Play Next and Add to Queue from the menu sweep a light across the row.
     @State private var shine = ShineTrigger()
+    /// Where the cover is, for the hero morph's flight to the page.
+    @State private var coverFrame = HeroFrameBox()
+    @Environment(\.heroTracking) private var tracksHeroes
+    @Environment(\.pageKey) private var screen
 
     private var artworkRadius: CGFloat { item.kind == .artist ? Theme.Size.rowArtwork / 2 : Theme.Radius.rowArtwork }
 
     var body: some View {
         Button {
+            if tracksHeroes {
+                HeroFlight.shared.tapped(item, on: screen, frame: coverFrame.frame, radius: artworkRadius, path: navigation.path)
+            }
             navigation.open(item)
         } label: {
             HStack(spacing: Theme.Space.md) {
                 artwork
+                    .heroSource(item.id, isHovering: isHovering, box: coverFrame)
                 VStack(alignment: .leading, spacing: 2) {
                     MarqueeText(text: item.title, isActive: isHovering, font: .body)
                     subtitle

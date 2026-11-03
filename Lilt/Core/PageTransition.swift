@@ -309,6 +309,8 @@ struct EntrancePlan: Equatable, Sendable {
     var duration: TimeInterval
     var curve: PageCurve
     var rise: CGFloat
+    /// The hero cover rises with the rest; not when a ghost of it flies there instead.
+    var heroRises = true
 
     func phase(for slot: Slot) -> PagePhase {
         let delay: TimeInterval = switch slot {
@@ -463,8 +465,8 @@ struct PageChoreography: Equatable, Sendable {
             // that, `stagger` apart, capped at six).
             let arrive = timing(phase(0.08, 0.15, .easeOut))
             let plan = EntrancePlan(
-                hero: s(0.07), title: s(0.08), controls: s(0.12), firstRow: s(0.2), rowStep: s(d.stagger), rowCap: 6,
-                duration: s(0.24), curve: .spring, rise: d.travel
+                hero: 0, title: s(0.08), controls: s(0.12), firstRow: s(0.2), rowStep: s(d.stagger), rowCap: 6,
+                duration: s(0.24), curve: .spring, rise: d.travel, heroRises: false
             )
             return PageChoreography(
                 transition: transition,
