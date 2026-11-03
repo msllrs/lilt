@@ -91,9 +91,49 @@ struct PlatterStyle: Equatable {
     /// The platter always wears its glass. Off restores the window-glass era rule, where it went
     /// bare whenever nothing scrolled beneath it.
     var alwaysGlass: Bool = true
+    /// The glass beneath the cover's colour: today's regular glass, or the search field's clear
+    /// glass, whose lensing and native edge read through the colour above it.
+    var glass: PlatterGlass = .current
+    /// How strongly the colour layers (the blurred cover and the wash) sit over the glass, as a
+    /// share of the surface's own strengths: 1 is today, lower lets more glass show.
+    var colorStrength: Double = 1.0
 
     /// Tuned by Matt in the tweak panel on 2026-10-01; colour dials on 2026-10-02.
     static let standard = PlatterStyle()
+
+    /// What the platter's background draws: the glass material, the blurred cover's opacity
+    /// (the surface's `tintOpacity`, brightened under the pointer) and the wash's opacity.
+    func layers(tintOpacity: Double, hoverBrightness: Double, hovering: Bool, reduceTransparency: Bool) -> PlatterLayers {
+        PlatterLayers(
+            // Clear is all about seeing through; with Reduce Transparency it stays regular.
+            material: glass == .clear && !reduceTransparency ? .clear : .regular,
+            coverOpacity: tintOpacity * (hovering ? 1 + hoverBrightness : 1) * colorStrength,
+            washOpacity: colorStrength
+        )
+    }
+}
+
+/// The glass the platter's colour sits on.
+enum PlatterGlass: String, CaseIterable, Identifiable {
+    /// `glassEffect(.regular)`, as the platter has always been.
+    case current
+    /// `glassEffect(.clear)`, the search field's glass.
+    case clear
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .current: "Current"
+        case .clear: "Clear, like search"
+        }
+    }
+}
+
+/// The platter's background as `PlatterStyle.layers` describes it.
+struct PlatterLayers: Equatable {
+    enum Material: Equatable { case regular, clear }
+    var material: Material
+    var coverOpacity: Double
+    var washOpacity: Double
 }
 
 /// The dials `CoverPalette` builds its roles from: each role's share of the cover's accent, and
@@ -661,7 +701,7 @@ final class ArtworkStyle {
         heroShadow = \(snippet(heroShadow))
         headerShadow = \(snippet(headerShadow))
         avatarShadow = \(snippet(avatarShadow))
-        platter = PlatterStyle(cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberLikeControls: \(platter.scrubberLikeControls), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow), alwaysGlass: \(platter.alwaysGlass))
+        platter = PlatterStyle(cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberLikeControls: \(platter.scrubberLikeControls), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow), alwaysGlass: \(platter.alwaysGlass), glass: .\(platter.glass.rawValue), colorStrength: \(f(platter.colorStrength)))
         palette = CoverPaletteStyle(accentSaturation: \(f(palette.accentSaturation)), contentShare: \(f(palette.contentShare)), dimContentRatio: \(f(palette.dimContentRatio)), controlShare: \(f(palette.controlShare)), highlightOpacity: \(f(palette.highlightOpacity)), darkHighlightOpacity: \(f(palette.darkHighlightOpacity)), hoverHighlightOpacity: \(f(palette.hoverHighlightOpacity)), controlHoverOpacity: \(f3(palette.controlHoverOpacity)), controlPressedOpacity: \(f3(palette.controlPressedOpacity)), contrastGuard: \(palette.contrastGuard), darkChromaCap: \(f(palette.darkChromaCap)))
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))

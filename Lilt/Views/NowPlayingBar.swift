@@ -182,9 +182,15 @@ struct NowPlayingBar: View {
         .background {
             // Glass, tint, edge and shadow only earn their place when rows pass beneath; at the
             // end of a list the platter is bare.
+            let layers = platter.layers(
+                tintOpacity: surface.tintOpacity,
+                hoverBrightness: surface.hoverBrightness,
+                hovering: isHoveringPlatter,
+                reduceTransparency: reduceTransparency
+            )
             ZStack {
                 Color.clear
-                    .glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
+                    .glassEffect(layers.material == .clear ? .clear : .regular, in: .rect(cornerRadius: Theme.Radius.panel, style: .continuous))
                     // In mini the window's own shadow does this job; a soft shadow in the app's
                     // pixels would just grow the window's hit shape and get a hard shadow of its own.
                     .shadow(
@@ -207,7 +213,7 @@ struct NowPlayingBar: View {
                                 .transition(.opacity)
                         }
                         // A touch brighter under the pointer, like glass catching more light.
-                        .opacity(surface.tintOpacity * (isHoveringPlatter ? 1 + surface.hoverBrightness : 1))
+                        .opacity(layers.coverOpacity)
                         .clipShape(shape)
                 }
                 // The dominant colour pooled behind the cover (or along the top), as if it spilled.
@@ -222,6 +228,7 @@ struct NowPlayingBar: View {
                                 endRadiusFraction: platter.cornerAccentRadius
                             )
                         )
+                        .opacity(layers.washOpacity)
                     }
                 }
             }
