@@ -96,7 +96,7 @@ struct LibraryArrivalTests {
 
     private func arrive(_ content: LibraryContent) async throws -> Arrival {
         let auth = AuthService()
-        let music = YTMusicClient(auth: auth, library: content, fetchAccount: { nil })
+        let music = YTMusicClient(auth: auth, persists: false, library: content, fetchAccount: { nil })
         let model = Model()
         let view = Column(model: model, music: music)
             .environment(auth)

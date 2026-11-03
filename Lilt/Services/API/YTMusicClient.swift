@@ -24,8 +24,7 @@ final class YTMusicClient {
     @ObservationIgnored private var libraryCache: (content: LibraryContent, fetched: Date)?
     /// Which account the API answers for. Tests stand in here.
     @ObservationIgnored private let fetchAccount: (@MainActor () async throws -> AccountInfo?)?
-    /// Whether the caches come from and go to disk. A client made with a library of its own
-    /// (tests) keeps everything in memory.
+    /// Whether the caches come from and go to disk. Tests keep everything in memory.
     @ObservationIgnored private let persists: Bool
 
     // Disk persistence so a relaunch starts warm: stale-while-revalidate.
@@ -68,6 +67,7 @@ final class YTMusicClient {
         write: (@MainActor (_ endpoint: String, _ body: [String: Any]) async throws -> JSONObject)? = nil,
         fetchNext: (@MainActor (_ videoId: String) async throws -> JSONObject)? = nil,
         fetchWatch: (@MainActor (_ playlistId: String, _ videoId: String?) async throws -> JSONObject)? = nil,
+        persists: Bool = true,
         library: LibraryContent? = nil,
         fetchAccount: (@MainActor () async throws -> AccountInfo?)? = nil
     ) {
@@ -88,9 +88,10 @@ final class YTMusicClient {
             if let videoId { body["videoId"] = videoId }
             return try await client.post("next", body: body)
         }
-        persists = library == nil
+        self.persists = persists
         self.fetchAccount = fetchAccount
-        if let library { libraryCache = (library, .now) } else { restore() }
+        if persists { restore() }
+        if let library { libraryCache = (library, .now) }
     }
 
     func search(_ query: String) async throws -> SearchResults {
@@ -186,11 +187,11 @@ final class YTMusicClient {
             Self.prefetchArtwork(of: cached.content)
             return cached.content
         }
-        async let playlists = client.post("browse", body: ["browseId": "FEmusic_liked_playlists"])
-        async let albums = client.post("browse", body: ["browseId": "FEmusic_liked_albums"])
-        async let artists = client.post("browse", body: ["browseId": "FEmusic_library_corpus_track_artists"])
+        async let playlists = fetchPage("FEmusic_liked_playlists")
+        async let albums = fetchPage("FEmusic_liked_albums")
+        async let artists = fetchPage("FEmusic_library_corpus_track_artists")
         // Artists you've subscribed to live under a separate id from artists of saved tracks.
-        async let subscriptions = client.post("browse", body: ["browseId": "FEmusic_library_corpus_artists"])
+        async let subscriptions = fetchPage("FEmusic_library_corpus_artists")
         var content = LibraryContent()
         // The playlists feed includes a "New playlist" tile and the liked-music auto playlist;
         // drop anything without a real playlist id and make sure Liked Music leads.
