@@ -9,19 +9,20 @@ import Testing
 /// Slowed to a tenth.
 @MainActor
 struct PageStageRenderTests {
+    @Observable final class Model { var path: [BrowseItem] = [] }
+    private static let album = BrowseItem(id: "MPREb_test", kind: .album, title: "Lateralus", subtitle: "Tool", artworkURL: nil)
+
+    /// Driven by an observed path, as the column is: swapping the hosting view's root view
+    /// instead cuts a removal short.
     private struct Stack: View {
-        let pushed: Bool
+        let model: Model
         let choreography: PageChoreography
 
         var body: some View {
-            ZStack {
-                StagedScreen(position: pushed ? .behind : .top, choreography: choreography, width: 200, outOfSight: false, arrives: false) {
-                    page(Color(red: 1, green: 0, blue: 0), alignment: .leading)
-                }
-                // Before the push it waits out of the way, as a page that has left does.
-                StagedScreen(position: pushed ? .top : .leaving, choreography: choreography, width: 200, outOfSight: false, arrives: true) {
-                    page(Color(red: 0, green: 0, blue: 1), alignment: .trailing)
-                }
+            StagedStack(path: model.path, choreography: choreography, outOfSight: false) {
+                page(Color(red: 1, green: 0, blue: 0), alignment: .leading)
+            } page: { _ in
+                page(Color(red: 0, green: 0, blue: 1), alignment: .trailing)
             }
             .frame(width: 200, height: 100)
             .background(.white)
@@ -52,16 +53,17 @@ struct PageStageRenderTests {
     /// popped page is kept while it fades out, and each ends where it should. The two pages
     /// never showing at once is checked on the timings themselves (PageTransitionTests).
     @Test func pushedAndPoppedPagesFadeRatherThanCut() async throws {
-        // Not the blur-through cut: off screen its popped page comes back whole, then gone,
-        // with nothing between; only a live look can settle that.
-        for transition in [PageTransition.sequencedFade, .scaleDepth] {
+        // Not the variants that move their page off the sampled pixel (parallax, wipe), nor the
+        // blur-through cut, whose blur off screen holds the whole stack back by a second or more.
+        for transition in [PageTransition.sequencedFade, .scaleDepth, .staggered, .heroMorph] {
             try await run(transition)
         }
     }
 
     private func run(_ transition: PageTransition) async throws {
         let choreography = PageChoreography.make(transition, dials: .defaults(for: transition), pace: MotionPace(speed: 0.1))
-        let hosting = NSHostingView(rootView: Stack(pushed: false, choreography: choreography))
+        let model = Model()
+        let hosting = NSHostingView(rootView: Stack(model: model, choreography: choreography))
         hosting.frame = CGRect(x: 0, y: 0, width: 200, height: 100)
         let window = NSWindow(contentRect: CGRect(x: -10_000, y: -10_000, width: 200, height: 100), styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -74,10 +76,10 @@ struct PageStageRenderTests {
         #expect(full.red > 0.5 && full.blue < 0.02)
 
         func run(pushed: Bool) async throws -> [(red: Double, blue: Double)] {
-            hosting.rootView = Stack(pushed: pushed, choreography: choreography)
+            model.path = pushed ? [Self.album] : []
             var frames: [(red: Double, blue: Double)] = []
             let start = Date()
-            while Date().timeIntervalSince(start) < choreography.longest * 2 + 1 {
+            while Date().timeIntervalSince(start) < choreography.settled + 1 {
                 try await Task.sleep(for: .milliseconds(15))
                 frames.append(sample(hosting))
             }

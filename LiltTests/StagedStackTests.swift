@@ -27,7 +27,7 @@ struct StagedStackTests {
         var body: some View {
             log.bodies[key, default: 0] += 1
             _ = (parked, entrance)
-            return Color(red: 0, green: 0, blue: 1)
+            return (key == PageSpace.searchKey ? Color(red: 1, green: 0, blue: 0) : Color(red: 0, green: 0, blue: 1))
                 .onDisappear { log.gone[key] = Date() }
         }
     }
@@ -44,6 +44,7 @@ struct StagedStackTests {
                 Page(key: item.id, log: log)
             }
             .frame(width: 200, height: 100)
+            .background(.white)
         }
     }
 
@@ -80,9 +81,10 @@ struct StagedStackTests {
             try await Task.sleep(for: .seconds(choreography.longest * 2 + 0.3))
             let popped = Date()
             model.path = []
-            let settle = Self.settled(choreography.unpark.opacity) + 0, motion = Self.settled(choreography.unpark.motion)
-            let wait = max(settle, motion)
-            try await Task.sleep(for: .seconds(wait + 0.6))
+            let wait = max(Self.settled(choreography.unpark.opacity), Self.settled(choreography.unpark.motion))
+            // The hero morph's flight back can outlast the page come back to; the page waits for it.
+            let flight = choreography.flight.map(Self.settled) ?? 0
+            try await Task.sleep(for: .seconds(max(wait, flight) + 1.2))
             let gone = try #require(log.gone[Self.album.id], "\(transition): the popped page was never let go")
             let after = gone.timeIntervalSince(popped)
             #expect(after >= wait - 0.02, "\(transition): torn down \(after)s into the pop, the page come back to settles at \(wait)s")
@@ -106,6 +108,29 @@ struct StagedStackTests {
             model.path = []
             try await Task.sleep(for: .seconds(choreography.longest * 2 + 0.5))
             #expect(log.bodies[Self.album.id] == before, "\(transition): the leaving page was evaluated \((log.bodies[Self.album.id] ?? 0) - before) more times")
+        }
+    }
+
+    /// A page pushed again while it is still leaving comes back and stays, alone on top.
+    @Test func aPagePushedAgainWhileLeavingComesBack() async throws {
+        for transition in Self.staged {
+            let choreography = PageChoreography.make(transition, dials: .defaults(for: transition), pace: MotionPace(speed: 0.5))
+            let model = Model(), log = Log()
+            let window = host(model, choreography, log)
+            defer { window.close() }
+            try await Task.sleep(for: .milliseconds(150))
+            model.path = [Self.album]
+            try await Task.sleep(for: .seconds(choreography.settled + 0.3))
+            model.path = []
+            try await Task.sleep(for: .seconds(choreography.remove.end / 2))
+            model.path = [Self.album]
+            try await Task.sleep(for: .seconds(choreography.settled * 2 + 0.6))
+            let hosting = try #require(window.contentView)
+            let rep = try #require(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
+            hosting.cacheDisplay(in: hosting.bounds, to: rep)
+            let c = try #require(rep.colorAt(x: rep.pixelsWide / 2, y: rep.pixelsHigh / 2)?.usingColorSpace(.sRGB))
+            // The page is blue, the root red, the background white: only the page shows.
+            #expect(c.blueComponent > 0.5 && c.redComponent < 0.2, "\(transition): the page pushed back didn't stay (\(c))")
         }
     }
 }

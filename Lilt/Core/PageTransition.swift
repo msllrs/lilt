@@ -210,6 +210,11 @@ struct PagePhase: Equatable, Sendable {
     /// When the change has (visually) finished.
     var end: TimeInterval { delay + duration }
 
+    /// When the change has come to rest: a spring runs on past its duration to its settling.
+    var settled: TimeInterval {
+        delay + (curve == .spring && duration > 0 ? Spring(duration: duration, bounce: 0).settlingDuration : duration)
+    }
+
     var animation: Animation {
         let base: Animation = switch curve {
         case .easeOut: .easeOut(duration: max(duration, 0.0001))
@@ -351,6 +356,11 @@ struct PageChoreography: Equatable, Sendable {
 
     /// The longest any page takes in any role.
     var longest: TimeInterval { [park.end, unpark.end, insert.end, remove.end, flight?.end ?? 0].max() ?? 0 }
+
+    /// When every page in a move has come to rest, springs settled and the flight landed.
+    var settled: TimeInterval {
+        ([park, unpark, insert, remove].flatMap { [$0.opacity.settled, $0.motion.settled] } + [flight?.settled ?? 0]).max() ?? 0
+    }
 
     /// The page leaving and the page arriving in a move, each as (look away from its place,
     /// whether it is heading there or coming from there, timing).
