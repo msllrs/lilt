@@ -144,6 +144,12 @@ struct BrowseScreen: View {
     private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
     private var ambientStyle: PageAmbientStyle { ArtworkStyle.shared.pageAmbient }
 
+    /// The palette the related sections' headers read: the page's own, or with the tweak panel's
+    /// toggle off none, so they go plain like their rows.
+    static func relatedSectionPalette(_ palette: CoverPalette, style: PageAmbientStyle) -> CoverPalette? {
+        style.tintsSectionHeaders ? palette : nil
+    }
+
     /// The content's own coordinates, for measuring where things sit in it whatever the scroll.
     private static let contentSpace = "BrowseScreen.content"
 
@@ -363,6 +369,7 @@ struct BrowseScreen: View {
                         // The header is this page's; the rows are other albums and artists, with
                         // covers of their own, so they keep the plain colours.
                         CollapsibleSection(title: section.title, scope: "page", items: section.items) { BrowseRow(item: $0).environment(\.coverPalette, nil) }
+                            .environment(\.coverPalette, Self.relatedSectionPalette(palette, style: ambientStyle))
                             .entrance(.row(.max))
                     }
                 }

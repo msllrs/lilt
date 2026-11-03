@@ -72,6 +72,17 @@ struct PageAmbientTests {
         #expect(style.opacity(scrollOffset: 500, sectionsStart: 500) == 0)
     }
 
+    /// The related sections' headers take the album's palette, or with the toggle off the plain
+    /// colours, like their rows.
+    @Test func relatedHeadersCanGoPlain() {
+        let palette = BrowseScreen.palette(kind: .album, accent: Color(red: 0.8, green: 0.2, blue: 0.2), colorScheme: .light)
+        var style = PageAmbientStyle.standard
+        #expect(BrowseScreen.relatedSectionPalette(palette, style: style)?.primary == palette.primary)
+        #expect(BrowseScreen.relatedSectionPalette(palette, style: style)?.primary != nil)
+        style.tintsSectionHeaders = false
+        #expect(BrowseScreen.relatedSectionPalette(palette, style: style) == nil)
+    }
+
     /// "Copy values" carries the new dials.
     @Test func copyValuesCarriesTheNewDials() {
         let style = ArtworkStyle()
