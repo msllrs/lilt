@@ -29,13 +29,14 @@ struct PageTransitionTests {
         }
     }
 
-    @Test func untilOneIsPickedPagesUseTheCurrentHandOff() {
+    @Test func untilOneIsPickedPagesUseBlurAndSlide() {
         let saved = SavedDefaults()
         defer { saved.restore() }
         UserDefaults.standard.removeObject(forKey: PageTransitionSettings.transitionKey)
         UserDefaults.standard.removeObject(forKey: PageTransitionSettings.dialsKey)
         let settings = PageTransitionSettings()
-        #expect(settings.transition == .current)
+        #expect(settings.transition == .blurSlide)
+        #expect(settings.dials(for: .blurSlide) == PageTransitionDials(duration: 0.2, travel: 8, stagger: 0.08, scale: 0, blur: 4))
         #expect(settings.dials(for: .sequencedFade) == .defaults(for: .sequencedFade))
     }
 
@@ -58,11 +59,11 @@ struct PageTransitionTests {
         #expect(PageTransitionSettings().dials(for: .pushParallax) == .defaults(for: .pushParallax))
     }
 
-    @Test func anUnknownStoredVariantFallsBackToCurrent() {
+    @Test func anUnknownStoredVariantFallsBackToTheChosenOne() {
         let saved = SavedDefaults()
         defer { saved.restore() }
         UserDefaults.standard.set("somethingRemoved", forKey: PageTransitionSettings.transitionKey)
-        #expect(PageTransitionSettings().transition == .current)
+        #expect(PageTransitionSettings().transition == .chosen)
     }
 
     @Test func dialsStayInTheirRanges() {
@@ -126,14 +127,14 @@ struct PageTransitionTests {
         let blur = Self.choreography(.blurCut)
         #expect(blur.veilBlur == 8)
 
-        // Current's travel and curve, sequenced, through the veil.
+        // Current's curve, sequenced, through the veil: 8pt of travel and 4pt of blur, as chosen.
         let slide = Self.choreography(.blurSlide)
-        #expect(slide.front.x == 20 && slide.behind.x == -20)
+        #expect(slide.front.x == 8 && slide.behind.x == -8)
         #expect(slide.park.motion == PagePhase(delay: 0, duration: 0.2, curve: .easeOut))
         #expect(slide.park.opacity == PagePhase(delay: 0, duration: 0.1, curve: .easeOut))
         #expect(slide.insert.opacity == PagePhase(delay: 0.08, duration: 0.2, curve: .easeOut))
         #expect(slide.insert.motion == slide.insert.opacity)
-        #expect(slide.veilBlur == 8)
+        #expect(slide.veilBlur == 4)
 
         let wipe = Self.choreography(.maskedWipe)
         #expect(wipe.insert.motion == PagePhase(delay: 0, duration: 0.26, curve: .bezier(0.3, 0, 0, 1)))

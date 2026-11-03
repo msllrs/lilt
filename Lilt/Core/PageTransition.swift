@@ -3,9 +3,13 @@ import Observation
 import SwiftUI
 
 /// How one page hands over to the next as pages are pushed and popped: the transition lab.
-/// `current` is the column's long-standing hand-off and stays the default until another is
-/// picked in the tweak panel (Page transition); the rest are alternatives to try live.
+/// `chosen` (Blur + slide, picked by Matt in the tweak panel on 2026-11-03) is the default and
+/// what release builds use; the rest are alternatives to try live in the tweak panel (Page
+/// transition).
 enum PageTransition: String, CaseIterable, Identifiable, Codable, Sendable {
+    /// The hand-off pages use unless the tweak panel picks another.
+    static let chosen: PageTransition = .blurSlide
+
     /// The page beneath parks 20pt aside and fades over `pageExit` while the new page slides
     /// 20pt in over `pageEnter`, both from the same instant: the two overlap.
     case current
@@ -98,7 +102,7 @@ struct PageTransitionDials: Codable, Equatable, Sendable {
         case .heroMorph: PageTransitionDials(duration: 0.36, travel: 6, stagger: 0.02, scale: 0, blur: 0)
         case .staggered: PageTransitionDials(duration: 0.22, travel: 10, stagger: 0.025, scale: 0, blur: 0)
         case .blurCut: PageTransitionDials(duration: 0.2, travel: 0, stagger: 0.08, scale: 0, blur: 8)
-        case .blurSlide: PageTransitionDials(duration: 0.2, travel: 20, stagger: 0.08, scale: 0, blur: 8)
+        case .blurSlide: PageTransitionDials(duration: 0.2, travel: 8, stagger: 0.08, scale: 0, blur: 4)
         case .maskedWipe: PageTransitionDials(duration: 0.26, travel: 6, stagger: 0, scale: 0, blur: 32)
         }
     }
@@ -127,7 +131,7 @@ struct PageTransitionDials: Codable, Equatable, Sendable {
 }
 
 /// The variant in use and every variant's dials, remembered across launches. Release builds
-/// always use `current`: the lab is a debug tool until one is chosen.
+/// always use `PageTransition.chosen`: the lab is a debug tool.
 @MainActor
 @Observable
 final class PageTransitionSettings {
@@ -141,7 +145,7 @@ final class PageTransitionSettings {
     #if DEBUG
     var transition: PageTransition { didSet { defaults.set(transition.rawValue, forKey: Self.transitionKey) } }
     #else
-    var transition: PageTransition { .current }
+    var transition: PageTransition { .chosen }
     #endif
 
     /// Every variant's dials that differ from its defaults.
@@ -150,7 +154,7 @@ final class PageTransitionSettings {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         #if DEBUG
-        transition = defaults.string(forKey: Self.transitionKey).flatMap(PageTransition.init(rawValue:)) ?? .current
+        transition = defaults.string(forKey: Self.transitionKey).flatMap(PageTransition.init(rawValue:)) ?? .chosen
         #endif
         if let data = defaults.data(forKey: Self.dialsKey),
            let decoded = try? JSONDecoder().decode([String: PageTransitionDials].self, from: data) {
