@@ -107,6 +107,8 @@ struct HeaderControlSurface<S: InsettableShape>: ViewModifier {
         let style = style
         // The rim and tint strengths for the window style on screen.
         let surface = ArtworkStyle.shared.surface(colorScheme, reduceTransparency: reduceTransparency).headerControls
+        // Neutral for the scheme: what the glass tint and the backing calm the glass with.
+        let neutral: Color = colorScheme == .dark ? .black : .white
         Group {
             switch style.mode {
             case .flat:
@@ -114,7 +116,7 @@ struct HeaderControlSurface<S: InsettableShape>: ViewModifier {
             case .glass, .clear:
                 let glass: Glass = style.mode == .clear ? .clear : .regular
                 content
-                    .glassEffect(glass.tint(tint?.opacity(surface.tintOpacity)).interactive(style.interactive), in: shape)
+                    .glassEffect(glass.tint(HeaderControlStyle.glassTint(cast: tint, castOpacity: surface.tintOpacity, neutral: neutral, style: style)).interactive(style.interactive), in: shape)
             case .appKit:
                 var s = style
                 let _ = { s.tint = tint?.opacity(surface.tintOpacity) }()
@@ -124,6 +126,8 @@ struct HeaderControlSurface<S: InsettableShape>: ViewModifier {
             }
         }
         .glassEdge(shape, opacity: style.mode == .flat ? 0 : (surface.rim ? surface.rimOpacity : 0))
+        // Backing: a faint fill behind the glass, so busy content beneath reads quieter.
+        .background { if style.mode != .flat, style.backing > 0 { shape.fill(neutral.opacity(style.backing)) } }
         // Glass pixels are transparent to the window server; keep the control clickable.
         .background { if style.mode != .flat { shape.fill(Color.black.opacity(0.012)) } }
         .contentShape(shape)

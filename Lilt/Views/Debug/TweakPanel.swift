@@ -133,6 +133,8 @@ struct TweakPanel: View {
                 intSlider("AppKit: interaction", $style.headerControls.interaction, HeaderControlStyle.interactionRange)
                 intSlider("AppKit: adaptive", $style.headerControls.adaptiveAppearance, HeaderControlStyle.adaptiveAppearanceRange)
                 Toggle("AppKit: reduced shadow", isOn: $style.headerControls.reducedShadow)
+                slider("Glass tint (neutral)", $style.headerControls.glassTint, 0...1)
+                slider("Backing (behind glass)", $style.headerControls.backing, 0...1)
             }
             Section("Platter glass") {
                 Toggle("Always on (off: only when rows pass beneath)", isOn: $style.platter.alwaysGlass)

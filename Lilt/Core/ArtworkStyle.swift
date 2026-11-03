@@ -466,6 +466,17 @@ struct HeaderControlStyle: Equatable {
     var adaptiveAppearance: Int = 1
     /// `_useReducedShadowRadius`.
     var reducedShadow: Bool = false
+    /// A neutral tint fed into the controls' glass (black in dark mode, white in light), at this
+    /// opacity, where no cover casts its own: calms what shows through. SwiftUI glass only.
+    var glassTint: Double = 0
+    /// A faint neutral fill behind the controls' glass, at this opacity.
+    var backing: Double = 0
+
+    /// The tint the glass takes: the cover's cast where there is one, else the neutral tint.
+    static func glassTint(cast: Color?, castOpacity: Double, neutral: Color, style: HeaderControlStyle) -> Color? {
+        if let cast { return cast.opacity(castOpacity) }
+        return style.glassTint > 0 ? neutral.opacity(style.glassTint) : nil
+    }
 
     // Values AppKit's Swift enums behind these dials accept; anything else is a fatal error, so
     // the tweak panel offers these and `GlassSurface` clamps to them.
@@ -725,7 +736,7 @@ final class ArtworkStyle {
         headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), ownContentOnly: \(headerBlur.ownContentOnly))
         pageAmbient = PageAmbientStyle(band: \(f(pageAmbient.band)), reach: \(f(pageAmbient.reach)), scroll: .\(pageAmbient.scroll.rawValue), sectionFade: \(f(pageAmbient.sectionFade)), sectionFadeDistance: \(f(pageAmbient.sectionFadeDistance)), tintsSectionHeaders: \(pageAmbient.tintsSectionHeaders))
         dockTile = DockTileStyle(plateTint: \(f(dockTile.plateTint)), plateSaturation: \(f(dockTile.plateSaturation)), shadowOpacity: \(f(dockTile.shadowOpacity)), shadowBlur: \(f(dockTile.shadowBlur)), shadowOffsetY: \(f(dockTile.shadowOffsetY)))
-        headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), interactive: \(headerControls.interactive), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow))
+        headerControls = HeaderControlStyle(mode: .\(headerControls.mode.rawValue), appliesToSearch: \(headerControls.appliesToSearch), interactive: \(headerControls.interactive), clearBase: \(headerControls.clearBase), variant: \(headerControls.variant), subvariant: "\(headerControls.subvariant)", contentLensing: \(headerControls.contentLensing), scrim: \(headerControls.scrim), subdued: \(headerControls.subdued), interaction: \(headerControls.interaction), adaptiveAppearance: \(headerControls.adaptiveAppearance), reducedShadow: \(headerControls.reducedShadow), glassTint: \(f(headerControls.glassTint)), backing: \(f(headerControls.backing)))
         panel = PanelStyle(surface: .\(panel.surface.rawValue), translucent: \(panel.translucent))
         centredLibraryTitle = \(centredLibraryTitle)
         heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), minFlick: \(f(heroSnap.minFlick)), deadZone: \(f(heroSnap.deadZone)))
