@@ -76,39 +76,19 @@ struct LibraryScreen: View {
         }
     }
 
-    /// How many rows exist so far, across the three sections in order. The library changes
-    /// rarely and is bounded, so its rows are built once and kept: a lazy stack built them as
-    /// they reached the viewport, which a fast scroll outran, and rebuilt whatever it had let
-    /// go on the way back. Building them all at once was a pause on arrival instead, so they
-    /// come in slices: a screenful on the first frame, then more every frame until done, below
-    /// what is on screen.
-    @State private var built = 0
-    private static let firstSlice = 18
-    private static let slice = 10
-
-    private var rowCount: Int { content.playlists.count + content.albums.count + content.artists.count }
-
+    /// Lazy, like every other list: only the rows on screen are built, as they come into view.
+    /// A saved library built whole, even in slices a frame apart, held the main thread for most
+    /// of a second after the page arrived (see LibraryArrivalTests); a row takes about 2ms to
+    /// build, so even a fast fling builds no more than two or three a frame.
     private var list: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                section("Playlists", content.playlists, limit: built)
-                section("Albums", content.albums, limit: built - content.playlists.count)
-                section("Artists", content.artists, limit: built - content.playlists.count - content.albums.count)
+            LazyVStack(alignment: .leading, spacing: 0) {
+                section("Playlists", content.playlists)
+                section("Albums", content.albums)
+                section("Artists", content.artists)
             }
             .padding(.horizontal, Theme.Space.rowInset)
             .padding(.bottom, Theme.Space.sm)
-        }
-        .task(id: rowCount) {
-            // Each slice lands without animation; a row folding in as it is built would read as
-            // the list loading.
-            var still = Transaction()
-            still.disablesAnimations = true
-            if built == 0 { withTransaction(still) { built = min(Self.firstSlice, rowCount) } }
-            while built < rowCount {
-                try? await Task.sleep(for: .milliseconds(16))
-                guard !Task.isCancelled else { return }
-                withTransaction(still) { built = min(built + Self.slice, rowCount) }
-            }
         }
         .scrollIndicators(.never)
         .panelScrollEdge()
@@ -156,11 +136,11 @@ struct LibraryScreen: View {
     /// Empty sections still show, with YouTube's own explanation, so it's clear the page loaded
     /// and the account simply has nothing saved there.
     @ViewBuilder
-    private func section(_ title: String, _ items: [BrowseItem], limit: Int) -> some View {
+    private func section(_ title: String, _ items: [BrowseItem]) -> some View {
         // Rows come in one by one when the library is pushed under a staggering transition.
         let first = title == "Playlists" ? 0 : title == "Albums" ? content.playlists.count : content.playlists.count + content.albums.count
         let order = Dictionary(items.enumerated().map { ($1.id, first + $0) }, uniquingKeysWith: { a, _ in a })
-        CollapsibleSection(title: title, scope: "library", items: items, limit: max(0, limit)) { BrowseRow(item: $0).entrance(.row(order[$0.id] ?? .max)) } empty: {
+        CollapsibleSection(title: title, scope: "library", items: items) { BrowseRow(item: $0).entrance(.row(order[$0.id] ?? .max)) } empty: {
             Text(title == "Albums" ? "Albums you save to your library will show here."
                 : title == "Artists" ? "Artists will show here when you save their music."
                 : "Playlists you create or save will show here.")
