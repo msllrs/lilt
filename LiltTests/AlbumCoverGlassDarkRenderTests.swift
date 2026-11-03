@@ -66,7 +66,7 @@ struct AlbumCoverGlassDarkRenderTests {
     }
 
     @Test func glassDarkAlbumDimLinesRead() async throws {
-        let palette = CoverPalette(accent: Self.red, colorScheme: .dark, surface: .page, windowStyle: .glass)
+        let palette = CoverPaletteGlassDarkTests.palette(Self.red, .page, .glass)
 
         // The header's meta line, styled as `BrowseScreen.header` styles it.
         let metaSize = CGSize(width: 200, height: 30)

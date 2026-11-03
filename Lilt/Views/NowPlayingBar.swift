@@ -454,6 +454,10 @@ struct NowPlayingBar: View {
             .help(album?.title ?? (navigation.isMiniPlayer ? "Expand" : "Option-click for ambience"))
     }
 
+    /// The palette role the elapsed and total times wear: the tertiary lines', so on Glass they
+    /// follow its ladder up off a light backdrop with the rest.
+    static let timeRole: KeyPath<CoverPalette, Color?> = \.tertiary
+
     /// Elapsed on the left, the line in the middle, total on the right.
     private var scrubber: some View {
         // The line is coloured like the controls (or, with the platter's own override, its own
@@ -462,7 +466,7 @@ struct NowPlayingBar: View {
         InterpolatedColor(accent) { accent in
             let palette = coverPalette(accent)
             let line = platter.scrubberLikeControls ? palette.control : accent.map { palette.mono.mix(with: $0, by: platter.scrubberTint) }
-            let times = palette.tertiary
+            let times = palette[keyPath: Self.timeRole]
             HStack(spacing: Theme.Space.xs + 2) {
                 Text(timeString(isScrubbing ? scrubValue : player.currentTime))
                     .fixedSize()

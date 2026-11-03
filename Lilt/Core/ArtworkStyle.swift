@@ -122,14 +122,10 @@ struct CoverPaletteStyle: Equatable {
     var contrastGuard: Bool = true
     /// Dark mode doesn't use the shares: each role keeps the accent's hue at its own OKLCH
     /// lightness, title brightest, so it reads as a light tint of the cover rather than white
-    /// mixed down to a muddy mid-tone (see `CoverPalette`)…
-    var darkPrimaryLightness: Double = 0.87
-    var darkControlLightness: Double = 0.81
-    var darkSecondaryLightness: Double = 0.74
-    var darkTertiaryLightness: Double = 0.62
-    var darkDimControlLightness: Double = 0.58
-    /// …with the accent's chroma capped here (and lowered further where sRGB can't hold it), so
-    /// it is vivid but never neon.
+    /// mixed down to a muddy mid-tone (see `CoverPalette`). The lightnesses depend on what the
+    /// panel shows, so they are the window style's (`SurfaceStyle.DarkLightness`); the chroma
+    /// is capped here for every style (and lowered further where sRGB can't hold it), so it is
+    /// vivid but never neon.
     var darkChromaCap: Double = 0.12
 
     /// Tuned by Matt in the tweak panel on 2026-10-02 (as the platter's text and controls tint).
@@ -611,7 +607,7 @@ final class ArtworkStyle {
         headerShadow = \(snippet(headerShadow))
         avatarShadow = \(snippet(avatarShadow))
         platter = PlatterStyle(cornerAccentRadius: \(f(platter.cornerAccentRadius)), accentPlacement: .\(platter.accentPlacement.rawValue), scrubberTint: \(f(platter.scrubberTint)), scrubberLikeControls: \(platter.scrubberLikeControls), castEdge: \(platter.castEdge), castGlow: \(platter.castGlow), alwaysGlass: \(platter.alwaysGlass))
-        palette = CoverPaletteStyle(accentSaturation: \(f(palette.accentSaturation)), contentShare: \(f(palette.contentShare)), dimContentRatio: \(f(palette.dimContentRatio)), controlShare: \(f(palette.controlShare)), highlightOpacity: \(f(palette.highlightOpacity)), darkHighlightOpacity: \(f(palette.darkHighlightOpacity)), hoverHighlightOpacity: \(f(palette.hoverHighlightOpacity)), controlHoverOpacity: \(f3(palette.controlHoverOpacity)), controlPressedOpacity: \(f3(palette.controlPressedOpacity)), contrastGuard: \(palette.contrastGuard), darkPrimaryLightness: \(f(palette.darkPrimaryLightness)), darkControlLightness: \(f(palette.darkControlLightness)), darkSecondaryLightness: \(f(palette.darkSecondaryLightness)), darkTertiaryLightness: \(f(palette.darkTertiaryLightness)), darkDimControlLightness: \(f(palette.darkDimControlLightness)), darkChromaCap: \(f(palette.darkChromaCap)))
+        palette = CoverPaletteStyle(accentSaturation: \(f(palette.accentSaturation)), contentShare: \(f(palette.contentShare)), dimContentRatio: \(f(palette.dimContentRatio)), controlShare: \(f(palette.controlShare)), highlightOpacity: \(f(palette.highlightOpacity)), darkHighlightOpacity: \(f(palette.darkHighlightOpacity)), hoverHighlightOpacity: \(f(palette.hoverHighlightOpacity)), controlHoverOpacity: \(f3(palette.controlHoverOpacity)), controlPressedOpacity: \(f3(palette.controlPressedOpacity)), contrastGuard: \(palette.contrastGuard), darkChromaCap: \(f(palette.darkChromaCap)))
         notes = NotesStyle(colorMode: .\(notes.colorMode.rawValue), huePeriod: \(f(notes.huePeriod)), sway: \(f(notes.sway)), swayPeriod: \(f(notes.swayPeriod)), birthRate: \(f(notes.birthRate)), lifetime: \(f(notes.lifetime)), lifetimeRange: \(f(notes.lifetimeRange)), velocity: \(f(notes.velocity)), velocityRange: \(f(notes.velocityRange)), spread: \(f(notes.spread)), gravity: \(f(notes.gravity)), drift: \(f(notes.drift)), driftRange: \(f(notes.driftRange)), glyphSize: \(f(notes.glyphSize)), scale: \(f(notes.scale)), scaleRange: \(f(notes.scaleRange)), scaleSpeed: \(f(notes.scaleSpeed)), alphaSpeed: \(f(notes.alphaSpeed)), opacity: \(f(notes.opacity)), spin: \(f(notes.spin)), spinRange: \(f(notes.spinRange)), sourceX: \(f(notes.sourceX)), sourceY: \(f(notes.sourceY)))
         playCast = PlayCastStyle(saturation: \(f(playCast.saturation)), tintOpacity: \(f(playCast.tintOpacity)), rimMix: \(f(playCast.rimMix)), glowOpacity: \(f(playCast.glowOpacity)), glowBlur: \(f(playCast.glowBlur)), glowHeight: \(f(playCast.glowHeight)), rimBlur: \(f(playCast.rimBlur)), rimBlend: .\(playCast.rimBlend.rawValue))
         headerBlur = HeaderBlurStyle(useBackdrop: \(headerBlur.useBackdrop), ownContentOnly: \(headerBlur.ownContentOnly))

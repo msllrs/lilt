@@ -8,8 +8,10 @@ import Testing
 @MainActor
 struct SurfaceMatrixTests {
     /// Today's values, as they were in `PlatterStyle`, `GlassEdge`, `HeaderBlurStyle`,
-    /// `PageAmbientStyle` and `HeaderControlStyle`.
-    static func today(_ scheme: ColorScheme) -> SurfaceStyle {
+    /// `PageAmbientStyle` and `HeaderControlStyle`, and the palette's ground as it was in
+    /// `CoverPalette.panelBackground` and `CoverPaletteStyle` (`glassDarkPalette` is Glass's own,
+    /// see `CoverPaletteGlassDarkTests`).
+    static func today(_ scheme: ColorScheme, palette: SurfaceStyle.Palette? = nil) -> SurfaceStyle {
         let dark = scheme == .dark
         return SurfaceStyle(
             platter: .init(shadowOpacity: 0.18, shadowRadius: 16, shadowOffsetY: 8, borderOpacity: 0.40, tintOpacity: 0.20, tintSaturation: 4.0, tintBlur: 160, hoverBrightness: 0.80, washOpacity: 0.32),
@@ -17,14 +19,28 @@ struct SurfaceMatrixTests {
             headerBlur: .init(radius: 24, saturation: 1.0, brightness: 0.0, reach: 32, rimOpacity: 0.45),
             pageAmbient: .init(opacity: 0.28, saturation: 3.0, blur: 120),
             headerControls: .init(rim: false, rimOpacity: 0.5, tintOpacity: 0.6),
-            atRest: .init(contentOpacity: 0.6)
+            atRest: .init(contentOpacity: 0.6),
+            palette: palette ?? (dark
+                ? .init(guardBackdrop: 0.20, darkLightness: .init(primary: 0.87, control: 0.81, secondary: 0.74, tertiary: 0.62, dimControl: 0.58))
+                : .init(guardBackdrop: 0.90, darkLightness: nil))
         )
+    }
+
+    /// Glass in dark mode: its panel can be a mid grey over a light desktop, so its ladder sits
+    /// higher and its guard measures against a lighter stand-in.
+    static let glassDarkPalette = SurfaceStyle.Palette(
+        guardBackdrop: 0.40,
+        darkLightness: .init(primary: 0.95, control: 0.93, secondary: 0.92, tertiary: 0.84, dimControl: 0.85)
+    )
+
+    static func shipped(_ style: Lilt.WindowStyle, _ scheme: ColorScheme) -> SurfaceStyle {
+        today(scheme, palette: style == .glass && scheme == .dark ? glassDarkPalette : nil)
     }
 
     @Test func everyStyleStartsFromTodaysValues() {
         for style in WindowStyle.allCases {
             for scheme in [ColorScheme.light, .dark] {
-                #expect(SurfaceMatrix.defaults[style, scheme] == Self.today(scheme), "\(style) in \(scheme) isn't today's look")
+                #expect(SurfaceMatrix.defaults[style, scheme] == Self.shipped(style, scheme), "\(style) in \(scheme) isn't today's look")
             }
         }
     }
@@ -49,7 +65,7 @@ struct SurfaceMatrixTests {
         for appearances in object.values {
             #expect(Set(appearances.keys) == ["light", "dark"])
             for surfaces in appearances.values {
-                #expect(Set(surfaces.keys) == ["platter", "glassEdge", "headerBlur", "pageAmbient", "headerControls", "atRest"])
+                #expect(Set(surfaces.keys) == ["platter", "glassEdge", "headerBlur", "pageAmbient", "headerControls", "atRest", "palette"])
             }
         }
     }

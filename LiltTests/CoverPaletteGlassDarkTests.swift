@@ -45,8 +45,22 @@ struct CoverPaletteGlassDarkTests {
         return CoverPaletteDarkTests.oklch(over(r), over(g), over(b))
     }
 
+    /// The palette as the shipped surface values light it for `windowStyle` in dark mode. Built
+    /// from `SurfaceMatrix.defaults` rather than the live dials, which a render test elsewhere
+    /// may be holding at another value across a suspension.
     static func palette(_ seed: Color, _ surface: CoverPalette.Surface, _ windowStyle: Lilt.WindowStyle) -> CoverPalette {
-        CoverPalette(accent: seed, cast: seed, colorScheme: .dark, surface: surface, windowStyle: windowStyle)
+        let cell = SurfaceMatrix.defaults[windowStyle, .dark]
+        return CoverPalette(accent: seed, cast: seed, colorScheme: .dark, surface: surface, style: .standard, container: .standard, washOpacity: cell.platter.washOpacity, ground: cell.palette)
+    }
+
+    /// What the views build (the live dials, for a window style) lights the palette the way
+    /// that style's surface cell says.
+    @Test func viewsLightThePaletteForTheirWindowStyle() throws {
+        let seed = CoverPaletteDarkTests.seeds["red"]!
+        for style in Lilt.WindowStyle.allCases {
+            let live = CoverPalette(accent: seed, colorScheme: .dark, surface: .page, windowStyle: style)
+            #expect(live.ground == ArtworkStyle.shared.surfaces[style, .dark].palette, "\(style)")
+        }
     }
 
     static func f(_ x: Double) -> String { String(format: "%.2f", x) }
@@ -83,12 +97,13 @@ struct CoverPaletteGlassDarkTests {
         }
     }
 
-    /// The platter's times, elapsed and total, wear its tertiary role; on Glass the platter
-    /// sits on the same backdrop.
+    /// The platter's times, elapsed and total (`NowPlayingBar.timeRole`, its tertiary role), and
+    /// its artist line: on Glass the platter sits on the same backdrop.
     @Test func platterTimesReadOnMidGreyGlass() throws {
         for (name, seed) in CoverPaletteDarkTests.seeds.sorted(by: { $0.key < $1.key }) {
             let p = Self.palette(seed, .platter, .glass)
-            let times = try #require(p.tertiary)
+            #expect(NowPlayingBar.timeRole == \CoverPalette.tertiary)
+            let times = try #require(p[keyPath: NowPlayingBar.timeRole])
             #expect(Self.contrast(times) >= Self.tertiaryFloor, "\(name) platter times \(Self.f(Self.contrast(times))):1 on glass")
             let secondary = try #require(p.secondary)
             #expect(Self.contrast(secondary) >= Self.secondaryFloor, "\(name) platter artist \(Self.f(Self.contrast(secondary))):1 on glass")

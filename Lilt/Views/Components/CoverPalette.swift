@@ -15,7 +15,9 @@ import SwiftUI
 ///   the label colours (the title and controls start from black, the dimmer lines from the
 ///   secondary and tertiary labels). In dark mode the accent's hue at a lightness per role, in
 ///   OKLCH (see `darkTone`): a mix with white there lost chroma and lightness together and gave
-///   a muddy grey-blue that was neither white nor the cover's colour.
+///   a muddy grey-blue that was neither white nor the cover's colour. The lightnesses are the
+///   window style's (`SurfaceStyle.Palette`): Glass can show a mid grey, so its ladder sits
+///   higher and closer together.
 /// - Controls: `control` (glyphs, the scrubber), `dimControl` (a control that is off or can't be
 ///   used), and `controlHover` / `controlPressed` fills.
 /// - Accent: `accent` itself, `accentContainer` (the cast as the glass controls wear it), with
@@ -45,6 +47,9 @@ struct CoverPalette: Equatable {
     let container: LeadingCastStyle
     /// How strongly the platter's wash takes the accent, from the window style's surface values.
     let washOpacity: Double
+    /// The ground the palette is lit for, from the window style's surface values: dark mode's
+    /// lightness per role and the guard's stand-in for the panel.
+    let ground: SurfaceStyle.Palette
 
     /// Each content and control role's share of the accent, after the guard (light mode).
     private(set) var primaryShare: Double
@@ -61,7 +66,10 @@ struct CoverPalette: Equatable {
     private(set) var darkControl: Color?
     private(set) var darkDimControl: Color?
 
-    init(accent: Color?, cast: Color? = nil, colorScheme: ColorScheme, surface: Surface, style: CoverPaletteStyle, container: LeadingCastStyle, washOpacity: Double) {
+    /// `ground` defaults to the near-black dark panel and the light one (`SurfaceStyle.Palette.standard`).
+    init(accent: Color?, cast: Color? = nil, colorScheme: ColorScheme, surface: Surface, style: CoverPaletteStyle, container: LeadingCastStyle, washOpacity: Double, ground: SurfaceStyle.Palette? = nil) {
+        let ground = ground ?? .standard(colorScheme)
+        self.ground = ground
         self.accent = accent
         self.cast = cast
         self.colorScheme = colorScheme
@@ -81,25 +89,27 @@ struct CoverPalette: Equatable {
                 let tone = Self.darkTone(seed, lightness: lightness, chromaCap: style.darkChromaCap)
                 return guards ? guardedTone(tone, base: base, minimum: floor) : tone.color
             }
-            darkPrimary = tone(style.darkPrimaryLightness, base: .white, floor: Self.primaryFloor)
-            darkSecondary = tone(style.darkSecondaryLightness, base: .secondary, floor: Self.secondaryFloor)
-            darkTertiary = tone(style.darkTertiaryLightness, base: Self.tertiaryLabel, floor: Self.tertiaryFloor)
-            darkControl = tone(style.darkControlLightness, base: .white, floor: Self.primaryFloor)
-            darkDimControl = tone(style.darkDimControlLightness, base: .secondary, floor: Self.secondaryFloor)
+            let ladder = ground.darkLightness ?? .darkPanel
+            darkPrimary = tone(ladder.primary, base: .white, floor: Self.primaryFloor)
+            darkSecondary = tone(ladder.secondary, base: .secondary, floor: Self.secondaryFloor)
+            darkTertiary = tone(ladder.tertiary, base: Self.tertiaryLabel, floor: Self.tertiaryFloor)
+            darkControl = tone(ladder.control, base: .white, floor: Self.primaryFloor)
+            darkDimControl = tone(ladder.dimControl, base: .secondary, floor: Self.secondaryFloor)
         } else if surface == .page, style.contrastGuard {
             guardContrast()
         }
     }
 
-    /// With the tweak panel's live dials, and the wash of `windowStyle` (the one chosen, unless
-    /// a caller knows the one on screen) in `colorScheme`.
+    /// With the tweak panel's live dials, and the wash and ground of `windowStyle` (the one
+    /// chosen, unless a caller knows the one on screen) in `colorScheme`.
     @MainActor
     init(accent: Color?, cast: Color? = nil, colorScheme: ColorScheme, surface: Surface, windowStyle: WindowStyle? = nil) {
         let shared = ArtworkStyle.shared
+        let cell = shared.surfaces[windowStyle ?? shared.windowStyle, colorScheme]
         self.init(
             accent: accent, cast: cast, colorScheme: colorScheme, surface: surface,
             style: shared.palette, container: shared.leadingCast,
-            washOpacity: shared.surfaces[windowStyle ?? shared.windowStyle, colorScheme].platter.washOpacity
+            washOpacity: cell.platter.washOpacity, ground: cell.palette
         )
     }
 
@@ -169,8 +179,8 @@ struct CoverPalette: Equatable {
 extension CoverPalette {
     /// The plain panel a page sits on, roughly, as a grey per scheme: a shade darker (light) or
     /// lighter (dark) than the sidebar material usually renders, so a colour that passes here
-    /// passes on the real surface too.
-    static func panelBackground(_ scheme: ColorScheme) -> Double { scheme == .dark ? 0.20 : 0.90 }
+    /// passes on the real surface too. Glass has its own (`SurfaceStyle.Palette.guardBackdrop`).
+    static func panelBackground(_ scheme: ColorScheme) -> Double { SurfaceStyle.Palette.standard(scheme).guardBackdrop }
 
     /// The least contrast each kind of line keeps on a page: body text's 4.5:1 for the title and
     /// the controls' labels, large text's 3:1 for the secondary lines, and about the system's own
@@ -209,8 +219,8 @@ extension CoverPalette {
 
     /// Dark mode's guard: where a tone falls below its floor on the panel, it is lifted in
     /// lightness and gives up a little chroma each step, so it moves towards a clear light
-    /// colour rather than towards grey. At the shipped lightnesses it has nothing to do; it is a
-    /// net for dials turned down.
+    /// colour rather than towards grey. At the shipped lightnesses it has nothing to do on its
+    /// surface's stand-in; it is a net for dials turned down.
     private func guardedTone(_ tone: OKLCH, base: Color, minimum: Double) -> Color {
         let floor = min(contrast(base), minimum)
         var tone = tone
@@ -233,12 +243,12 @@ extension CoverPalette {
         return share
     }
 
-    /// WCAG contrast ratio of `color`, composited over the panel, against the panel.
+    /// WCAG contrast ratio of `color`, composited over the guard's stand-in panel, against it.
     func contrast(_ color: Color) -> Double {
         var environment = EnvironmentValues()
         environment.colorScheme = colorScheme
         let c = color.resolve(in: environment)
-        let ground = Self.panelBackground(colorScheme)
+        let ground = self.ground.guardBackdrop
         let alpha = Double(c.opacity)
         func over(_ channel: Float) -> Double { Double(channel) * alpha + ground * (1 - alpha) }
         let fore = Self.luminance(over(c.red), over(c.green), over(c.blue))

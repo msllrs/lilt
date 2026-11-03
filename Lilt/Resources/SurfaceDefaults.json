@@ -30,6 +30,16 @@
         "opacity" : 0.28,
         "saturation" : 3
       },
+      "palette" : {
+        "darkLightness" : {
+          "control" : 0.93,
+          "dimControl" : 0.85,
+          "primary" : 0.95,
+          "secondary" : 0.92,
+          "tertiary" : 0.84
+        },
+        "guardBackdrop" : 0.4
+      },
       "platter" : {
         "borderOpacity" : 0.4,
         "hoverBrightness" : 0.8,
@@ -71,6 +81,9 @@
         "blur" : 120,
         "opacity" : 0.28,
         "saturation" : 3
+      },
+      "palette" : {
+        "guardBackdrop" : 0.9
       },
       "platter" : {
         "borderOpacity" : 0.4,
@@ -116,6 +129,16 @@
         "opacity" : 0.28,
         "saturation" : 3
       },
+      "palette" : {
+        "darkLightness" : {
+          "control" : 0.81,
+          "dimControl" : 0.58,
+          "primary" : 0.87,
+          "secondary" : 0.74,
+          "tertiary" : 0.62
+        },
+        "guardBackdrop" : 0.2
+      },
       "platter" : {
         "borderOpacity" : 0.4,
         "hoverBrightness" : 0.8,
@@ -157,6 +180,9 @@
         "blur" : 120,
         "opacity" : 0.28,
         "saturation" : 3
+      },
+      "palette" : {
+        "guardBackdrop" : 0.9
       },
       "platter" : {
         "borderOpacity" : 0.4,
@@ -202,6 +228,16 @@
         "opacity" : 0.28,
         "saturation" : 3
       },
+      "palette" : {
+        "darkLightness" : {
+          "control" : 0.81,
+          "dimControl" : 0.58,
+          "primary" : 0.87,
+          "secondary" : 0.74,
+          "tertiary" : 0.62
+        },
+        "guardBackdrop" : 0.2
+      },
       "platter" : {
         "borderOpacity" : 0.4,
         "hoverBrightness" : 0.8,
@@ -243,6 +279,9 @@
         "blur" : 120,
         "opacity" : 0.28,
         "saturation" : 3
+      },
+      "palette" : {
+        "guardBackdrop" : 0.9
       },
       "platter" : {
         "borderOpacity" : 0.4,

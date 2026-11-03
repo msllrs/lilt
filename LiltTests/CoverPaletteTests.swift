@@ -222,7 +222,7 @@ struct CoverPaletteTests {
     /// "Copy values" carries the palette's dials, and none of the per-surface tints it replaced.
     @Test func copyValuesCarriesThePalette() {
         let snippet = ArtworkStyle().swiftSnippet
-        #expect(snippet.contains("palette = CoverPaletteStyle(accentSaturation: 1.30, contentShare: 0.40, dimContentRatio: 0.50, controlShare: 0.64, highlightOpacity: 0.12, darkHighlightOpacity: 0.16, hoverHighlightOpacity: 0.60, controlHoverOpacity: 0.050, controlPressedOpacity: 0.085, contrastGuard: true, darkPrimaryLightness: 0.87, darkControlLightness: 0.81, darkSecondaryLightness: 0.74, darkTertiaryLightness: 0.62, darkDimControlLightness: 0.58, darkChromaCap: 0.12)"))
+        #expect(snippet.contains("palette = CoverPaletteStyle(accentSaturation: 1.30, contentShare: 0.40, dimContentRatio: 0.50, controlShare: 0.64, highlightOpacity: 0.12, darkHighlightOpacity: 0.16, hoverHighlightOpacity: 0.60, controlHoverOpacity: 0.050, controlPressedOpacity: 0.085, contrastGuard: true, darkChromaCap: 0.12)"))
         #expect(snippet.contains("darkLightness: 0.74, darkChromaCap: 0.18, darkRimOpacity: 0.40, darkWashScale: 1.20)"))
         #expect(!snippet.contains("pageTint") && !snippet.contains("textTint") && !snippet.contains("cornerAccentOpacity"))
     }

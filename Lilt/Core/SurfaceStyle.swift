@@ -2,7 +2,8 @@ import SwiftUI
 
 /// The panel-surface values that can differ with what the panel is made of: the platter's glass
 /// and tint, the lit rim every piece of glass wears, the blur and rim behind floating headers,
-/// the cover's light at the top of a page, and the header controls' rim and tint. One of these
+/// the cover's light at the top of a page, the header controls' rim and tint, and the ground the
+/// cover's palette is lit for (`palette`). One of these
 /// per window style and appearance (`SurfaceMatrix`), kept as data so a tuned set can be pasted
 /// back as the shipped defaults (`SurfaceDefaults.json`).
 ///
@@ -15,6 +16,7 @@ struct SurfaceStyle: Codable, Equatable {
     var pageAmbient: PageAmbient
     var headerControls: HeaderControls
     var atRest: AtRest
+    var palette: Palette
 
     /// The now-playing platter's finish (see `PlatterStyle` for the rest).
     struct Platter: Codable, Equatable {
@@ -81,6 +83,45 @@ struct SurfaceStyle: Codable, Equatable {
         var rimOpacity: Double
         /// Tint of the glass with the cover's colour (0 = none).
         var tintOpacity: Double
+    }
+}
+
+extension SurfaceStyle {
+    /// The ground the cover's palette (`CoverPalette`) is lit for. Glass shows what's behind the
+    /// window, so in dark mode its panel runs from near-black over a dark desktop to a mid grey
+    /// (sRGB 0.45–0.5) over a light one, where the sidebar material of Normal and Solid stays
+    /// near-black. A ladder tuned on near-black puts the dimmer lines at the mid grey's own
+    /// lightness, so each surface carries its own ladder and the guard's stand-in for it.
+    struct Palette: Codable, Equatable {
+        /// The grey (sRGB, 0…1) the contrast guard measures a page's lines against, standing in
+        /// for the panel as it usually renders.
+        var guardBackdrop: Double
+        /// Dark mode's OKLCH lightness per role. Light mode mixes shares of the accent into the
+        /// label colours instead (`CoverPaletteStyle`) and has none.
+        var darkLightness: DarkLightness?
+    }
+
+    /// Each dark-mode role's OKLCH lightness, title brightest; the role keeps the accent's hue,
+    /// its chroma capped (`CoverPaletteStyle.darkChromaCap`) and lowered to what sRGB holds.
+    struct DarkLightness: Codable, Equatable {
+        var primary: Double
+        var control: Double
+        var secondary: Double
+        var tertiary: Double
+        var dimControl: Double
+
+        /// The ladder for a near-black panel (Normal and Solid).
+        static let darkPanel = DarkLightness(primary: 0.87, control: 0.81, secondary: 0.74, tertiary: 0.62, dimControl: 0.58)
+    }
+}
+
+extension SurfaceStyle.Palette {
+    /// The near-black dark panel and the light one: Normal's and Solid's, and the palette's
+    /// own default where no window style is given.
+    static func standard(_ scheme: ColorScheme) -> Self {
+        scheme == .dark
+            ? Self(guardBackdrop: 0.20, darkLightness: .darkPanel)
+            : Self(guardBackdrop: 0.90, darkLightness: nil)
     }
 }
 

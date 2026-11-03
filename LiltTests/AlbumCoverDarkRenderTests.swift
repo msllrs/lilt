@@ -31,8 +31,14 @@ struct AlbumCoverDarkRenderTests {
 
     private func render(_ name: String, _ rgb: (CGFloat, CGFloat, CGFloat)) async -> NSBitmapImageRep {
         let saved = UserDefaults.standard.data(forKey: "navigationState")
+        // This is the near-black panel of Normal and Solid (the page is drawn on the guard's 0.20
+        // grey), whichever window style is chosen: Glass's ladder is lit for a lighter panel
+        // (`AlbumCoverGlassDarkRenderTests`).
+        let surfaces = ArtworkStyle.shared.surfaces
+        ArtworkStyle.shared.surfaces[.glass, .dark].palette = SurfaceMatrix.defaults[.normal, .dark].palette
         defer {
             if let saved { UserDefaults.standard.set(saved, forKey: "navigationState") } else { UserDefaults.standard.removeObject(forKey: "navigationState") }
+            ArtworkStyle.shared.surfaces = surfaces
         }
         let auth = AuthService()
         let music = YTMusicClient(auth: auth, fetchPage: { _ in JSONObject(value: [:]) })

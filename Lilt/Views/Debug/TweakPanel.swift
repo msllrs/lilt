@@ -243,6 +243,9 @@ struct TweakPanel: View {
             slider("Header controls: rim opacity", $style.surfaces[shown, scheme].headerControls.rimOpacity, 0...1)
             slider("Header controls: cover tint", $style.surfaces[shown, scheme].headerControls.tintOpacity, 0...0.6)
             slider("At rest: content", $style.surfaces[shown, scheme].atRest.contentOpacity, 0.2...1)
+            // The grey the page's contrast guard stands in for this panel; dark mode's ladder for
+            // this style is in the dark palette section.
+            slider("Palette: guard backdrop", $style.surfaces[shown, scheme].palette.guardBackdrop, 0...1)
             HStack {
                 Button("Reset this cell") { style.surfaces[shown, scheme] = SurfaceMatrix.defaults[shown, scheme] }
                 Spacer()
@@ -253,6 +256,20 @@ struct TweakPanel: View {
         } footer: {
             Text("Export JSON copies every style and appearance, ready to paste over Lilt/Resources/SurfaceDefaults.json.")
         }
+    }
+
+    /// One dark-mode role's lightness in the dark cell of the window style on screen.
+    private func darkLightness(_ role: WritableKeyPath<SurfaceStyle.DarkLightness, Double>) -> Binding<Double> {
+        let shown = shownStyle
+        let style = style
+        return Binding(
+            get: { (style.surfaces[shown, .dark].palette.darkLightness ?? .darkPanel)[keyPath: role] },
+            set: { value in
+                var ladder = style.surfaces[shown, .dark].palette.darkLightness ?? .darkPanel
+                ladder[keyPath: role] = value
+                style.surfaces[shown, .dark].palette.darkLightness = ladder
+            }
+        )
     }
 
     /// The whole matrix on the pasteboard, as the resource file is written.
@@ -287,18 +304,19 @@ struct TweakPanel: View {
         } footer: {
             Text("Platter, Up Next, album pages, the back button and the Window style cards. Hover and pressed fills are roles nothing draws yet. The shares are light mode's; dark mode's roles are below.")
         }
-        // Dark mode's roles: the accent's hue at each role's OKLCH lightness, chroma capped.
+        // Dark mode's roles: the accent's hue at each role's OKLCH lightness, chroma capped. The
+        // lightnesses are the window style's on screen (its surface cell), the cap every style's.
         Section {
-            slider("Title lightness", $style.palette.darkPrimaryLightness, 0.5...1)
-            slider("Control lightness", $style.palette.darkControlLightness, 0.5...1)
-            slider("Secondary lightness", $style.palette.darkSecondaryLightness, 0.4...1)
-            slider("Tertiary lightness", $style.palette.darkTertiaryLightness, 0.3...1)
-            slider("Dim control lightness", $style.palette.darkDimControlLightness, 0.3...1)
+            slider("Title lightness", darkLightness(\.primary), 0.5...1)
+            slider("Control lightness", darkLightness(\.control), 0.5...1)
+            slider("Secondary lightness", darkLightness(\.secondary), 0.4...1)
+            slider("Tertiary lightness", darkLightness(\.tertiary), 0.3...1)
+            slider("Dim control lightness", darkLightness(\.dimControl), 0.3...1)
             slider("Chroma cap", $style.palette.darkChromaCap, 0...0.3)
         } header: {
-            Text("Cover palette: dark mode (OKLCH)")
+            Text("Cover palette: dark mode (OKLCH) · \(shownStyle.title)")
         } footer: {
-            Text("Each role keeps the cover's hue; chroma drops further where sRGB can't hold it at that lightness. The contrast guard lifts a role that falls below its floor on a page.")
+            Text("Each role keeps the cover's hue; chroma drops further where sRGB can't hold it at that lightness. The lightnesses are this window style's (Glass can show a mid grey, so its sit higher) and go out with Export JSON. The contrast guard lifts a role that falls below its floor on a page.")
         }
         // The cast the Play capsule, its round buttons and the back button wear.
         Section {
