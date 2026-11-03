@@ -37,6 +37,7 @@ struct TweakPanel: View {
                 // Each token's Reduce Motion variant without touching System Settings.
                 Toggle("Force Reduce Motion", isOn: $motion.forcesReduceMotion)
             }
+            PageTransitionSection()
             Section("Row shine") {
                 // The sweep across a row after Copy Link, Play Next or Add to Queue from its menu.
                 slider("Duration (s)", $style.shine.duration, 0.2...1.5)
