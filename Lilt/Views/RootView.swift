@@ -131,16 +131,11 @@ private struct NavigationColumn: View {
     /// The page transition lab's pick (tweak panel ▸ Page transition); always Current in
     /// release builds.
     @State private var transitions = PageTransitionSettings.shared
-    /// The column's width, for the masked wipe's soft edge, and its height, for whether a hero
-    /// morph's row is on screen. Change only as the panel resizes.
+    /// The column's size, for whether a hero morph's row is on screen. Changes only as the
+    /// panel resizes.
     @State private var width: CGFloat = 320
     @State private var height: CGFloat = 600
     @State private var flights = HeroFlight.shared
-    /// The staged stack's pages popped and still on their way out, and the path as last drawn.
-    @State private var leaving: [BrowseItem] = []
-    @State private var shownPath: [BrowseItem] = []
-    /// Pages there when the column first appears (a relaunch) don't slide in.
-    @State private var hasAppeared = false
 
     var body: some View {
         let path = navigation.path
@@ -215,35 +210,16 @@ private struct NavigationColumn: View {
         return PageEntrance(plan: plan, startedAt: at)
     }
 
-    /// Any other variant: each screen is staged by the choreography (see StagedScreen), with a
-    /// timing of its own for each role (parking, coming back, arriving, leaving), so the page
-    /// going away and the page arriving can be sequenced rather than overlap. No animation on
-    /// the stack as a whole: it would hand every page the same one.
+    /// Any other variant: the screens staged by the choreography (see StagedStack), with the
+    /// hero morph's ghost over them.
     private func stagedStack(_ path: [BrowseItem], outOfSight: Bool, choreography: PageChoreography) -> some View {
-        let ids = Set(path.map(\.id))
-        // Popped pages stay until they've left: those already on their way, and, in the very
-        // update that pops them (before onChange has run), the ones just taken off, so their
-        // views carry on rather than being rebuilt. A page pushed again while leaving is simply
-        // the page on top again, from wherever it had got to.
-        var gone = leaving.filter { !ids.contains($0.id) }
-        for item in shownPath where !ids.contains(item.id) && !gone.contains(where: { $0.id == item.id }) { gone.append(item) }
         let tracksHeroes = choreography.flight != nil
-        return ZStack {
-            StagedScreen(position: path.isEmpty ? .top : .behind, choreography: choreography, width: width, outOfSight: outOfSight, arrives: false) {
-                SearchScreen()
-                    .environment(\.pageEntrance, entrance(for: PageSpace.searchKey, choreography: choreography))
-                    .environment(\.pageKey, PageSpace.searchKey)
-            }
-            // One ForEach for pages on the path and pages leaving, so a page popped (or pushed
-            // back while leaving) keeps its view as it changes role.
-            let entries = path.enumerated().map { ($1, $0 == path.count - 1 ? StagedPosition.top : .behind) } + gone.map { ($0, StagedPosition.leaving) }
-            ForEach(entries, id: \.0.id) { item, position in
-                StagedScreen(position: position, choreography: choreography, width: width, outOfSight: outOfSight, arrives: hasAppeared) {
-                    screen(for: item)
-                        .environment(\.pageEntrance, entrance(for: item.id, choreography: choreography))
-                        .environment(\.pageKey, item.id)
-                }
-            }
+        return StagedStack(path: path, choreography: choreography, outOfSight: outOfSight) { key in
+            entrance(for: key, choreography: choreography)
+        } root: {
+            SearchScreen()
+        } page: { item in
+            screen(for: item)
         }
         .environment(\.heroTracking, tracksHeroes)
         // The hero morph's ghost, above every page and beneath the header's back button.
@@ -253,8 +229,7 @@ private struct NavigationColumn: View {
                     .id(flight.id)
             }
         }
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { width = $0.width; height = $0.height }
-        .onAppear { hasAppeared = true; shownPath = path }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { height = $0.height; width = $0.width }
         .onChange(of: path) { old, new in
             if tracksHeroes {
                 // On screen: below the header, within the column (under the platter is fine,
@@ -263,19 +238,6 @@ private struct NavigationColumn: View {
                 flights.pathChanged(from: old, to: new, bounds: CGRect(x: 0, y: top, width: width, height: max(height - top, 0)))
             } else {
                 flights.cancel()
-            }
-            let now = Set(new.map(\.id))
-            let popped = old.filter { !now.contains($0.id) }
-            leaving.removeAll { now.contains($0.id) }
-            leaving.append(contentsOf: popped.filter { item in !leaving.contains(where: { $0.id == item.id }) })
-            shownPath = new
-            guard !popped.isEmpty else { return }
-            // Let them go once they've left; a later pop's own wait sees to its pages.
-            let ids = Set(popped.map(\.id))
-            let wait = choreography.remove.end + 0.05
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(wait))
-                leaving.removeAll { ids.contains($0.id) && !navigation.path.contains($0) }
             }
         }
     }

@@ -147,6 +147,82 @@ struct StagedScreen<Content: View>: View {
     }
 }
 
+/// The column's stack of screens for every variant but Current: the root, then each page of
+/// `path`, each staged by the choreography (see StagedScreen) with a timing of its own for each
+/// role (parking, coming back, arriving, leaving), so the page going away and the page arriving
+/// can be sequenced rather than overlap. No animation on the stack as a whole: it would hand
+/// every page the same one.
+struct StagedStack<Root: View, Page: View>: View {
+    let path: [BrowseItem]
+    let choreography: PageChoreography
+    let outOfSight: Bool
+    /// Each screen's entrance, by its key (`PageSpace.searchKey` for the root).
+    let entrance: (String) -> PageEntrance?
+    let root: Root
+    let page: (BrowseItem) -> Page
+
+    init(path: [BrowseItem], choreography: PageChoreography, outOfSight: Bool, entrance: @escaping (String) -> PageEntrance? = { _ in nil }, @ViewBuilder root: () -> Root, @ViewBuilder page: @escaping (BrowseItem) -> Page) {
+        self.path = path
+        self.choreography = choreography
+        self.outOfSight = outOfSight
+        self.entrance = entrance
+        self.root = root()
+        self.page = page
+    }
+
+    /// The column's width, for the masked wipe's soft edge.
+    @State private var width: CGFloat = 320
+    /// Pages popped and still on their way out, and the path as last drawn.
+    @State private var leaving: [BrowseItem] = []
+    @State private var shownPath: [BrowseItem] = []
+    /// Pages there when the column first appears (a relaunch) don't slide in.
+    @State private var hasAppeared = false
+
+    var body: some View {
+        let ids = Set(path.map(\.id))
+        // Popped pages stay until they've left: those already on their way, and, in the very
+        // update that pops them (before onChange has run), the ones just taken off, so their
+        // views carry on rather than being rebuilt. A page pushed again while leaving is simply
+        // the page on top again, from wherever it had got to.
+        var gone = leaving.filter { !ids.contains($0.id) }
+        for item in shownPath where !ids.contains(item.id) && !gone.contains(where: { $0.id == item.id }) { gone.append(item) }
+        return ZStack {
+            StagedScreen(position: path.isEmpty ? .top : .behind, choreography: choreography, width: width, outOfSight: outOfSight, arrives: false) {
+                root
+                    .environment(\.pageEntrance, entrance(PageSpace.searchKey))
+                    .environment(\.pageKey, PageSpace.searchKey)
+            }
+            // One ForEach for pages on the path and pages leaving, so a page popped (or pushed
+            // back while leaving) keeps its view as it changes role.
+            let entries = path.enumerated().map { ($1, $0 == path.count - 1 ? StagedPosition.top : .behind) } + gone.map { ($0, StagedPosition.leaving) }
+            ForEach(entries, id: \.0.id) { item, position in
+                StagedScreen(position: position, choreography: choreography, width: width, outOfSight: outOfSight, arrives: hasAppeared) {
+                    page(item)
+                        .environment(\.pageEntrance, entrance(item.id))
+                        .environment(\.pageKey, item.id)
+                }
+            }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .onAppear { hasAppeared = true; shownPath = path }
+        .onChange(of: path) { old, new in
+            let now = Set(new.map(\.id))
+            let popped = old.filter { !now.contains($0.id) }
+            leaving.removeAll { now.contains($0.id) }
+            leaving.append(contentsOf: popped.filter { item in !leaving.contains(where: { $0.id == item.id }) })
+            shownPath = new
+            guard !popped.isEmpty else { return }
+            // Let them go once they've left; a later pop's own wait sees to its pages.
+            let ids = Set(popped.map(\.id))
+            let wait = choreography.remove.end + 0.05
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(wait))
+                leaving.removeAll { ids.contains($0.id) && !shownPath.contains($0) }
+            }
+        }
+    }
+}
+
 /// The screen that last came in on top (pushed, or revealed by a pop), for variants that bring
 /// its parts in one by one: when it came in and when each part does.
 struct PageEntrance: Equatable {
