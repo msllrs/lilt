@@ -7,19 +7,17 @@ import Testing
 /// first related section reaches the top, and whether those sections' headers wear the cover.
 @MainActor
 struct PageAmbientTests {
-    /// Until the tweak panel says otherwise, the page looks as it always has: pinned to the top,
-    /// at full strength however far it scrolls, with the related headers tinted.
-    @Test func theStandardStyleIsTodaysLook() {
+    /// As tuned on 2026-11-03: pinned to the top, reaching 480pt, dimming by 0.65 over the 480pt
+    /// before the first related section reaches the top, the related headers plain.
+    @Test func theStandardStyleIsAsTuned() {
         let style = PageAmbientStyle.standard
-        #expect(style.band == 0.5 && style.reach == 360)
+        #expect(style.band == 0.5 && style.reach == 480)
         #expect(style.scroll == .pinned)
-        #expect(style.sectionFade == 0)
-        #expect(style.tintsSectionHeaders)
+        #expect(style.sectionFade == 0.65 && style.sectionFadeDistance == 480)
+        #expect(!style.tintsSectionHeaders)
         for offset: CGFloat in [-40, 0, 200, 600, 2_000] {
             #expect(style.offset(scrollOffset: offset) == 0)
-            for start: CGFloat? in [nil, 0, 400, 800] {
-                #expect(style.opacity(scrollOffset: offset, sectionsStart: start) == 1)
-            }
+            #expect(style.opacity(scrollOffset: offset, sectionsStart: nil) == 1, "no sections, no dimming")
         }
     }
 
@@ -31,7 +29,7 @@ struct PageAmbientTests {
         #expect(PageAmbientStyle(scroll: .scrolls) != .standard)
         #expect(PageAmbientStyle(sectionFade: 1) != .standard)
         #expect(PageAmbientStyle(sectionFadeDistance: 50) != .standard)
-        #expect(PageAmbientStyle(tintsSectionHeaders: false) != .standard)
+        #expect(PageAmbientStyle(tintsSectionHeaders: true) != .standard)
     }
 
     /// Pinned stays at the panel top; scrolling moves it up with the content, but a pull past
@@ -92,6 +90,7 @@ struct PageAmbientTests {
     @Test func relatedHeadersCanGoPlain() {
         let palette = BrowseScreen.palette(kind: .album, accent: Color(red: 0.8, green: 0.2, blue: 0.2), colorScheme: .light)
         var style = PageAmbientStyle.standard
+        style.tintsSectionHeaders = true
         #expect(BrowseScreen.relatedSectionPalette(palette, style: style)?.primary == palette.primary)
         #expect(BrowseScreen.relatedSectionPalette(palette, style: style)?.primary != nil)
         style.tintsSectionHeaders = false
@@ -101,11 +100,11 @@ struct PageAmbientTests {
     /// "Copy values" carries the new dials.
     @Test func copyValuesCarriesTheNewDials() {
         let style = ArtworkStyle()
-        #expect(style.swiftSnippet.contains("pageAmbient = PageAmbientStyle(band: 0.50, reach: 360.00, scroll: .pinned, sectionFade: 0.00, sectionFadeDistance: 200.00, tintsSectionHeaders: true)"))
+        #expect(style.swiftSnippet.contains("pageAmbient = PageAmbientStyle(band: 0.50, reach: 480.00, scroll: .pinned, sectionFade: 0.65, sectionFadeDistance: 480.00, tintsSectionHeaders: false)"))
         style.pageAmbient.scroll = .scrolls
         style.pageAmbient.sectionFade = 0.65
         style.pageAmbient.sectionFadeDistance = 120
         style.pageAmbient.tintsSectionHeaders = false
-        #expect(style.swiftSnippet.contains("pageAmbient = PageAmbientStyle(band: 0.50, reach: 360.00, scroll: .scrolls, sectionFade: 0.65, sectionFadeDistance: 120.00, tintsSectionHeaders: false)"))
+        #expect(style.swiftSnippet.contains("pageAmbient = PageAmbientStyle(band: 0.50, reach: 480.00, scroll: .scrolls, sectionFade: 0.65, sectionFadeDistance: 120.00, tintsSectionHeaders: false)"))
     }
 }

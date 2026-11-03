@@ -168,19 +168,20 @@ struct PageAmbientStyle: Equatable {
     /// wide shape is about 0.5, so the page's light comes from the same band of the cover and the
     /// two agree. 1 uses the whole cover.
     var band: Double = 0.5
-    /// How far down the page the wash reaches before fading out, in points.
-    var reach: Double = 360
+    /// How far down the page the wash reaches before fading out, in points. The reach and the
+    /// dials below were tuned by Matt in the tweak panel on 2026-11-03.
+    var reach: Double = 480
     /// Whether the wash stays at the panel's top as the page scrolls or leaves with the hero.
     var scroll: PageAmbientScroll = .pinned
     /// How far the wash dims once the page scrolls on past an album's tracks, reached as the
     /// first related section ("More from…", "Fans also like") arrives at the top of the panel:
     /// 0 leaves it as it is, 1 takes it away. Pages with nothing after the tracks never dim.
-    var sectionFade: Double = 0
+    var sectionFade: Double = 0.65
     /// Points of scroll the dimming is spread over, ending as that first section reaches the top.
-    var sectionFadeDistance: Double = 200
+    var sectionFadeDistance: Double = 480
     /// The related sections' headers take the album's colour like the tracks' header; off, they
     /// go plain like their rows.
-    var tintsSectionHeaders: Bool = true
+    var tintsSectionHeaders: Bool = false
 
     static let standard = PageAmbientStyle()
 
