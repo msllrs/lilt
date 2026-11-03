@@ -11,9 +11,11 @@ import SwiftUI
 /// and callers keep the plain style they had.
 ///
 /// The roles:
-/// - Content: `primary`, `secondary`, `tertiary`, a share of the accent mixed into the label
-///   colours (the title and controls start from black or white, the dimmer lines from the
-///   secondary and tertiary labels).
+/// - Content: `primary`, `secondary`, `tertiary`. In light mode a share of the accent mixed into
+///   the label colours (the title and controls start from black, the dimmer lines from the
+///   secondary and tertiary labels). In dark mode the accent's hue at a lightness per role, in
+///   OKLCH (see `darkTone`): a mix with white there lost chroma and lightness together and gave
+///   a muddy grey-blue that was neither white nor the cover's colour.
 /// - Controls: `control` (glyphs, the scrubber), `dimControl` (a control that is off or can't be
 ///   used), and `controlHover` / `controlPressed` fills.
 /// - Accent: `accent` itself, `accentContainer` (the cast as the glass controls wear it), with
@@ -44,12 +46,20 @@ struct CoverPalette: Equatable {
     /// How strongly the platter's wash takes the accent, from the window style's surface values.
     let washOpacity: Double
 
-    /// Each content and control role's share of the accent, after the guard.
+    /// Each content and control role's share of the accent, after the guard (light mode).
     private(set) var primaryShare: Double
     private(set) var secondaryShare: Double
     private(set) var tertiaryShare: Double
     private(set) var controlShare: Double
     private(set) var dimControlShare: Double
+
+    /// Dark mode's content and control roles, after the guard: the accent's hue at each role's
+    /// lightness. Nil in light mode or without an accent.
+    private(set) var darkPrimary: Color?
+    private(set) var darkSecondary: Color?
+    private(set) var darkTertiary: Color?
+    private(set) var darkControl: Color?
+    private(set) var darkDimControl: Color?
 
     init(accent: Color?, cast: Color? = nil, colorScheme: ColorScheme, surface: Surface, style: CoverPaletteStyle, container: LeadingCastStyle, washOpacity: Double) {
         self.accent = accent
@@ -64,7 +74,21 @@ struct CoverPalette: Equatable {
         tertiaryShare = style.contentShare * style.dimContentRatio
         controlShare = style.controlShare
         dimControlShare = style.controlShare
-        if surface == .page, style.contrastGuard { guardContrast() }
+        if colorScheme == .dark, let accent {
+            let seed = OKLCH(accent, in: .dark)
+            let guards = surface == .page && style.contrastGuard
+            func tone(_ lightness: Double, base: Color, floor: Double) -> Color {
+                let tone = Self.darkTone(seed, lightness: lightness, chromaCap: style.darkChromaCap)
+                return guards ? guardedTone(tone, base: base, minimum: floor) : tone.color
+            }
+            darkPrimary = tone(style.darkPrimaryLightness, base: .white, floor: Self.primaryFloor)
+            darkSecondary = tone(style.darkSecondaryLightness, base: .secondary, floor: Self.secondaryFloor)
+            darkTertiary = tone(style.darkTertiaryLightness, base: Self.tertiaryLabel, floor: Self.tertiaryFloor)
+            darkControl = tone(style.darkControlLightness, base: .white, floor: Self.primaryFloor)
+            darkDimControl = tone(style.darkDimControlLightness, base: .secondary, floor: Self.secondaryFloor)
+        } else if surface == .page, style.contrastGuard {
+            guardContrast()
+        }
     }
 
     /// With the tweak panel's live dials, and the wash of `windowStyle` (the one chosen, unless
@@ -86,14 +110,14 @@ struct CoverPalette: Equatable {
 
     // MARK: Content
 
-    var primary: Color? { accent.map { mono.mix(with: $0, by: primaryShare) } }
-    var secondary: Color? { accent.map { Color.secondary.mix(with: $0, by: secondaryShare) } }
-    var tertiary: Color? { accent.map { Self.tertiaryLabel.mix(with: $0, by: tertiaryShare) } }
+    var primary: Color? { dark ? darkPrimary : accent.map { mono.mix(with: $0, by: primaryShare) } }
+    var secondary: Color? { dark ? darkSecondary : accent.map { Color.secondary.mix(with: $0, by: secondaryShare) } }
+    var tertiary: Color? { dark ? darkTertiary : accent.map { Self.tertiaryLabel.mix(with: $0, by: tertiaryShare) } }
 
     // MARK: Controls
 
-    var control: Color? { accent.map { mono.mix(with: $0, by: controlShare) } }
-    var dimControl: Color? { accent.map { Color.secondary.mix(with: $0, by: dimControlShare) } }
+    var control: Color? { dark ? darkControl : accent.map { mono.mix(with: $0, by: controlShare) } }
+    var dimControl: Color? { dark ? darkDimControl : accent.map { Color.secondary.mix(with: $0, by: dimControlShare) } }
     /// A control's fill under the pointer and while pressed: its glyph colour, faintly.
     var controlHover: Color { (control ?? mono).opacity(style.controlHoverOpacity) }
     var controlPressed: Color { (control ?? mono).opacity(style.controlPressedOpacity) }
@@ -125,7 +149,8 @@ struct CoverPalette: Equatable {
     /// The platter's pool of the accent, behind the cover or along the top.
     var wash: Color? { accent?.opacity(washOpacity) }
 
-    /// The same palette with another cast seed (the shares, and so the guard, are the accent's).
+    /// The same palette with another cast seed (the shares and tones, and so the guard, are the
+    /// accent's).
     func casting(_ cast: Color?) -> CoverPalette {
         var copy = self
         copy.cast = cast
@@ -157,7 +182,7 @@ extension CoverPalette {
     static let guardStep = 0.02
 
     /// Lowers each role's share of the accent where needed so the tinted colour keeps its floor
-    /// against the panel. Without it, a saturated mid-tone pulled the controls' larger share
+    /// against the panel (light mode; dark mode's tones have `guardedTone`). Without it, a saturated mid-tone pulled the controls' larger share
     /// toward the background (deep blue on dark, yellow on light) and the dimmer lines below what
     /// the plain labels manage.
     private mutating func guardContrast() {
@@ -167,6 +192,33 @@ extension CoverPalette {
         tertiaryShare = guardedShare(base: Self.tertiaryLabel, share: tertiaryShare, minimum: Self.tertiaryFloor)
         controlShare = guardedShare(base: mono, share: controlShare, minimum: Self.primaryFloor)
         dimControlShare = guardedShare(base: .secondary, share: dimControlShare, minimum: Self.secondaryFloor)
+    }
+
+    /// A dark-mode role: the accent's hue at `lightness`, its chroma capped at `chromaCap` and
+    /// then lowered, if need be, to what sRGB holds there (blue and red can't stay vivid that
+    /// light), keeping the hue rather than clipping off it. A greyish cover keeps its little
+    /// chroma, so no hue is invented.
+    static func darkTone(_ seed: OKLCH, lightness: Double, chromaCap: Double) -> OKLCH {
+        OKLCH(l: lightness, c: min(seed.c, chromaCap), h: seed.h).inGamut
+    }
+
+    /// How finely the dark guard lifts a tone, and how much chroma each step gives up.
+    static let darkGuardStep = 0.01
+    static let darkGuardChromaKeep = 0.92
+
+    /// Dark mode's guard: where a tone falls below its floor on the panel, it is lifted in
+    /// lightness and gives up a little chroma each step, so it moves towards a clear light
+    /// colour rather than towards grey. At the shipped lightnesses it has nothing to do; it is a
+    /// net for dials turned down.
+    private func guardedTone(_ tone: OKLCH, base: Color, minimum: Double) -> Color {
+        let floor = min(contrast(base), minimum)
+        var tone = tone
+        while tone.l < 1, contrast(tone.color) < floor {
+            tone.l = min(1, tone.l + Self.darkGuardStep)
+            tone.c *= Self.darkGuardChromaKeep
+            tone = tone.inGamut
+        }
+        return tone.color
     }
 
     /// The largest share up to `share`, in small steps, that keeps the floor.

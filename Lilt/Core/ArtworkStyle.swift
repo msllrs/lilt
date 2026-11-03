@@ -120,6 +120,17 @@ struct CoverPaletteStyle: Equatable {
     var controlPressedOpacity: Double = 0.085
     /// On a page, lower a share where it would take a line below its contrast floor on the panel.
     var contrastGuard: Bool = true
+    /// Dark mode doesn't use the shares: each role keeps the accent's hue at its own OKLCH
+    /// lightness, title brightest, so it reads as a light tint of the cover rather than white
+    /// mixed down to a muddy mid-tone (see `CoverPalette`)…
+    var darkPrimaryLightness: Double = 0.87
+    var darkControlLightness: Double = 0.81
+    var darkSecondaryLightness: Double = 0.74
+    var darkTertiaryLightness: Double = 0.62
+    var darkDimControlLightness: Double = 0.58
+    /// …with the accent's chroma capped here (and lowered further where sRGB can't hold it), so
+    /// it is vivid but never neon.
+    var darkChromaCap: Double = 0.12
 
     /// Tuned by Matt in the tweak panel on 2026-10-02 (as the platter's text and controls tint).
     static let standard = CoverPaletteStyle()
