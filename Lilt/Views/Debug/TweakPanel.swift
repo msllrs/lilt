@@ -94,6 +94,14 @@ struct TweakPanel: View {
             Section("Page ambient") {
                 slider("Reach", $style.pageAmbient.reach, 80...800)
                 slider("Cover band (h/w)", $style.pageAmbient.band, 0.2...1)
+                // Past an album's tracks, onto "More from…" and the other related sections.
+                Picker("On scroll", selection: $style.pageAmbient.scroll) {
+                    ForEach(PageAmbientScroll.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                slider("Dim at related sections (0 none, 1 gone)", $style.pageAmbient.sectionFade, 0...1)
+                slider("Dim over (pt before they reach the top)", $style.pageAmbient.sectionFadeDistance, 0...600)
+                Toggle("Related section headers wear the cover", isOn: $style.pageAmbient.tintsSectionHeaders)
             }
             Section("Panel") {
                 Picker("Surface", selection: $style.panel.surface) {
