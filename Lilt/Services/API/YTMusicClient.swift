@@ -16,6 +16,9 @@ final class YTMusicClient {
     @ObservationIgnored private let write: @MainActor (_ endpoint: String, _ body: [String: Any]) async throws -> JSONObject
     /// Fetches the up-next panel for a video, which names its artist and album. Tests stand in here.
     @ObservationIgnored private let fetchNext: @MainActor (_ videoId: String) async throws -> JSONObject
+    /// Fetches a watch playlist's queue panel by its id (and the song it grows from, for a
+    /// song's mix). Read-only; tests stand in here.
+    @ObservationIgnored private let fetchWatch: @MainActor (_ playlistId: String, _ videoId: String?) async throws -> JSONObject
     @ObservationIgnored private var pageCache: [String: BrowsePage] = [:]
     @ObservationIgnored private var homeCache: (sections: [HomeSection], fetched: Date)?
     @ObservationIgnored private var libraryCache: (content: LibraryContent, fetched: Date)?
@@ -57,7 +60,8 @@ final class YTMusicClient {
         auth: AuthService,
         fetchPage: (@MainActor (_ browseId: String) async throws -> JSONObject)? = nil,
         write: (@MainActor (_ endpoint: String, _ body: [String: Any]) async throws -> JSONObject)? = nil,
-        fetchNext: (@MainActor (_ videoId: String) async throws -> JSONObject)? = nil
+        fetchNext: (@MainActor (_ videoId: String) async throws -> JSONObject)? = nil,
+        fetchWatch: (@MainActor (_ playlistId: String, _ videoId: String?) async throws -> JSONObject)? = nil
     ) {
         let client = InnerTubeClient(auth: auth)
         self.client = client
@@ -65,6 +69,16 @@ final class YTMusicClient {
         self.write = write ?? { endpoint, body in try await client.post(endpoint, body: body) }
         self.fetchNext = fetchNext ?? { videoId in
             try await client.post("next", body: ["videoId": videoId, "enablePersistentPlaylistPanel": true, "isAudioOnly": true])
+        }
+        // As ytmusicapi's get_watch_playlist(radio=True) asks: the playlist id, "wAEB" for a
+        // radio, the persistent queue panel, audio only.
+        self.fetchWatch = fetchWatch ?? { playlistId, videoId in
+            var body: [String: Any] = [
+                "playlistId": playlistId, "params": "wAEB",
+                "enablePersistentPlaylistPanel": true, "isAudioOnly": true, "tunerSettingValue": "AUTOMIX_SETTING_NORMAL",
+            ]
+            if let videoId { body["videoId"] = videoId }
+            return try await client.post("next", body: body)
         }
         restore()
     }
@@ -184,6 +198,58 @@ final class YTMusicClient {
     /// Artist/album links for a track that arrived without them (home feed, radio continuation).
     func links(forVideoId videoId: String) async throws -> TrackLinks? {
         SearchParser.links(from: try await fetchNext(videoId).value, videoId: videoId)
+    }
+
+    // MARK: Mixes
+
+    /// A song's mix: the RDAMVM watch playlist seeded by it, which YouTube Music starts with
+    /// the song itself.
+    static func mixId(forSong videoId: String) -> String { "RDAMVM" + videoId }
+
+    /// An album's or playlist's mix: RDAMPL plus the playlist (an album's audio playlist,
+    /// OLAK5uy…; a playlist's id without its VL browse prefix). An id that is a mix already
+    /// is left as it is.
+    static func mixId(forList playlistId: String) -> String {
+        let id = playlistId.hasPrefix("VL") ? String(playlistId.dropFirst(2)) : playlistId
+        return id.hasPrefix("RDAM") || id.hasPrefix("RDEM") ? id : "RDAMPL" + id
+    }
+
+    /// The mix id for a page: an artist's from its Mix button, an album's or playlist's from
+    /// the playlist behind it. Nil when the page didn't say.
+    static func mixId(for page: BrowsePage) -> String? {
+        switch page.item.kind {
+        case .artist: page.radioId
+        case .album, .playlist: page.playlistId.map(mixId(forList:))
+        case .library: nil
+        }
+    }
+
+    /// The first page of a song's mix.
+    func mix(for track: Track) async throws -> Mix {
+        try await mix(playlistId: Self.mixId(forSong: track.id), videoId: track.id)
+    }
+
+    /// The first page of an album's, playlist's or artist's mix. A playlist's id is in its
+    /// browse id; albums and artists need their page (cached when it's been seen).
+    func mix(for item: BrowseItem) async throws -> Mix {
+        var id: String?
+        if item.kind == .playlist, item.id.hasPrefix("VL") {
+            id = Self.mixId(forList: item.id)
+        } else if item.kind != .library {
+            if let cached = cachedPage(for: item) { id = Self.mixId(for: cached) }
+            if id == nil { id = Self.mixId(for: try await page(for: item)) }
+        }
+        guard let id else { throw URLError(.resourceUnavailable) }
+        return try await mix(playlistId: id, videoId: nil)
+    }
+
+    private func mix(playlistId: String, videoId: String?) async throws -> Mix {
+        let response = try await fetchWatch(playlistId, videoId)
+        guard let mix = SearchParser.mix(from: response.value, playlistId: playlistId), !mix.tracks.isEmpty else {
+            throw URLError(.cannotParseResponse)
+        }
+        ImageCache.shared.prefetch(mix.tracks.prefix(12).map(\.artworkURL))
+        return mix
     }
 
     /// Links looked up for rows that arrived without them, by video id. A lookup that found

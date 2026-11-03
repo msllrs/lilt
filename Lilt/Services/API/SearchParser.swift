@@ -183,6 +183,12 @@ enum SearchParser {
                let id = JSON.string(endpoint["playlistId"]) {
                 page.playlistId = id
             }
+            // Artist headers carry a Mix button (`startRadioButton`) leading to the artist's
+            // radio, by a watch playlist endpoint or, on some layouts, a watch endpoint.
+            if let radio = JSON.dict(JSON.value(at: ["startRadioButton", "buttonRenderer", "navigationEndpoint"], in: header)) {
+                page.radioId = JSON.string(JSON.value(at: ["watchPlaylistEndpoint", "playlistId"], in: radio))
+                    ?? JSON.string(JSON.value(at: ["watchEndpoint", "playlistId"], in: radio))
+            }
             // Album headers link the artist in the strapline (or subtitle on older layouts).
             let artistRuns = (JSON.array(JSON.value(at: ["straplineTextOne", "runs"], in: header)) ?? [])
                 + (JSON.array(JSON.value(at: ["subtitle", "runs"], in: header)) ?? [])
@@ -282,6 +288,52 @@ enum SearchParser {
             artist: artistRun.flatMap { JSON.string($0["text"]) },
             artistId: artistRun.flatMap(browseId(of:)),
             album: albumRun.flatMap { JSON.string($0["text"]) },
+            albumId: albumRun.flatMap(browseId(of:))
+        )
+    }
+
+    // MARK: Mixes
+
+    /// From a `next` response for a watch playlist: the queue panel's songs, in order, and the
+    /// name the panel gives the list. Songs that can't be played are left out. A song shown
+    /// with a video counterpart sits in a wrapper whose primary renderer is the one queued; the
+    /// counterpart (the video) isn't a song of its own.
+    static func mix(from response: [String: Any], playlistId: String) -> Mix? {
+        guard let panel = JSON.findAll(key: "playlistPanelRenderer", in: response).first else { return nil }
+        var seen = Set<String>()
+        var tracks: [Track] = []
+        for entry in (JSON.array(panel["contents"]) ?? []).compactMap(JSON.dict) {
+            let renderer = JSON.dict(entry["playlistPanelVideoRenderer"])
+                ?? JSON.dict(JSON.value(at: ["playlistPanelVideoWrapperRenderer", "primaryRenderer", "playlistPanelVideoRenderer"], in: entry))
+            guard let renderer, renderer["unplayableText"] == nil,
+                  let track = track(fromPanel: renderer), seen.insert(track.id).inserted else { continue }
+            tracks.append(track)
+        }
+        let title = JSON.string(panel["title"]) ?? runsText(JSON.value(at: ["title", "runs"], in: panel))
+        return Mix(
+            playlistId: JSON.string(panel["playlistId"]) ?? playlistId,
+            title: title.flatMap { $0.isEmpty ? nil : $0 },
+            tracks: tracks
+        )
+    }
+
+    /// One queue panel entry: the title, the byline's artists and album, the length and cover.
+    private static func track(fromPanel item: [String: Any]) -> Track? {
+        guard let videoId = JSON.string(item["videoId"]),
+              let title = runsText(JSON.value(at: ["title", "runs"], in: item)), !title.isEmpty else { return nil }
+        let runs = (JSON.array(JSON.value(at: ["longBylineText", "runs"], in: item)) ?? []).compactMap(JSON.dict)
+        let artistRuns = runs.filter(isArtistRun)
+        let albumRun = runs.first { pageType(of: $0) == "MUSIC_PAGE_TYPE_ALBUM" }
+        let fallbackArtist = runs.compactMap { JSON.string($0["text"]) }.first { !$0.contains("•") }
+        let thumbs = JSON.array(JSON.value(at: ["thumbnail", "thumbnails"], in: item))
+        return Track(
+            id: videoId,
+            title: title,
+            artist: artistRuns.isEmpty ? (fallbackArtist ?? "") : artistRuns.compactMap { JSON.string($0["text"]) }.joined(separator: ", "),
+            album: albumRun.flatMap { JSON.string($0["text"]) },
+            durationText: JSON.string(JSON.value(at: ["lengthText", "runs", 0, "text"], in: item)),
+            artworkURL: JSON.string(JSON.dict(thumbs?.last)?["url"]).flatMap { artworkURL($0, size: 240) },
+            artistId: artistRuns.first.flatMap(browseId(of:)),
             albumId: albumRun.flatMap(browseId(of:))
         )
     }

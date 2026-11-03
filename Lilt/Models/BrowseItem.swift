@@ -103,5 +103,18 @@ struct BrowsePage: Equatable, Sendable {
     /// For albums: the kind and year line ("Album • 2013") that the header shows under the
     /// artist, as playlists show theirs.
     var detail: String?
+    /// For artists: the watch playlist of the header's Mix button (an RDEM… id), which isn't
+    /// derived from the channel id and so has to come from the page.
+    var radioId: String?
     var sections: [BrowseSection] = []
+}
+
+/// YouTube Music's radio for a song, album, playlist or artist: a watch playlist that grows
+/// from it, as the `next` endpoint gives it.
+struct Mix: Equatable, Sendable {
+    /// The watch playlist (RDAMVM…, RDAMPL…, RDEM…).
+    var playlistId: String
+    /// The panel's own name for it ("Mix – Schism"), when the response has one.
+    var title: String?
+    var tracks: [Track]
 }
