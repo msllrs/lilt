@@ -250,8 +250,6 @@ struct PageLook: Equatable, Sendable {
     var x: CGFloat = 0
     var y: CGFloat = 0
     var scale: CGFloat = 1
-    /// Blur at the far end; while fading it follows the opacity (see `PageStage`).
-    var blur: CGFloat = 0
     /// The masked wipe: the part of the page's width that shows, leading to trailing, 0...1.
     var maskLeading: CGFloat = 0
     var maskTrailing: CGFloat = 1
@@ -264,7 +262,7 @@ struct PageLook: Equatable, Sendable {
         func mix(_ a: CGFloat, _ b: CGFloat) -> CGFloat { a + (b - a) * CGFloat(amount) }
         return PageLook(
             opacity: shown.opacity + (opacity - shown.opacity) * amount,
-            x: mix(shown.x, x), y: mix(shown.y, y), scale: mix(shown.scale, scale), blur: mix(shown.blur, blur),
+            x: mix(shown.x, x), y: mix(shown.y, y), scale: mix(shown.scale, scale),
             maskLeading: mix(shown.maskLeading, maskLeading), maskTrailing: mix(shown.maskTrailing, maskTrailing)
         )
     }
@@ -353,6 +351,16 @@ struct PageChoreography: Equatable, Sendable {
     /// The wipe's soft edge, in points.
     var maskFeather: CGFloat = 0
     var usesMask: Bool { maskFeather > 0 }
+    /// The most the move blurs (`BlurVeil`), in points; nothing when 0.
+    var veilBlur: CGFloat = 0
+
+    /// The veil's blur `time` seconds into a move: it follows whichever page is showing, none
+    /// while the page leaving is fully there, `veilBlur` as the two hand over (both all but
+    /// gone), none once the page arriving is fully in.
+    func veil(at time: TimeInterval, for move: PageMove) -> Double {
+        guard veilBlur > 0, let o = opacities(for: move, at: time) else { return 0 }
+        return Double(veilBlur) * (1 - min(max(max(o.outgoing, o.incoming), 0), 1))
+    }
 
     /// The longest any page takes in any role.
     var longest: TimeInterval { [park.end, unpark.end, insert.end, remove.end, flight?.end ?? 0].max() ?? 0 }
@@ -505,14 +513,15 @@ struct PageChoreography: Equatable, Sendable {
             )
 
         case .blurCut:
-            // Blur follows the fade (see PageStage), so it is at its strongest only as a page
+            // Blur follows the fade (see BlurVeil), so it is at its strongest only as a page
             // is nearly gone, and nothing is blurred once a page has settled either way.
             let away = timing(phase(0, 0.1, .easeOut))
             let arrive = timing(phase(d.stagger, d.duration, .easeOut))
             return PageChoreography(
                 transition: transition,
-                behind: PageLook(opacity: 0, scale: 1 - d.scale, blur: d.blur), front: PageLook(opacity: 0, scale: 1 + d.scale, blur: d.blur),
-                park: away, unpark: arrive, insert: arrive, remove: away
+                behind: PageLook(opacity: 0, scale: 1 - d.scale), front: PageLook(opacity: 0, scale: 1 + d.scale),
+                park: away, unpark: arrive, insert: arrive, remove: away,
+                veilBlur: d.blur
             )
 
         case .maskedWipe:

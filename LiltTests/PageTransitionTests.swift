@@ -124,7 +124,7 @@ struct PageTransitionTests {
         #expect(staggered.entrance!.phase(for: .controls).delay < rows[0])
 
         let blur = Self.choreography(.blurCut)
-        #expect(blur.behind.blur == 8 && blur.front.blur == 8)
+        #expect(blur.veilBlur == 8)
 
         let wipe = Self.choreography(.maskedWipe)
         #expect(wipe.insert.motion == PagePhase(delay: 0, duration: 0.26, curve: .bezier(0.3, 0, 0, 1)))
@@ -169,12 +169,13 @@ struct PageTransitionTests {
             let c = Self.choreography(transition, reducing: true)
             for look in [c.behind, c.front] {
                 #expect(look.opacity == 0)
-                #expect(look.x == 0 && look.y == 0 && look.scale == 1 && look.blur == 0)
+                #expect(look.x == 0 && look.y == 0 && look.scale == 1)
                 #expect(look.maskLeading == 0 && look.maskTrailing == 1)
             }
             #expect(c.flight == nil, "\(transition) flies under Reduce Motion")
             #expect(c.entrance == nil, "\(transition) staggers under Reduce Motion")
             #expect(!c.usesMask)
+            #expect(c.veilBlur == 0, "\(transition) blurs under Reduce Motion")
             #expect(c.longest <= 0.25)
             // Still a crossfade at a slowed pace, just slower.
             #expect(abs(Self.choreography(transition, speed: 0.1, reducing: true).longest - c.longest * 10) < 1e-9)
@@ -265,6 +266,26 @@ struct PageTransitionTests {
                 let end = c.opacities(for: .push, at: c.longest * 3 + 1)!
                 #expect(end.outgoing == 0 && end.incoming == 1)
             }
+        }
+    }
+
+    /// The blur-through cut's blur is the veil over the stack, not a filter on a page: none while
+    /// the page leaving is fully there, nearly all of it as the two hand over, none once the page
+    /// arriving is in. Every other variant has none.
+    @Test func theVeilFollowsTheHandOver() {
+        for transition in PageTransition.allCases {
+            let c = Self.choreography(transition)
+            for move in [PageMove.push, .pop(levels: 1)] {
+                let samples = (0...Int(c.longest * 240)).map { c.veil(at: Double($0) / 240, for: move) }
+                if transition == .blurCut {
+                    #expect(c.veil(at: 0, for: move) == 0)
+                    #expect(c.veil(at: c.longest + 0.01, for: move) == 0)
+                    #expect((samples.max() ?? 0) > Double(c.veilBlur) * 0.9, "\(transition) \(move): the veil peaks at \(samples.max() ?? 0)")
+                } else {
+                    #expect(samples.allSatisfy { $0 == 0 }, "\(transition) blurs")
+                }
+            }
+            #expect(c.veil(at: 0.1, for: .none) == 0)
         }
     }
 

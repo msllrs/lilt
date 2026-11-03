@@ -4,13 +4,11 @@ import SwiftUI
 /// to (or from) where it waits behind the page on top or in front before it arrives. Offset
 /// and scale ride the timing's motion phase, the fade its opacity phase, each through its own
 /// scoped animation, so a page can be gone long before it has finished moving. Only opacity,
-/// travel and scale animate on the flattened page; blur and the wipe's mask are there only for
-/// the variants that use them.
+/// travel and scale animate on the flattened page; the wipe's mask is there only for the
+/// variant that uses it, and a blur is never put on a page (see `BlurVeil`).
 struct PageStage: ViewModifier {
     let look: PageLook
     let timing: PageTiming
-    /// The blur this stage reaches as its page fades out entirely (see `FadeBlur`).
-    let blur: CGFloat
     let anchor: UnitPoint
     /// The wipe's soft edge as a fraction of the page's width; nil when the variant has no mask.
     let maskFeather: CGFloat?
@@ -26,15 +24,7 @@ struct PageStage: ViewModifier {
         let flat = Group {
             if flattens { moved.compositingGroup() } else { moved }
         }
-        // A plain fade for every variant but the blur-through cut: FadeBlur is a custom
-        // animatable, evaluated on every frame of the fade.
-        let faded = Group {
-            if blur > 0 {
-                flat.animation(timing.opacity.animation) { $0.modifier(FadeBlur(opacity: look.opacity, blur: blur)) }
-            } else {
-                flat.animation(timing.opacity.animation) { $0.opacity(look.opacity) }
-            }
-        }
+        let faded = flat.animation(timing.opacity.animation) { $0.opacity(look.opacity) }
         if let maskFeather {
             faded.animation(timing.motion.animation) {
                 $0.modifier(WipeMaskEffect(leading: look.maskLeading, trailing: look.maskTrailing, feather: maskFeather))
@@ -61,25 +51,6 @@ nonisolated struct PageSlide: GeometryEffect {
 
     func effectValue(size: CGSize) -> ProjectionTransform {
         ProjectionTransform(CGAffineTransform(translationX: x, y: y))
-    }
-}
-
-/// A page's fade, with its blur following it: none while the page is fully there, the most as
-/// it all but disappears, and none again once it has (a page faded out isn't left blurred
-/// beneath the one on top, costing a filter for nothing).
-nonisolated private struct FadeBlur: ViewModifier, Animatable {
-    var opacity: Double
-    let blur: CGFloat
-
-    var animatableData: Double {
-        get { opacity }
-        set { opacity = newValue }
-    }
-
-    func body(content: Content) -> some View {
-        content
-            .blur(radius: blur > 0 && opacity > 0.01 && opacity < 1 ? blur * CGFloat(1 - opacity) : 0)
-            .opacity(opacity)
     }
 }
 
@@ -148,6 +119,12 @@ struct StagedStack<Root: View, Page: View>: View {
                     .modifier(StagedPlace(parked: index < path.count - 1, choreography: c, feather: feather, outOfSight: outOfSight))
                     .transition(PageArrival(choreography: c, feather: feather))
             }
+            // Above every page, the one leaving included.
+            if c.veilBlur > 0 {
+                BlurVeil(path: [PageSpace.searchKey] + path.map(\.id), choreography: c)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
@@ -166,7 +143,7 @@ private struct StagedPlace: ViewModifier {
         content
             // Frames measured inside the page (the hero morph's) ignore how it is staged.
             .coordinateSpace(.named(PageSpace.name))
-            .modifier(PageStage(look: parked ? c.behind : .shown, timing: parked ? c.park : c.unpark, blur: c.behind.blur, anchor: c.scaleAnchor, maskFeather: feather, flattens: true))
+            .modifier(PageStage(look: parked ? c.behind : .shown, timing: parked ? c.park : c.unpark, anchor: c.scaleAnchor, maskFeather: feather, flattens: true))
             .allowsHitTesting(!parked)
             .accessibilityHidden(parked)
             // Discs, notes and marquees stop while a screen sits unseen beneath another.
@@ -183,7 +160,7 @@ private struct PageArrival: Transition {
     func body(content: Content, phase: TransitionPhase) -> some View {
         let c = choreography
         content
-            .modifier(PageStage(look: phase.isIdentity ? .shown : c.front, timing: phase == .didDisappear ? c.remove : c.insert, blur: c.front.blur, anchor: c.scaleAnchor, maskFeather: feather, flattens: false))
+            .modifier(PageStage(look: phase.isIdentity ? .shown : c.front, timing: phase == .didDisappear ? c.remove : c.insert, anchor: c.scaleAnchor, maskFeather: feather, flattens: false))
             // SwiftUI keeps a removed view until its transition's animations are done; this one
             // draws nothing and lasts as long as the move.
             .animation(.linear(duration: max(c.settled, 0.0001))) { $0.modifier(RemovalHold(progress: phase == .didDisappear ? 1 : 0)) }

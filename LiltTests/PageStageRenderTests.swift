@@ -53,9 +53,10 @@ struct PageStageRenderTests {
     /// popped page is kept while it fades out, and each ends where it should. The two pages
     /// never showing at once is checked on the timings themselves (PageTransitionTests).
     @Test func pushedAndPoppedPagesFadeRatherThanCut() async throws {
-        // Not the variants that move their page off the sampled pixel (parallax, wipe), nor the
-        // blur-through cut, whose blur off screen holds the whole stack back by a second or more.
-        for transition in [PageTransition.sequencedFade, .scaleDepth, .staggered, .heroMorph] {
+        // Not the variants that move their page off the sampled pixel (parallax, wipe). The
+        // blur-through cut is in since its blur left the page for the veil over the stack: on the
+        // page, off screen, it held the whole stack back by a second or more.
+        for transition in [PageTransition.sequencedFade, .scaleDepth, .staggered, .heroMorph, .blurCut] {
             try await run(transition)
         }
     }

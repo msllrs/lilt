@@ -66,7 +66,7 @@ struct PageTransitionSection: View {
         case .scaleDepth: "Out in 0.1s to 1 − step; in from 1 + step on a spring after the delay. Scaled from the top edge."
         case .heroMorph: "The tapped row's cover flies to the hero (and back on pop while the row is on screen); title, buttons and rows follow."
         case .staggered: "Hero, title, buttons, then rows one by one (capped at 12); the old page fades out in 0.09s."
-        case .blurCut: "Blur follows the fade: strongest as a page all but disappears, none once it has settled. Blur costs GPU time."
+        case .blurCut: "Blur follows the fade: strongest as a page all but disappears, none once it has settled. One backdrop blur over the stack, only while a move runs."
         case .maskedWipe: "A soft edge sweeps trailing to leading on push, back on pop; each point shows one page only."
         }
     }
