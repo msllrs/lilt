@@ -554,11 +554,13 @@ private struct HeroSnapBehavior: ScrollTargetBehavior {
 /// glass settings apply to both), with the cover above casting its colour onto it the way the
 /// compact header casts onto the back button: the palette's accent container, its wash and rim,
 /// lit from the top here since the cover sits above. Lives on the label so the press scale
-/// moves the whole control.
+/// moves the whole control. While the window isn't active the cast goes, as colour does from
+/// the rest of an inactive window, and the control is the plain header surface.
 struct HeroGlass<S: InsettableShape>: ViewModifier {
     let shape: S
     /// The page's palette with the hero's cast as its container seed.
     let palette: CoverPalette
+    @Environment(\.appearsActive) private var appearsActive
 
     func body(content: Content) -> some View {
         let style = palette.container
@@ -581,6 +583,8 @@ struct HeroGlass<S: InsettableShape>: ViewModifier {
                         )
                     }
                     .blendMode(palette.containerBlend)
+                    .opacity(appearsActive ? 1 : 0)
+                    .animation(Theme.Motion.quick, value: appearsActive)
                     .allowsHitTesting(false)
                 }
             }
