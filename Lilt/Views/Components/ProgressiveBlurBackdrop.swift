@@ -93,12 +93,13 @@ final class BackdropHostView: NSView {
 
     override var isFlipped: Bool { false }
 
-    /// The layer runs past the view on the top and sides. Its outermost pixels are never fully
-    /// blurred (the half-resolution pass and edge normalisation both leave a sliver), and the
-    /// clip below cuts the layer back to the view at the panel's own corners, so the visible
-    /// edge is the clip, not the layer. Backdrops sample other windows too, so without the clip
-    /// the bleed paints a blurred square of the desktop outside each rounded corner.
-    private static let bleed: CGFloat = 12
+    /// The layer covers the view and no more. A backdrop blurs whatever lies under its own
+    /// bounds, which past the window's edge is the desktop beside the panel: a layer run past
+    /// the view (once, to hide edge pixels that never blurred fully) pulled that desktop in, and
+    /// a dark one showed as dark bands down the panel's sides and across its top. With edge
+    /// normalisation the blur reaches right to the layer's edge from what is inside it alone.
+    /// The clip below rounds the panel's corners, which a behind-window backdrop ignores the
+    /// window's own clip for.
     var cornerRadius: CGFloat = Theme.Radius.window {
         didSet { if cornerRadius != oldValue { needsLayout = true } }
     }
@@ -122,15 +123,13 @@ final class BackdropHostView: NSView {
 
     override func layout() {
         super.layout()
-        // Bleed past the edge the effect is strongest at (top normally, bottom when flipped).
-        let frame = NSRect(x: -Self.bleed, y: rampFlipped ? -Self.bleed : 0, width: bounds.width + Self.bleed * 2, height: bounds.height + Self.bleed)
-        container.frame = frame
+        container.frame = bounds
         backdrop?.frame = container.bounds
         fade.frame = container.bounds
         clip.frame = container.bounds
-        // The view's own rect inside the bled layer, with the panel's corners on the edge the
-        // effect sits against (layer coordinates: y up, so the top corners are the max-y ones).
-        let viewRect = CGRect(x: Self.bleed, y: rampFlipped ? Self.bleed : 0, width: bounds.width, height: bounds.height)
+        // The panel's corners on the edge the effect sits against (layer coordinates: y up, so
+        // the top corners are the max-y ones).
+        let viewRect = container.bounds
         let r = cornerRadius
         if r > 0 {
             let shape = UnevenRoundedRectangle(
@@ -140,7 +139,7 @@ final class BackdropHostView: NSView {
             )
             clip.path = shape.path(in: viewRect).cgPath
         } else {
-            // No shape of ours: the whole bled layer stays and the window clips it.
+            // No shape of ours: the whole layer stays and the window clips it.
             clip.path = CGPath(rect: container.bounds, transform: nil)
         }
         fade.startPoint = CGPoint(x: 0.5, y: rampFlipped ? 0 : 1)
@@ -149,12 +148,11 @@ final class BackdropHostView: NSView {
         applyFilters()
     }
 
-    /// The fade's locations are fractions of the layer, which is taller than the view by the
-    /// bleed; convert from the view-relative fraction the caller knows about.
+    /// The fade's locations are fractions of the layer, which is the view, so the caller's
+    /// fraction is used as it is.
     private func applyFade() {
-        let height = bounds.height + Self.bleed
-        guard height > 0 else { return }
-        let start = (Self.bleed + fadeStart * bounds.height) / height
+        guard bounds.height > 0 else { return }
+        let start = fadeStart
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         fade.colors = [NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
