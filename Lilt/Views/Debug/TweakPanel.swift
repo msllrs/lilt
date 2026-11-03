@@ -146,6 +146,7 @@ struct TweakPanel: View {
                 slider("Glass tint (neutral)", $style.platter.glassTint, 0...1)
                 slider("Backing (behind glass)", $style.platter.backing, 0...1)
                 slider("Bottom edge (dark line)", $style.platter.bottomEdge, 0...1)
+                slider("Dark: bottom edge (dark line)", $style.platter.darkBottomEdge, 0...1)
             }
             Section("Dock tile") {
                 slider("Plate tint", $style.dockTile.plateTint, 0...0.8)

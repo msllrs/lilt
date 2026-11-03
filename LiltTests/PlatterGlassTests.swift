@@ -79,7 +79,12 @@ struct PlatterGlassTests {
     /// The platter's own share of the glass edge's dark bottom line: 1 is today, lower softens
     /// it on the platter alone (the header controls keep the surface's).
     @Test func theBottomEdgeScalesOnThePlatterAlone() {
-        #expect(PlatterStyle.standard.bottomEdge == 1)
+        #expect(PlatterStyle.standard.bottomEdge(dark: false) == PlatterStyle.standard.bottomEdge)
+        #expect(PlatterStyle.standard.bottomEdge(dark: true) == PlatterStyle.standard.darkBottomEdge)
+        var split = PlatterStyle.standard
+        split.bottomEdge = 0.8
+        split.darkBottomEdge = 0.24
+        #expect(split.bottomEdge(dark: false) == 0.8 && split.bottomEdge(dark: true) == 0.24, "light and dark are their own")
         #expect(GlassEdge<Circle>.bottomOpacity(0.35, scale: 1) == 0.35)
         #expect(abs(GlassEdge<Circle>.bottomOpacity(0.35, scale: 0.48) - 0.168) < 1e-9)
         #expect(GlassEdge<Circle>.bottomOpacity(0.35, scale: 0) == 0)
@@ -94,12 +99,12 @@ struct PlatterGlassTests {
 
     @Test func copyValuesCarriesTheGlass() {
         let style = ArtworkStyle()
-        #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .current, colorStrength: 1.00, frost: 0.00, glassTint: 0.00, backing: 0.00, bottomEdge: 1.00)"))
+        #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .current, colorStrength: 1.00, frost: 0.00, glassTint: 0.00, backing: 0.00, bottomEdge: 1.00, darkBottomEdge: 1.00)"))
         style.platter.glass = .clear
         style.platter.colorStrength = 0.64
         style.platter.frost = 0.32
         style.platter.glassTint = 0.16
         style.platter.backing = 0.08
-        #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .clear, colorStrength: 0.64, frost: 0.32, glassTint: 0.16, backing: 0.08, bottomEdge: 1.00)"))
+        #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .clear, colorStrength: 0.64, frost: 0.32, glassTint: 0.16, backing: 0.08, bottomEdge: 1.00, darkBottomEdge: 1.00)"))
     }
 }
