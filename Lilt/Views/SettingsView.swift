@@ -58,8 +58,10 @@ struct SettingsView: View {
 /// playing cover's colour. With Reduce Motion on the disc rests whatever this says; with Reduce
 /// Transparency on, Glass shows as Solid, and its card says so. Player glass frosts the platter's
 /// clear glass, from frosted through to clear like the search field; Reduce Transparency keeps
-/// it frosted.
+/// it frosted. Theme sets the whole app light or dark, or follows the system; the previews here
+/// redraw in it with the rest.
 private struct AppearanceSection: View {
+    @AppStorage(AppTheme.key) private var theme = AppTheme.system
     @AppStorage(SpinningArtwork.spinsKey) private var spinsPlayingCover = true
     @AppStorage(PanelRest.enabledKey) private var fadesWhenNotInUse = PanelRest.enabledByDefault
     @Bindable private var style = ArtworkStyle.shared
@@ -79,6 +81,11 @@ private struct AppearanceSection: View {
 
     var body: some View {
         Section {
+            Picker("Theme", selection: $theme) {
+                ForEach(AppTheme.allCases) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: theme) { theme.apply() }
             VStack(alignment: .leading, spacing: Theme.Space.sm) {
                 // The picker carries this name for VoiceOver itself.
                 Text("Window style")

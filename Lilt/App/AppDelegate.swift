@@ -35,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
         NSApp.setActivationPolicy(.regular)
+        AppTheme.stored().apply()
         player.linkResolver = { [music] videoId in try await music.links(forVideoId: videoId) }
         player.onLikeToggled = { [music] track, liked in music.noteLiked(liked, track: track) }
         player.recents = recents
