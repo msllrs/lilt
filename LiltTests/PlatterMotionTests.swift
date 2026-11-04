@@ -10,9 +10,13 @@ import Testing
 struct PlatterMotionTests {
     private let atSpeed = { (s: TimeInterval) in s }
 
-    @Test func theStandardIsAsShipped() {
-        let style = PlatterMotionStyle.standard
-        #expect(style.curve == .current)
+    /// As tuned on 2026-11-04: the ease-out spring with a 0.008 cushion. Current is the 0.3s
+    /// spring with no bounce it replaced.
+    @Test func theStandardIsAsTuned() {
+        #expect(PlatterMotionStyle.standard.curve == .easeOutSpring)
+        #expect(PlatterMotionStyle.standard.springOvershoot == 0.008)
+        var style = PlatterMotionStyle.standard
+        style.curve = .current
         #expect(style.animation(scaled: atSpeed) == .spring(Spring(duration: 0.3, bounce: 0)))
         guard case .spring(let spring) = style.frameCurve(scaled: atSpeed) else {
             Issue.record("the shipped curve is a spring"); return
@@ -42,7 +46,8 @@ struct PlatterMotionTests {
     @Test func theEaseOutSpringCushionsPastTheEndAndRollsBack() {
         var style = PlatterMotionStyle.standard
         style.curve = .easeOutSpring
-        #expect(style.springDuration == 1 && style.springApproach == 0.4 && style.springOvershoot == 0.024)
+        style.springOvershoot = 0.024
+        #expect(style.springDuration == 1 && style.springApproach == 0.4)
         let spring = style.easeOutSpring(scaled: atSpeed)
         #expect(style.animation(scaled: atSpeed) == Animation(spring))
         guard case .easeOutSpring(let frameSpring) = style.frameCurve(scaled: atSpeed) else {
@@ -87,6 +92,6 @@ struct PlatterMotionTests {
 
     @Test func copyValuesCarriesTheCurve() {
         let style = ArtworkStyle()
-        #expect(style.swiftSnippet.contains("platterMotion = PlatterMotionStyle(curve: .current, easeOutX1: 0.20, easeOutY1: 0.80, easeOutX2: 0.00, easeOutY2: 1.00, easeOutDuration: 0.40, springDuration: 1.00, springApproach: 0.40, springOvershoot: 0.024, softClose: true)"))
+        #expect(style.swiftSnippet.contains("platterMotion = PlatterMotionStyle(curve: .easeOutSpring, easeOutX1: 0.20, easeOutY1: 0.80, easeOutX2: 0.00, easeOutY2: 1.00, easeOutDuration: 0.40, springDuration: 1.00, springApproach: 0.40, springOvershoot: 0.008, softClose: true)"))
     }
 }

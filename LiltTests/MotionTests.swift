@@ -32,7 +32,7 @@ struct MotionTests {
             #expect(Theme.Motion.frameDuration == 0.88)
             #expect(Theme.Motion.frame == .easeOut(duration: 0.88))
             #expect(Theme.Motion.queueSpring == Spring(duration: 1.2, bounce: 0))
-            #expect(Theme.Motion.queue == .spring(Spring(duration: 1.2, bounce: 0)))
+            #expect(Theme.Motion.queue == Animation(PlatterMotionStyle.standard.easeOutSpring(scaled: { $0 / 0.25 })))
             #expect(Theme.Motion.pageEnter == .easeOut(duration: 0.8))
             #expect(Theme.Motion.pageExit == .easeOut(duration: 0.48))
             #expect(Theme.Motion.symbol == .snappy(duration: 0.88))
@@ -64,9 +64,8 @@ struct MotionTests {
             let slowQueue = Self.at(speed) { Theme.Motion.queueCurve }
             let slowDisc = Self.at(speed) { Theme.Motion.standardCurve }
             #expect(abs(slowFrame.duration - frame.duration / speed) < 1e-9)
-            // A spring runs to its settling time, which SwiftUI measures against a fixed
-            // threshold, so it lengthens a little less than the spring itself (0.5s at 1×,
-            // 4.5s rather than 5s at 0.1×); the curve up to there is the same one slowed.
+            // The ease-out spring runs its whole duration, stretched like the rest. (A SwiftUI
+            // spring runs to its settling time, which lengthens a little less than the spring.)
             #expect(slowQueue.duration > queue.duration / speed * 0.85 && slowQueue.duration <= queue.duration / speed + 1e-9)
             #expect(slowDisc.duration > disc.duration / speed * 0.75 && slowDisc.duration <= disc.duration / speed + 1e-9)
             // The same curve in slow motion: a step taken `t` in at 1× is where the slowed
@@ -84,11 +83,12 @@ struct MotionTests {
     /// from the very spring the frame steps along, at any speed.
     @Test func theQueueAndTheWindowShareOneSpringWhenSlowed() {
         Self.at(0.25) {
-            guard case .spring(let spring) = Theme.Motion.queueCurve else {
-                Issue.record("the queue's frame curve is not a spring")
+            guard case .easeOutSpring(let spring) = Theme.Motion.queueCurve else {
+                Issue.record("the queue's frame curve is not the ease-out spring")
                 return
             }
-            #expect(spring == Theme.Motion.queueSpring)
+            #expect(spring == PlatterMotionStyle.standard.easeOutSpring(scaled: { $0 / 0.25 }))
+            #expect(Theme.Motion.queue == Animation(spring))
             guard case .easeOut(let duration) = Theme.Motion.frameCurve else {
                 Issue.record("the frame curve is not an ease-out")
                 return
@@ -203,7 +203,7 @@ struct MotionTests {
             #expect(Theme.Motion.frameDuration == 0.22)
             #expect(Theme.Motion.frame == .easeOut(duration: 0.22))
             #expect(Theme.Motion.queueSpring == Spring(duration: 0.3, bounce: 0))
-            #expect(Theme.Motion.queue == .spring(Spring(duration: 0.3, bounce: 0)))
+            #expect(Theme.Motion.queue == Animation(PlatterMotionStyle.standard.easeOutSpring(scaled: { $0 })))
             #expect(Theme.Motion.pageEnter == .easeOut(duration: 0.2))
             #expect(Theme.Motion.pageExit == .easeOut(duration: 0.12))
             #expect(Theme.Motion.symbol == .snappy(duration: 0.22))
@@ -212,7 +212,7 @@ struct MotionTests {
             #expect(Theme.Motion.rest == .easeInOut(duration: 1.2))
             #expect(Theme.Motion.wake == .easeOut(duration: 0.12))
             #expect(Theme.Motion.frameCurve.duration == 0.22)
-            #expect(Theme.Motion.queueCurve.duration == Spring(duration: 0.3, bounce: 0).settlingDuration)
+            #expect(Theme.Motion.queueCurve.duration == PlatterMotionStyle.standard.springDuration)
             #expect(Theme.Motion.standardCurve.duration == Spring.snappy(duration: 0.28).settlingDuration)
         }
     }

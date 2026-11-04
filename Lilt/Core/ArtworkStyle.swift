@@ -389,7 +389,9 @@ struct HeroSnapStyle: Equatable {
 /// lands in free air, ease out when it lands against something hard. Opening, the platter grows
 /// into free air; closing, it lands on the player, so with `softClose` it closes on the ease out.
 struct PlatterMotionStyle: Equatable, Sendable {
-    var curve: PlatterCurve = .current
+    /// Tuned by Matt in the tweak panel on 2026-11-04: the ease-out spring, with a cushion of
+    /// 0.008 of the travel.
+    var curve: PlatterCurve = .easeOutSpring
     /// The ease out's cubic Bézier control points and seconds.
     var easeOutX1: Double = 0.2
     var easeOutY1: Double = 0.8
@@ -401,7 +403,7 @@ struct PlatterMotionStyle: Equatable, Sendable {
     /// of the travel.
     var springDuration: Double = 1.0
     var springApproach: Double = 0.4
-    var springOvershoot: Double = 0.024
+    var springOvershoot: Double = 0.008
     /// Close on the ease out even when opening springs.
     var softClose: Bool = true
     static let standard = PlatterMotionStyle()
@@ -475,7 +477,7 @@ struct EaseOutSpring: CustomAnimation, Sendable {
 }
 
 enum PlatterCurve: String, CaseIterable, Identifiable, Sendable {
-    /// A 0.3s spring with no bounce, as shipped.
+    /// A 0.3s spring with no bounce, as shipped until 2026-11-04.
     case current
     case easeOut
     case easeOutSpring
