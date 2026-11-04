@@ -35,11 +35,8 @@ struct BrowseScreen: View {
             _phase = State(initialValue: .loaded)
         }
     }
-    /// How far the hero has scrolled out, 0 (at rest) to 1 (fully gone). Drives its fade.
-    @State private var heroFade: CGFloat = 0
-    /// Compact header visibility, 0 to 1. Comes in over the second half of the hero's travel.
-    @State private var collapse: CGFloat = 0
-    /// Where the page has scrolled, read only by the header's blur and the cover light.
+    /// Where the page has scrolled and how far the hero has handed off to the compact header,
+    /// read only by the views that move with it.
     @State private var scroll = PageScroll()
     @State private var heroHeight: CGFloat = 280
     /// Extra bottom padding that guarantees enough scroll range for the hero to hand off fully.
@@ -95,9 +92,7 @@ struct BrowseScreen: View {
                         }
                     }
                 }
-                .opacity(collapse)
-                .offset(y: (1 - collapse) * 10)
-                .allowsHitTesting(collapse > 0.5)
+                .modifier(CompactHeaderReveal(scroll: scroll))
             }
             Spacer()
             pageMenu(page ?? BrowsePage(item: item), palette: palette)
@@ -109,8 +104,9 @@ struct BrowseScreen: View {
         .modifier(ScrolledHeaderBackdrop(scroll: scroll))
         .onHover { isHoveringHeader = $0 }
         // The back button sits beside this header; let it catch the artwork's colour as the
-        // header arrives. Only the page on top speaks for it, and it lets go when it leaves.
-        .onChange(of: collapse, initial: true) { _, _ in publishLeadingCast() }
+        // header arrives (the scroll publishes as it moves). Only the page on top speaks for it,
+        // and it lets go when it leaves.
+        .onAppear { publishLeadingCast() }
         .onChange(of: page?.item.artworkURL) { _, _ in publishLeadingCast() }
         .onChange(of: navigation.path.last?.id) { _, _ in publishLeadingCast() }
         // The cover's colours may not be measured yet when the header arrives; publish again once
@@ -131,7 +127,7 @@ struct BrowseScreen: View {
         guard navigation.path.last?.id == item.id else { return }
         let current = page ?? BrowsePage(item: item)
         navigation.leadingCast = current.item.artworkURL.flatMap { ImageCache.shared.tint(for: $0, saturationBoost: ArtworkStyle.shared.leadingCast.saturation) }
-        navigation.leadingCastAmount = Double(collapse)
+        navigation.leadingCastAmount = Double(scroll.collapse)
         // The back button's glyph wears the album's colour like the page's own controls; any
         // other page on top hands it back to plain.
         navigation.leadingTintAccent = pageAccent
@@ -403,8 +399,13 @@ struct BrowseScreen: View {
             // The hero fades across its own height, so it is gone exactly when it has scrolled
             // under the header and never leaves a blank gap above the tracks.
             let travel = min(max(metrics.offset / max(heroHeight, 1), 0), 1)
-            heroFade = Self.smoothstep(travel)
-            collapse = Self.smoothstep(min(max((travel - 0.45) / 0.55, 0), 1))
+            let heroFade = Self.smoothstep(travel)
+            if heroFade != scroll.heroFade { scroll.heroFade = heroFade }
+            let collapse = Self.smoothstep(min(max((travel - 0.45) / 0.55, 0), 1))
+            if collapse != scroll.collapse {
+                scroll.collapse = collapse
+                publishLeadingCast()
+            }
         }
     }
 
@@ -479,8 +480,7 @@ struct BrowseScreen: View {
         .padding(.top, Theme.Space.sm)
         .padding(.bottom, Theme.Space.sm)
         // The hero scrolls away naturally; fading and shrinking it sells the hand-off.
-        .opacity(1 - heroFade)
-        .scaleEffect(1 - 0.1 * heroFade, anchor: .top)
+        .modifier(HeroHandOff(scroll: scroll))
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { heroHeight = $0 }
     }
 
@@ -554,12 +554,13 @@ struct BrowseScreen: View {
     }
 }
 
-/// Where a browse page has scrolled, for the two things that follow it point by point: the
-/// header's blur and the cover light. Kept out of the page's own state so a scroll step
-/// re-evaluates only the small views that read it, not the page. The page's body read the
-/// offset and the range directly, so every step rebuilt it, and on an album the range moved a
-/// few points each time it did, as the lazy stack's estimate of its rows below settled, which
-/// rebuilt the page again: about eight times a step, 11ms a step at the median and up to 50ms.
+/// Where a browse page has scrolled, for the things that follow it point by point: the hero's
+/// fade, the compact header, the header's blur and the cover light. Kept out of the page's own
+/// state so a scroll step re-evaluates only the small views that read it, not the page. The
+/// page's body read the offset and the range directly, so every step rebuilt it, and on an album
+/// the range moved a few points each time it did, as the lazy stack's estimate of its rows below
+/// settled, which rebuilt the page again: about eight times a step, 11ms a step at the median and
+/// up to 50ms.
 @MainActor @Observable final class PageScroll {
     /// The content's offset below the header, 0 at rest.
     var offset: CGFloat = 0
@@ -568,6 +569,33 @@ struct BrowseScreen: View {
     /// Where the first section after the tracks starts, in the content's own coordinates: it
     /// changes with layout, not with scrolling. Nil until it has been laid out, or with none.
     var sectionsStart: CGFloat?
+    /// How far the hero has scrolled out, 0 (at rest) to 1 (fully gone). Drives its fade.
+    var heroFade: CGFloat = 0
+    /// Compact header visibility, 0 to 1. Comes in over the second half of the hero's travel.
+    var collapse: CGFloat = 0
+}
+
+/// The hero fades and shrinks as it scrolls away, which sells the hand-off.
+private struct HeroHandOff: ViewModifier {
+    let scroll: PageScroll
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(1 - scroll.heroFade)
+            .scaleEffect(1 - 0.1 * scroll.heroFade, anchor: .top)
+    }
+}
+
+/// The compact header's artwork, title and artist, rising in as the hero leaves.
+private struct CompactHeaderReveal: ViewModifier {
+    let scroll: PageScroll
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(scroll.collapse)
+            .offset(y: (1 - scroll.collapse) * 10)
+            .allowsHitTesting(scroll.collapse > 0.5)
+    }
 }
 
 /// The page's cover light, moved and dimmed by the scroll as its PageAmbientStyle says.
