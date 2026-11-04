@@ -79,7 +79,7 @@ struct BrowseScreen: View {
         }
         .task(id: item.id) { await load() }
         .loadingGate(loadingGate, isLoading: phase == .loading)
-        // ⌘R takes the same path as pulling the list down.
+        // ⌘R takes the same path as the page menu's Refresh.
         .onChange(of: navigation.refreshRequest) { _, _ in
             if isRefreshable, navigation.path.last?.id == item.id { Task { await load(announce: true) } }
         }
@@ -244,7 +244,7 @@ struct BrowseScreen: View {
                 Button(RowAction.startMix.title) { RowMenu.startMix(for: page.item, player: player, music: music, notices: notices) }
                 Divider()
             }
-            // The same refresh as pulling the list down or ⌘R.
+            // The same refresh as ⌘R.
             if isRefreshable {
                 Button("Refresh") { Task { await load(announce: true) } }
                 Divider()
@@ -382,7 +382,6 @@ struct BrowseScreen: View {
         }
         .scrollIndicators(.never)
         .panelScrollEdge()
-        .pullToRefresh(isEnabled: isRefreshable) { await load(announce: true) }
         // A scroll that would end part-way through the hero's travel is steered to the nearer
         // end as the fingers lift, in the same motion, so the page never rests with a half-faded
         // hero and a half-visible compact header.

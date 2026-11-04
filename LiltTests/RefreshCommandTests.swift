@@ -3,7 +3,7 @@ import SwiftUI
 import Testing
 @testable import Lilt
 
-/// View ▸ Refresh (⌘R) fetches the screen on top again, through the same path as pulling it down.
+/// View ▸ Refresh (⌘R) fetches the screen on top again, through the same path as the page menu's Refresh.
 @MainActor
 struct RefreshCommandTests {
     @Test func theViewMenuHasRefreshOnCommandR() throws {

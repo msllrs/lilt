@@ -4,7 +4,7 @@ import Testing
 @testable import Lilt
 
 /// Refreshing is for pages that gain songs elsewhere (a song liked on the phone): playlists.
-/// Albums don't change once released, so an album page offers neither the pull nor ⌘R.
+/// Albums don't change once released, so an album page doesn't answer ⌘R.
 @MainActor
 struct RefreshScopeTests {
     @Test func anAlbumPageDoesNotRefresh() async throws {
@@ -36,9 +36,6 @@ struct RefreshScopeTests {
         await settle(until: { fetches == 1 })
         #expect(fetches == 1, "opening the page fetches it")
 
-        if #available(macOS 27, *) {
-            #expect(findScrollView(in: panel.contentView)?.refreshController == nil, "an album list can't be pulled to refresh")
-        }
         navigation.refresh()
         try? await Task.sleep(for: .milliseconds(200))
         #expect(fetches == 1, "⌘R leaves an album page alone")
@@ -46,12 +43,5 @@ struct RefreshScopeTests {
 
     private func settle(until done: () -> Bool) async {
         for _ in 0..<50 where !done() { try? await Task.sleep(for: .milliseconds(20)) }
-    }
-
-    private func findScrollView(in view: NSView?) -> NSScrollView? {
-        guard let view else { return nil }
-        if let scroll = view as? NSScrollView { return scroll }
-        for sub in view.subviews { if let found = findScrollView(in: sub) { return found } }
-        return nil
     }
 }

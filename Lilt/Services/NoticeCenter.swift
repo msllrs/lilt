@@ -48,7 +48,7 @@ enum RefreshOutcome: Equatable {
 
 @MainActor
 extension NoticeCenter {
-    /// Confirms a refresh (⌘R, the page menu, a pull) of the page called `title`.
+    /// Confirms a refresh (⌘R or the page menu) of the page called `title`.
     func postRefresh(_ outcome: RefreshOutcome, of title: String) {
         switch outcome {
         case .updated: post(title, label: "Refreshed", icon: .symbol("arrow.clockwise"))

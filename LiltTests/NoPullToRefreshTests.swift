@@ -3,12 +3,11 @@ import SwiftUI
 import Testing
 @testable import Lilt
 
-/// Pulling a browse page down past its top fetches it again. SwiftUI's `.refreshable` installs
-/// nothing on the Mac, so the page gives its hosted scroll view an `NSRefreshController` itself
-/// (macOS 27); this checks the controller is there and that its action reaches the server.
+/// Browse pages don't refresh on a pull: their scroll view has no `NSRefreshController`, so a
+/// pull past the top only bounces. ⌘R (and a playlist's ⋯ menu) is the way to refresh.
 @MainActor
-struct PullToRefreshTests {
-    @Test func pullingABrowsePageFetchesItAgain() async throws {
+struct NoPullToRefreshTests {
+    @Test func aPlaylistPageCannotBePulledToRefresh() async throws {
         guard #available(macOS 27, *) else { return }
         var fetches = 0
         let auth = AuthService()
@@ -30,13 +29,8 @@ struct PullToRefreshTests {
         await settle(until: { fetches == 1 })
         #expect(fetches == 1, "opening the page fetches it")
 
-        let controller = try #require(findScrollView(in: panel.contentView)?.refreshController, "the browse list's scroll view has a refresh controller")
-        let action = try #require(controller.action)
-        controller.beginRefreshing()
-        NSApp.sendAction(action, to: controller.target, from: controller)
-        await settle(until: { fetches == 2 && !controller.isRefreshing })
-        #expect(fetches == 2, "pulling fetches the page again")
-        #expect(!controller.isRefreshing, "the indicator goes away once the fetch is done")
+        let scrollView = try #require(findScrollView(in: panel.contentView), "the browse list's scroll view")
+        #expect(scrollView.refreshController == nil, "a pull past the top doesn't refresh")
     }
 
     private func settle(until done: () -> Bool) async {
