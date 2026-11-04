@@ -381,6 +381,64 @@ struct HeroSnapStyle: Equatable {
     static let standard = HeroSnapStyle()
 }
 
+/// How the platter opens and closes (Up Next and the ambience drawer), content and window on the
+/// one curve. Derek Briggs's two (Dive Club, 2026): an ease out, `cubic-bezier(0.2, 0.8, 0, 1)`
+/// over 400ms, which looks like 200ms with the last 200 a soft-close cushion; and an ease-out
+/// spring, as quick to look at, with a long tail that settles back into place. His rule: ease out
+/// when it lands against something hard, spring when it lands in free air.
+struct PlatterMotionStyle: Equatable, Sendable {
+    var curve: PlatterCurve = .current
+    /// The ease out's cubic Bézier control points and seconds.
+    var easeOutX1: Double = 0.2
+    var easeOutY1: Double = 0.8
+    var easeOutX2: Double = 0
+    var easeOutY2: Double = 1
+    var easeOutDuration: Double = 0.4
+    /// The ease-out spring: SwiftUI's perceptual duration and bounce. At 0.4 and 0.16 it is 90%
+    /// of the way there at 200ms, like his, overshoots by under 1% and rolls back, settling at
+    /// about 0.72s.
+    var springDuration: Double = 0.4
+    var springBounce: Double = 0.16
+    static let standard = PlatterMotionStyle()
+
+    var easeOutCurve: UnitCurve {
+        .bezier(startControlPoint: UnitPoint(x: easeOutX1, y: easeOutY1), endControlPoint: UnitPoint(x: easeOutX2, y: easeOutY2))
+    }
+
+    /// The SwiftUI animation for the content, its seconds stretched by `scaled`.
+    func animation(scaled: (TimeInterval) -> TimeInterval) -> Animation {
+        switch curve {
+        case .current: .spring(Spring(duration: scaled(0.3), bounce: 0))
+        case .easeOut: .timingCurve(easeOutCurve, duration: scaled(easeOutDuration))
+        case .spring: .spring(Spring(duration: scaled(springDuration), bounce: springBounce))
+        }
+    }
+
+    /// The same motion for the native frame.
+    func frameCurve(scaled: (TimeInterval) -> TimeInterval) -> FrameCurve {
+        switch curve {
+        case .current: .spring(Spring(duration: scaled(0.3), bounce: 0))
+        case .easeOut: .curve(easeOutCurve, scaled(easeOutDuration))
+        case .spring: .spring(Spring(duration: scaled(springDuration), bounce: springBounce))
+        }
+    }
+}
+
+enum PlatterCurve: String, CaseIterable, Identifiable, Sendable {
+    /// A 0.3s spring with no bounce, as shipped.
+    case current
+    case easeOut
+    case spring
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .current: "Current"
+        case .easeOut: "Ease out"
+        case .spring: "Ease-out spring"
+        }
+    }
+}
+
 /// One soft band of light crossing a row once, leading edge to trailing, to confirm what its
 /// menu just did (Copy Link, Play Next, Add to Queue). Clipped to the row's highlight shape.
 /// Under Reduce Motion there's no sweep (see Theme.Motion.shine).
@@ -692,6 +750,7 @@ final class ArtworkStyle {
     var centredLibraryTitle: Bool = true
     var heroSnap: HeroSnapStyle = .standard
     var shine: ShineStyle = .standard
+    var platterMotion: PlatterMotionStyle = .standard
 
     /// The window style actually on screen: with Reduce Transparency on, glass shows as solid.
     func shownWindowStyle(reduceTransparency: Bool) -> WindowStyle {
@@ -757,6 +816,7 @@ final class ArtworkStyle {
         centredLibraryTitle = true
         heroSnap = .standard
         shine = .standard
+        platterMotion = .standard
     }
 
     /// The current values as Swift, ready to paste back into `reset()`. The surface values are
@@ -793,6 +853,7 @@ final class ArtworkStyle {
         centredLibraryTitle = \(centredLibraryTitle)
         heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), minFlick: \(f(heroSnap.minFlick)), deadZone: \(f(heroSnap.deadZone)))
         shine = ShineStyle(duration: \(f(shine.duration)), band: \(f(shine.band)), darkOpacity: \(f(shine.darkOpacity)), lightOpacity: \(f(shine.lightOpacity)))
+        platterMotion = PlatterMotionStyle(curve: .\(platterMotion.curve.rawValue), easeOutX1: \(f(platterMotion.easeOutX1)), easeOutY1: \(f(platterMotion.easeOutY1)), easeOutX2: \(f(platterMotion.easeOutX2)), easeOutY2: \(f(platterMotion.easeOutY2)), easeOutDuration: \(f(platterMotion.easeOutDuration)), springDuration: \(f(platterMotion.springDuration)), springBounce: \(f(platterMotion.springBounce)))
         leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), rimInset: \(f(leadingCast.rimInset)), darkRimInset: \(f(leadingCast.darkRimInset)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)), darkLightness: \(f(leadingCast.darkLightness)), darkChromaCap: \(f(leadingCast.darkChromaCap)), darkRimOpacity: \(f(leadingCast.darkRimOpacity)), darkWashScale: \(f(leadingCast.darkWashScale)))
         """
     }

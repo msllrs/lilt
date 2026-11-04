@@ -38,6 +38,29 @@ struct TweakPanel: View {
                 Toggle("Force Reduce Motion", isOn: $motion.forcesReduceMotion)
             }
             PageTransitionSection()
+            Section("Platter open/close") {
+                // Up Next and the ambience drawer; the window rides the same curve in the mini
+                // player. Switching to and from the mini player keeps its own ease out.
+                Picker("Curve", selection: $style.platterMotion.curve) {
+                    ForEach(PlatterCurve.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                switch style.platterMotion.curve {
+                case .current:
+                    Text("A 0.3s spring, no bounce.").font(.caption).foregroundStyle(.secondary)
+                case .easeOut:
+                    slider("Duration (s)", $style.platterMotion.easeOutDuration, 0.1...1.2)
+                    slider("x1", $style.platterMotion.easeOutX1, 0...1)
+                    slider("y1", $style.platterMotion.easeOutY1, 0...1.5)
+                    slider("x2", $style.platterMotion.easeOutX2, 0...1)
+                    slider("y2", $style.platterMotion.easeOutY2, 0...1.5)
+                case .spring:
+                    slider("Duration (s)", $style.platterMotion.springDuration, 0.1...1.2)
+                    slider("Bounce", $style.platterMotion.springBounce, 0...0.48)
+                    let settles = Spring(duration: style.platterMotion.springDuration, bounce: style.platterMotion.springBounce).settlingDuration
+                    Text(String(format: "Settles in %.2fs.", settles)).font(.caption).foregroundStyle(.secondary)
+                }
+            }
             Section("Row shine") {
                 // The sweep across a row after Copy Link, Play Next or Add to Queue from its menu.
                 slider("Duration (s)", $style.shine.duration, 0.2...1.5)
