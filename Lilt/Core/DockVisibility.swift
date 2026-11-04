@@ -23,7 +23,8 @@ final class DockVisibility {
     /// How far from the edge the Dock reaches: the largest tile and its padding, with room for
     /// magnification. Past this, the pointer has left it and the Dock slides away.
     private nonisolated static let dockReach: CGFloat = 160
-    /// Pointer checks per second. Ten keeps up with the Dock's own slide in.
+    /// Pointer and ⌘ checks per second. Ten keeps up with the Dock's own slide in, and with the
+    /// beat ⌘-Tab takes to bring its switcher up.
     private static let checksPerSecond: Double = 10
 
     init() {
@@ -48,6 +49,13 @@ final class DockVisibility {
     nonisolated static func bringsDockUp(pointer: CGPoint, in screen: NSRect, wasUp: Bool) -> Bool {
         let distance = min(pointer.y - screen.minY, pointer.x - screen.minX, screen.maxX - 1 - pointer.x)
         return distance <= (wasUp ? dockReach : edgeTrigger)
+    }
+
+    /// ⌘-Tab's switcher draws the tile too, with the Dock still hidden. macOS doesn't say when
+    /// the switcher is up, but it's only up while ⌘ is held, so ⌘ counts as in sight. Holding ⌘
+    /// for any other shortcut spins the tile for that moment too, which does no harm.
+    nonisolated static func isInSight(dockUp: Bool, modifiers: NSEvent.ModifierFlags) -> Bool {
+        dockUp || modifiers.intersection(.deviceIndependentFlagsMask).contains(.command)
     }
 
     private static func isKeptShownOnAnyScreen() -> Bool {
@@ -77,7 +85,9 @@ final class DockVisibility {
         let pointer = NSEvent.mouseLocation
         guard let screen = NSScreen.screens.first(where: { NSMouseInRect(pointer, $0.frame, false) }) else { return }
         isUp = Self.bringsDockUp(pointer: pointer, in: screen.frame, wasUp: isUp)
-        set(inSight: isUp)
+        // The class property reads the keyboard's state without Accessibility permission, which
+        // a global key monitor would need.
+        set(inSight: Self.isInSight(dockUp: isUp, modifiers: NSEvent.modifierFlags))
     }
 
     private func set(inSight: Bool) {
