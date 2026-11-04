@@ -39,17 +39,13 @@ struct BrowseScreen: View {
     @State private var heroFade: CGFloat = 0
     /// Compact header visibility, 0 to 1. Comes in over the second half of the hero's travel.
     @State private var collapse: CGFloat = 0
-    @State private var scrollOffset: CGFloat = 0
+    /// Where the page has scrolled, read only by the header's blur and the cover light.
+    @State private var scroll = PageScroll()
     @State private var heroHeight: CGFloat = 280
     /// Extra bottom padding that guarantees enough scroll range for the hero to hand off fully.
     @State private var extraBottom: CGFloat = 0
     @State private var isHoveringCompactArtwork = false
     @State private var isHoveringHeader = false
-    /// Where the first section after the tracks starts, in the content's own coordinates: it
-    /// changes with layout, not with scrolling. Nil until it has been laid out, or with none.
-    @State private var sectionsStart: CGFloat?
-    /// How far the page can scroll in all, for the cover light's dimming on a short page.
-    @State private var scrollRange: CGFloat = .infinity
     /// Bumped once the cover has loaded, so an accent measured from it is read again (the image
     /// cache isn't observable).
     @State private var coverLoads = 0
@@ -69,13 +65,11 @@ struct BrowseScreen: View {
                 .environment(\.coverPalette, palette)
         }
         // The cover's light spills down from the top of the page, behind everything. It reacts to
-        // scrolling only through an offset and an opacity on the outside, read from the offset
-        // the page already tracks, so it adds no state and its own body isn't rebuilt.
+        // scrolling only through an offset and an opacity on the outside, read from the scroll
+        // in a view of their own, so neither PageAmbient's body nor the page's is rebuilt.
         .background(alignment: .top) {
-            PageAmbient(url: (page?.item.artworkURL) ?? item.artworkURL)
-                .offset(y: ambientStyle.offset(scrollOffset: scrollOffset))
-                // A refresh that drops the sections leaves the last measurement behind; ignore it.
-                .opacity(ambientStyle.opacity(scrollOffset: scrollOffset, sectionsStart: (page?.sections.isEmpty ?? true) ? nil : sectionsStart, scrollRange: scrollRange))
+            // A refresh that drops the sections leaves the last measurement behind; ignore it.
+            ScrolledPageAmbient(url: (page?.item.artworkURL) ?? item.artworkURL, scroll: scroll, hasSections: !(page?.sections.isEmpty ?? true))
         }
         .task(id: item.id) { await load() }
         .loadingGate(loadingGate, isLoading: phase == .loading)
@@ -112,7 +106,7 @@ struct BrowseScreen: View {
         .padding(.top, Theme.Space.panelInset)
         .padding(.horizontal, Theme.Space.panelInset)
         .padding(.bottom, Theme.Space.sm)
-        .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
+        .modifier(ScrolledHeaderBackdrop(scroll: scroll))
         .onHover { isHoveringHeader = $0 }
         // The back button sits beside this header; let it catch the artwork's colour as the
         // header arrives. Only the page on top speaks for it, and it lets go when it leaves.
@@ -365,7 +359,7 @@ struct BrowseScreen: View {
                         // Marks where the related sections begin, for the ambient's fade.
                         Color.clear
                             .frame(height: 0)
-                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(Self.contentSpace)).minY } action: { sectionsStart = $0 }
+                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(Self.contentSpace)).minY } action: { scroll.sectionsStart = $0 }
                     }
                     ForEach(page.sections) { section in
                         // The header is this page's; the rows are other albums and artists, with
@@ -393,9 +387,9 @@ struct BrowseScreen: View {
                 visibleHeight: geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
             )
         } action: { _, metrics in
-            scrollOffset = metrics.offset
+            if metrics.offset != scroll.offset { scroll.offset = metrics.offset }
             let range = max(metrics.contentHeight - metrics.visibleHeight, 0)
-            if range != scrollRange { scrollRange = range }
+            if range != scroll.range { scroll.range = range }
             scrollTracker.report(remainingBelow: metrics.remainingBelow, for: item.id)
 
             // How far the list could scroll on its own, before our padding (negative when the
@@ -557,6 +551,46 @@ struct BrowseScreen: View {
             }
         }
         return result
+    }
+}
+
+/// Where a browse page has scrolled, for the two things that follow it point by point: the
+/// header's blur and the cover light. Kept out of the page's own state so a scroll step
+/// re-evaluates only the small views that read it, not the page. The page's body read the
+/// offset and the range directly, so every step rebuilt it, and on an album the range moved a
+/// few points each time it did, as the lazy stack's estimate of its rows below settled, which
+/// rebuilt the page again: about eight times a step, 11ms a step at the median and up to 50ms.
+@MainActor @Observable final class PageScroll {
+    /// The content's offset below the header, 0 at rest.
+    var offset: CGFloat = 0
+    /// How far the page can scroll in all, for the cover light's dimming on a short page.
+    var range: CGFloat = .infinity
+    /// Where the first section after the tracks starts, in the content's own coordinates: it
+    /// changes with layout, not with scrolling. Nil until it has been laid out, or with none.
+    var sectionsStart: CGFloat?
+}
+
+/// The page's cover light, moved and dimmed by the scroll as its PageAmbientStyle says.
+private struct ScrolledPageAmbient: View {
+    let url: URL?
+    let scroll: PageScroll
+    /// Whether the page has related sections, so a measurement they left behind is ignored.
+    let hasSections: Bool
+
+    var body: some View {
+        let style = ArtworkStyle.shared.pageAmbient
+        PageAmbient(url: url)
+            .offset(y: style.offset(scrollOffset: scroll.offset))
+            .opacity(style.opacity(scrollOffset: scroll.offset, sectionsStart: hasSections ? scroll.sectionsStart : nil, scrollRange: scroll.range))
+    }
+}
+
+/// The header's blur, in over the first points of scroll.
+private struct ScrolledHeaderBackdrop: ViewModifier {
+    let scroll: PageScroll
+
+    func body(content: Content) -> some View {
+        content.headerBackdrop(visibility: Content.backdropVisibility(forScrollOffset: scroll.offset))
     }
 }
 
