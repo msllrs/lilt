@@ -104,6 +104,8 @@ struct PlatterGlassTests {
 
     @Test func copyValuesCarriesTheGlass() {
         let style = ArtworkStyle()
+        // A new style starts frosted as Settings says; pin it so a clarity saved there doesn't count.
+        style.platter.frost = 0.8
         #expect(style.swiftSnippet.contains("alwaysGlass: true, glass: .clear, colorStrength: 1.00, frost: 0.80, glassTint: 0.20, backing: 0.00, bottomEdge: 1.00, darkBottomEdge: 0.20)"))
         style.platter.glass = .clear
         style.platter.colorStrength = 0.64

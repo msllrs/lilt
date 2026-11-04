@@ -56,7 +56,9 @@ struct SettingsView: View {
 /// `ArtworkStyle.panel` the panel draws from (and saves), so the open panel restyles at once.
 /// Each style is a card showing the panel in miniature on its real surface, its platter in the
 /// playing cover's colour. With Reduce Motion on the disc rests whatever this says; with Reduce
-/// Transparency on, Glass shows as Solid, and its card says so.
+/// Transparency on, Glass shows as Solid, and its card says so. Player glass frosts the platter's
+/// clear glass, from frosted through to clear like the search field; Reduce Transparency keeps
+/// it frosted.
 private struct AppearanceSection: View {
     @AppStorage(SpinningArtwork.spinsKey) private var spinsPlayingCover = true
     @AppStorage(PanelRest.enabledKey) private var fadesWhenNotInUse = PanelRest.enabledByDefault
@@ -86,6 +88,21 @@ private struct AppearanceSection: View {
                 }
                 if reduceTransparency {
                     Text("Glass is shown as Solid while Reduce Transparency is on.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                Slider(value: Binding(get: { style.playerClarity.value }, set: { style.playerClarity = PlayerClarity($0) })) {
+                    Text("Player glass")
+                } minimumValueLabel: {
+                    Text("Frosted")
+                } maximumValueLabel: {
+                    Text("Clear")
+                }
+                .disabled(reduceTransparency)
+                if reduceTransparency {
+                    Text("The player is frosted while Reduce Transparency is on.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

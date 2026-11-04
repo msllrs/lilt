@@ -132,6 +132,41 @@ struct PlatterStyle: Equatable {
     }
 }
 
+/// Settings ▸ Appearance ▸ Player glass: how far the player's clear glass is frosted, as one
+/// slider from Frosted to Clear. Clarity is frost turned around (1 − frost), so the tuned
+/// frost of 0.8 is a clarity of 0.2. Stored as a number; the debug tweak panel's Frost slider
+/// edits the same `ArtworkStyle.platter.frost`, so the two stay in step.
+struct PlayerClarity: Equatable {
+    static let key = "playerClarity"
+    /// The look tuned on 2026-11-03.
+    static let standard = PlayerClarity(1 - PlatterStyle.standard.frost)
+
+    /// 0 is as frosted as the regular glass, 1 the search field's clear glass, unfrosted.
+    let value: Double
+    init(_ value: Double) { self.value = min(max(value, 0), 1) }
+    init(frost: Double) { self.init(1 - frost) }
+
+    var frost: Double { 1 - value }
+
+    /// The stored choice; nothing stored, or something that isn't a number, is today's look.
+    static func stored(in defaults: UserDefaults = .standard) -> PlayerClarity {
+        (defaults.object(forKey: key) as? NSNumber).map { PlayerClarity($0.doubleValue) } ?? standard
+    }
+
+    func store(in defaults: UserDefaults = .standard) {
+        defaults.set(value, forKey: Self.key)
+    }
+}
+
+extension PlatterStyle {
+    /// The standard platter, frosted as `clarity` says.
+    static func standard(clarity: PlayerClarity) -> PlatterStyle {
+        var style = PlatterStyle.standard
+        style.frost = clarity.frost
+        return style
+    }
+}
+
 /// The glass the platter's colour sits on.
 enum PlatterGlass: String, CaseIterable, Identifiable {
     /// `glassEffect(.regular)`, as the platter has always been.
@@ -626,7 +661,17 @@ final class ArtworkStyle {
     /// Matt in the tweak panel on 2026-10-05: tighter spread than the header artwork.
     var avatarShadow: ShadowStyle = .avatar
 
-    var platter: PlatterStyle = .standard
+    /// Starts frosted as Settings ▸ Appearance ▸ Player glass says. Only `playerClarity` saves
+    /// it, so the tweak panel's Frost slider tries a look without keeping it.
+    var platter: PlatterStyle = .standard(clarity: .stored())
+    /// Settings ▸ Appearance ▸ Player glass, read from and saved to `platter.frost`.
+    var playerClarity: PlayerClarity {
+        get { PlayerClarity(frost: platter.frost) }
+        set {
+            platter.frost = newValue.frost
+            newValue.store()
+        }
+    }
     var palette: CoverPaletteStyle = .standard
     var notes: NotesStyle = .standard
     var playCast: PlayCastStyle = .standard
@@ -698,7 +743,7 @@ final class ArtworkStyle {
         heroShadow = .ambient
         headerShadow = .header
         avatarShadow = .avatar
-        platter = .standard
+        platter = .standard(clarity: .stored())
         palette = .standard
         notes = .standard
         playCast = .standard
