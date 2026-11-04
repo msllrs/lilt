@@ -111,12 +111,13 @@ struct NowPlayingBar: View {
                 // The list's text takes the cover's colour as the title and artist above do.
                 InterpolatedColor(accent) { QueueList(accent: $0) }
                     .padding(.top, Theme.Space.sm)
-                    .frame(height: QueueList.extent(manual: player.upcoming.count, automatic: player.automaticUpcoming.count) * reveal, alignment: .top)
+                    // Never below nothing, should a curve overshoot on the way shut.
+                    .frame(height: max(QueueList.extent(manual: player.upcoming.count, automatic: player.automaticUpcoming.count) * reveal, 0), alignment: .top)
                     // Cut off below as it's revealed, but not at the sides: the rows' highlights
                     // and the covers' shadows reach into the platter's padding, and the platter's
                     // own shape bounds them there.
                     .clipShape(BleedingRect(dx: Theme.Space.barPadding))
-                    .opacity(reveal)
+                    .opacity(min(max(reveal, 0), 1))
                     .allowsHitTesting(reveal > 0.5)
             }
         }
@@ -467,7 +468,8 @@ struct NowPlayingBar: View {
         Button {
             // Option-click: the ambience drawer, the platter's one hidden door.
             if NSEvent.modifierFlags.contains(.option) {
-                withAnimation(Theme.Motion.queue) { AppDelegate.shared?.setAmbienceVisible(!navigation.isAmbienceVisible) }
+                let opening = !navigation.isAmbienceVisible
+                withAnimation(Theme.Motion.queue(opening: opening)) { AppDelegate.shared?.setAmbienceVisible(opening) }
                 return
             }
             // In mini there is no column to show the album in: expand first, then open it.

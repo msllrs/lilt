@@ -54,11 +54,12 @@ struct TweakPanel: View {
                     slider("y1", $style.platterMotion.easeOutY1, 0...1.5)
                     slider("x2", $style.platterMotion.easeOutX2, 0...1)
                     slider("y2", $style.platterMotion.easeOutY2, 0...1.5)
-                case .spring:
-                    slider("Duration (s)", $style.platterMotion.springDuration, 0.1...1.2)
-                    slider("Bounce", $style.platterMotion.springBounce, 0...0.48)
-                    let settles = Spring(duration: style.platterMotion.springDuration, bounce: style.platterMotion.springBounce).settlingDuration
-                    Text(String(format: "Settles in %.2fs.", settles)).font(.caption).foregroundStyle(.secondary)
+                case .easeOutSpring:
+                    slider("Duration (s)", $style.platterMotion.springDuration, 0.2...2)
+                    slider("Approach (s)", $style.platterMotion.springApproach, 0.1...1)
+                    slider("Overshoot", $style.platterMotion.springOvershoot, 0...0.16, format: "%.3f")
+                    Toggle("Close on the ease out", isOn: $style.platterMotion.softClose)
+                    Text("Eases past the end over the approach, then rolls back over the rest.").font(.caption).foregroundStyle(.secondary)
                 }
             }
             Section("Row shine") {
@@ -413,11 +414,11 @@ struct TweakPanel: View {
         }
     }
 
-    private func slider(_ label: String, _ value: Binding<Double>, _ range: ClosedRange<Double>) -> some View {
+    private func slider(_ label: String, _ value: Binding<Double>, _ range: ClosedRange<Double>, format: String = "%.2f") -> some View {
         LabeledContent(label) {
             HStack(spacing: Theme.Space.sm) {
                 Slider(value: value, in: range)
-                Text(String(format: "%.2f", value.wrappedValue))
+                Text(String(format: format, value.wrappedValue))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 36, alignment: .trailing)

@@ -117,8 +117,15 @@ enum Theme {
         /// The curve itself is the tweak panel's (`PlatterMotionStyle`): this spring as shipped,
         /// or Derek Briggs's ease out or ease-out spring, the content and the window on the same one.
         static var queueSpring: Spring { Spring(duration: scaled(0.3), bounce: 0) }
-        @MainActor static var queue: Animation? { instantIfReduced(ArtworkStyle.shared.platterMotion.animation(scaled: scaled)) }
-        @MainActor static var queueCurve: FrameCurve { reducesMotion ? .instant : ArtworkStyle.shared.platterMotion.frameCurve(scaled: scaled) }
+        @MainActor static var queue: Animation? { queue(opening: true) }
+        @MainActor static var queueCurve: FrameCurve { queueCurve(opening: true) }
+        /// Opening grows into free air; closing lands on the player (see `PlatterMotionStyle`).
+        @MainActor static func queue(opening: Bool) -> Animation? {
+            instantIfReduced(ArtworkStyle.shared.platterMotion.animation(opening: opening, scaled: scaled))
+        }
+        @MainActor static func queueCurve(opening: Bool) -> FrameCurve {
+            reducesMotion ? .instant : ArtworkStyle.shared.platterMotion.frameCurve(opening: opening, scaled: scaled)
+        }
         /// A page arriving on the navigation stack, and the one beneath getting out of its way:
         /// faster, so the two never read as a double exposure on the glass. Reduce Motion: kept,
         /// with no `pageTravel` the hand-off is a crossfade.
@@ -157,6 +164,8 @@ enum FrameCurve {
     /// Any unit curve (a cubic Bézier, say) over the duration, landing exactly at the end:
     /// SwiftUI's `timingCurve` with the same curve moves the content in step.
     case curve(UnitCurve, TimeInterval)
+    /// Past the end on an ease out, then a slow roll back (see `EaseOutSpring`).
+    case easeOutSpring(EaseOutSpring)
 
     /// No time at all: the frame lands where it's going.
     static let instant = FrameCurve.easeOut(0)
@@ -166,6 +175,7 @@ enum FrameCurve {
         case .easeOut(let d): d
         case .spring(let s): s.settlingDuration
         case .curve(_, let d): d
+        case .easeOutSpring(let s): s.duration
         }
     }
 
@@ -181,6 +191,8 @@ enum FrameCurve {
         case .curve(let curve, let d):
             guard d > 0 else { return 1 }
             return curve.value(at: min(max(elapsed / d, 0), 1))
+        case .easeOutSpring(let s):
+            return s.value(at: elapsed)
         }
     }
 }

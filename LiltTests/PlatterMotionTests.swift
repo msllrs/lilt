@@ -36,19 +36,44 @@ struct PlatterMotionTests {
         #expect(style.animation(scaled: atSpeed) == .timingCurve(style.easeOutCurve, duration: 0.4))
     }
 
-    /// Quick to look at, with a long tail past its duration as it rolls back into place.
-    @Test func theEaseOutSpringSettlesLongAfterItLooksDone() {
+    /// Derek's ease-out spring: a second long, but most of the way there by 200ms on the ease
+    /// out, past the end by the overshoot at the approach, then a roll back slower than the
+    /// approach, landing exactly at the end. One function for the window and the content.
+    @Test func theEaseOutSpringCushionsPastTheEndAndRollsBack() {
         var style = PlatterMotionStyle.standard
-        style.curve = .spring
-        let spring = Spring(duration: style.springDuration, bounce: style.springBounce)
-        #expect(style.animation(scaled: atSpeed) == .spring(spring))
+        style.curve = .easeOutSpring
+        #expect(style.springDuration == 1 && style.springApproach == 0.4 && style.springOvershoot == 0.024)
+        let spring = style.easeOutSpring(scaled: atSpeed)
+        #expect(style.animation(scaled: atSpeed) == Animation(spring))
+        guard case .easeOutSpring(let frameSpring) = style.frameCurve(scaled: atSpeed) else {
+            Issue.record("the window rides the same curve"); return
+        }
+        #expect(frameSpring == spring)
         let frame = style.frameCurve(scaled: atSpeed)
-        #expect(frame.duration == spring.settlingDuration)
-        #expect(frame.value(at: 0.2) >= 0.88, "visually done in about 200ms")
-        #expect(frame.duration > 0.6, "the tail rolls on well past it")
-        let peak = stride(from: 0.0, through: frame.duration, by: 0.005).map(frame.value(at:)).max() ?? 0
-        #expect(peak > 1 && peak < 1.02, "a subtle overshoot to roll back from")
-        #expect(frame.value(at: frame.duration) == 1)
+        #expect(frame.duration == 1)
+        #expect(frame.value(at: 0) == 0)
+        #expect(frame.value(at: 0.2) > 0.9, "visually there in about 200ms")
+        #expect(abs(frame.value(at: 0.4) - 1.024) < 1e-9, "the cushion: past the end by the overshoot")
+        let samples = stride(from: 0.4, through: 1.0, by: 0.02).map(frame.value(at:))
+        #expect(zip(samples, samples.dropFirst()).allSatisfy { $0 >= $1 }, "then only rolls back")
+        #expect(frame.value(at: 0.7) > 1 && frame.value(at: 0.7) < 1.024)
+        #expect(frame.value(at: 1) == 1 && frame.value(at: 2) == 1)
+    }
+
+    /// Opening grows into free air and springs; closing lands on the player, so it closes on the
+    /// ease out unless that's turned off.
+    @Test func closingLandsSoft() {
+        var style = PlatterMotionStyle.standard
+        style.curve = .easeOutSpring
+        #expect(style.animation(opening: false, scaled: atSpeed) == .timingCurve(style.easeOutCurve, duration: 0.4))
+        guard case .curve = style.frameCurve(opening: false, scaled: atSpeed) else {
+            Issue.record("the window closes on the ease out too"); return
+        }
+        style.softClose = false
+        #expect(style.animation(opening: false, scaled: atSpeed) == Animation(style.easeOutSpring(scaled: atSpeed)))
+        // The other curves are the same both ways.
+        style.curve = .easeOut
+        #expect(style.animation(opening: false, scaled: atSpeed) == style.animation(opening: true, scaled: atSpeed))
     }
 
     /// A slowed pace stretches whichever curve alike, the frame's and the content's.
@@ -62,6 +87,6 @@ struct PlatterMotionTests {
 
     @Test func copyValuesCarriesTheCurve() {
         let style = ArtworkStyle()
-        #expect(style.swiftSnippet.contains("platterMotion = PlatterMotionStyle(curve: .current, easeOutX1: 0.20, easeOutY1: 0.80, easeOutX2: 0.00, easeOutY2: 1.00, easeOutDuration: 0.40, springDuration: 0.40, springBounce: 0.16)"))
+        #expect(style.swiftSnippet.contains("platterMotion = PlatterMotionStyle(curve: .current, easeOutX1: 0.20, easeOutY1: 0.80, easeOutX2: 0.00, easeOutY2: 1.00, easeOutDuration: 0.40, springDuration: 1.00, springApproach: 0.40, springOvershoot: 0.024, softClose: true)"))
     }
 }

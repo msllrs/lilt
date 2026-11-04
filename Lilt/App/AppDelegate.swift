@@ -113,8 +113,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func setQueueVisible(_ visible: Bool) {
         guard visible != navigation.isQueueVisible else { return }
         // The window is the platter: it and the list ride one spring, either way.
-        if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: visible ? 1 : 0, animated: true, curve: Theme.Motion.queueCurve) }
-        withAnimation(Theme.Motion.queue) {
+        if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: visible ? 1 : 0, animated: true, curve: Theme.Motion.queueCurve(opening: visible)) }
+        withAnimation(Theme.Motion.queue(opening: visible)) {
             navigation.isQueueVisible = visible
             navigation.queueReveal = visible ? 1 : 0
         }
@@ -153,8 +153,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
         // Back to where it was.
-        if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: open ? 1 : 0, animated: true, curve: Theme.Motion.queueCurve) }
-        withAnimation(Theme.Motion.queue) { navigation.queueReveal = open ? 1 : 0 }
+        if navigation.isMiniPlayer { resizeWindow(mini: true, queueReveal: open ? 1 : 0, animated: true, curve: Theme.Motion.queueCurve(opening: open)) }
+        withAnimation(Theme.Motion.queue(opening: open)) { navigation.queueReveal = open ? 1 : 0 }
         autoHideQueueIfEmpty()
     }
 
@@ -208,7 +208,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func setAmbienceVisible(_ visible: Bool) {
         guard visible != navigation.isAmbienceVisible else { return }
         navigation.isAmbienceVisible = visible
-        if navigation.isMiniPlayer { resizeWindow(mini: true, animated: true, curve: Theme.Motion.queueCurve) }
+        if navigation.isMiniPlayer { resizeWindow(mini: true, animated: true, curve: Theme.Motion.queueCurve(opening: visible)) }
     }
 
     private func resizeWindow(mini: Bool, queueReveal: CGFloat? = nil, animated: Bool = false, curve: FrameCurve = Theme.Motion.frameCurve) {

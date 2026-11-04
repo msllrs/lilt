@@ -384,8 +384,10 @@ struct HeroSnapStyle: Equatable {
 /// How the platter opens and closes (Up Next and the ambience drawer), content and window on the
 /// one curve. Derek Briggs's two (Dive Club, 2026): an ease out, `cubic-bezier(0.2, 0.8, 0, 1)`
 /// over 400ms, which looks like 200ms with the last 200 a soft-close cushion; and an ease-out
-/// spring, as quick to look at, with a long tail that settles back into place. His rule: ease out
-/// when it lands against something hard, spring when it lands in free air.
+/// spring, a second long but as quick to look at, whose last 800ms cushion past the end and
+/// roll slowly back into place, like a car's tyres after it stops. His rule: spring when it
+/// lands in free air, ease out when it lands against something hard. Opening, the platter grows
+/// into free air; closing, it lands on the player, so with `softClose` it closes on the ease out.
 struct PlatterMotionStyle: Equatable, Sendable {
     var curve: PlatterCurve = .current
     /// The ease out's cubic Bézier control points and seconds.
@@ -394,33 +396,81 @@ struct PlatterMotionStyle: Equatable, Sendable {
     var easeOutX2: Double = 0
     var easeOutY2: Double = 1
     var easeOutDuration: Double = 0.4
-    /// The ease-out spring: SwiftUI's perceptual duration and bounce. At 0.4 and 0.16 it is 90%
-    /// of the way there at 200ms, like his, overshoots by under 1% and rolls back, settling at
-    /// about 0.72s.
-    var springDuration: Double = 0.4
-    var springBounce: Double = 0.16
+    /// The ease-out spring: seconds in all, seconds of them spent getting to the overshoot (on
+    /// the ease out's curve, so most of it is done in half that), and the overshoot as a share
+    /// of the travel.
+    var springDuration: Double = 1.0
+    var springApproach: Double = 0.4
+    var springOvershoot: Double = 0.024
+    /// Close on the ease out even when opening springs.
+    var softClose: Bool = true
     static let standard = PlatterMotionStyle()
 
     var easeOutCurve: UnitCurve {
         .bezier(startControlPoint: UnitPoint(x: easeOutX1, y: easeOutY1), endControlPoint: UnitPoint(x: easeOutX2, y: easeOutY2))
     }
 
+    func easeOutSpring(scaled: (TimeInterval) -> TimeInterval) -> EaseOutSpring {
+        EaseOutSpring(easeOut: easeOutCurve, duration: scaled(springDuration), approach: scaled(min(springApproach, springDuration)), overshoot: springOvershoot)
+    }
+
+    /// What `opening` (or closing) rides: closing lands soft when asked to.
+    private func shape(opening: Bool) -> PlatterCurve {
+        curve == .easeOutSpring && softClose && !opening ? .easeOut : curve
+    }
+
     /// The SwiftUI animation for the content, its seconds stretched by `scaled`.
-    func animation(scaled: (TimeInterval) -> TimeInterval) -> Animation {
-        switch curve {
+    func animation(opening: Bool = true, scaled: (TimeInterval) -> TimeInterval) -> Animation {
+        switch shape(opening: opening) {
         case .current: .spring(Spring(duration: scaled(0.3), bounce: 0))
         case .easeOut: .timingCurve(easeOutCurve, duration: scaled(easeOutDuration))
-        case .spring: .spring(Spring(duration: scaled(springDuration), bounce: springBounce))
+        case .easeOutSpring: Animation(easeOutSpring(scaled: scaled))
         }
     }
 
     /// The same motion for the native frame.
-    func frameCurve(scaled: (TimeInterval) -> TimeInterval) -> FrameCurve {
-        switch curve {
+    func frameCurve(opening: Bool = true, scaled: (TimeInterval) -> TimeInterval) -> FrameCurve {
+        switch shape(opening: opening) {
         case .current: .spring(Spring(duration: scaled(0.3), bounce: 0))
         case .easeOut: .curve(easeOutCurve, scaled(easeOutDuration))
-        case .spring: .spring(Spring(duration: scaled(springDuration), bounce: springBounce))
+        case .easeOutSpring: .easeOutSpring(easeOutSpring(scaled: scaled))
         }
+    }
+}
+
+/// An ease-out spring that a physical spring can't make: it gets past the end quickly on the
+/// ease out, then takes the rest of its time rolling back (an ease in and out), so the roll back
+/// is far slower than the approach. One function for the content (as a SwiftUI custom animation)
+/// and the native frame, so the two land together.
+struct EaseOutSpring: CustomAnimation, Sendable {
+    var easeOut: UnitCurve
+    var duration: TimeInterval
+    var approach: TimeInterval
+    var overshoot: Double
+
+    /// Progress at `time` seconds: 0 to 1 + overshoot over the approach, back to 1 at the end.
+    func value(at time: TimeInterval) -> Double {
+        guard duration > 0, time < duration else { return 1 }
+        guard time > 0 else { return 0 }
+        if time < approach {
+            return (1 + overshoot) * easeOut.value(at: time / approach)
+        }
+        let u = (time - approach) / max(duration - approach, .ulpOfOne)
+        let smooth = u * u * (3 - 2 * u)
+        return 1 + overshoot * (1 - smooth)
+    }
+
+    func animate<V: VectorArithmetic>(value: V, time: TimeInterval, context: inout AnimationContext<V>) -> V? {
+        guard time < duration else { return nil }
+        return value.scaled(by: self.value(at: time))
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(duration); hasher.combine(approach); hasher.combine(overshoot)
+    }
+
+    static func == (a: EaseOutSpring, b: EaseOutSpring) -> Bool {
+        a.easeOut == b.easeOut && a.duration == b.duration && a.approach == b.approach && a.overshoot == b.overshoot
     }
 }
 
@@ -428,13 +478,13 @@ enum PlatterCurve: String, CaseIterable, Identifiable, Sendable {
     /// A 0.3s spring with no bounce, as shipped.
     case current
     case easeOut
-    case spring
+    case easeOutSpring
     var id: String { rawValue }
     var label: String {
         switch self {
         case .current: "Current"
         case .easeOut: "Ease out"
-        case .spring: "Ease-out spring"
+        case .easeOutSpring: "Ease-out spring"
         }
     }
 }
@@ -853,7 +903,7 @@ final class ArtworkStyle {
         centredLibraryTitle = \(centredLibraryTitle)
         heroSnap = HeroSnapStyle(enabled: \(heroSnap.enabled), minFlick: \(f(heroSnap.minFlick)), deadZone: \(f(heroSnap.deadZone)))
         shine = ShineStyle(duration: \(f(shine.duration)), band: \(f(shine.band)), darkOpacity: \(f(shine.darkOpacity)), lightOpacity: \(f(shine.lightOpacity)))
-        platterMotion = PlatterMotionStyle(curve: .\(platterMotion.curve.rawValue), easeOutX1: \(f(platterMotion.easeOutX1)), easeOutY1: \(f(platterMotion.easeOutY1)), easeOutX2: \(f(platterMotion.easeOutX2)), easeOutY2: \(f(platterMotion.easeOutY2)), easeOutDuration: \(f(platterMotion.easeOutDuration)), springDuration: \(f(platterMotion.springDuration)), springBounce: \(f(platterMotion.springBounce)))
+        platterMotion = PlatterMotionStyle(curve: .\(platterMotion.curve.rawValue), easeOutX1: \(f(platterMotion.easeOutX1)), easeOutY1: \(f(platterMotion.easeOutY1)), easeOutX2: \(f(platterMotion.easeOutX2)), easeOutY2: \(f(platterMotion.easeOutY2)), easeOutDuration: \(f(platterMotion.easeOutDuration)), springDuration: \(f(platterMotion.springDuration)), springApproach: \(f(platterMotion.springApproach)), springOvershoot: \(f3(platterMotion.springOvershoot)), softClose: \(platterMotion.softClose))
         leadingCast = LeadingCastStyle(rimOpacity: \(f(leadingCast.rimOpacity)), rimWidth: \(f(leadingCast.rimWidth)), rimStart: \(f(leadingCast.rimStart)), rimInset: \(f(leadingCast.rimInset)), darkRimInset: \(f(leadingCast.darkRimInset)), washOpacity: \(f(leadingCast.washOpacity)), washReach: \(f(leadingCast.washReach)), saturation: \(f(leadingCast.saturation)), darkLightness: \(f(leadingCast.darkLightness)), darkChromaCap: \(f(leadingCast.darkChromaCap)), darkRimOpacity: \(f(leadingCast.darkRimOpacity)), darkWashScale: \(f(leadingCast.darkWashScale)))
         """
     }
