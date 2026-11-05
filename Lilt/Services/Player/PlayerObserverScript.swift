@@ -262,13 +262,18 @@ enum PlayerObserverScript {
 
       // WebKit publishes the page's Media Session to macOS Now Playing and media keys. Keep that
       // as the single system entry, but make next/previous drive Lilt's queue instead of the
-      // page's own, and stop the page from taking those two actions back.
+      // page's own, and stop the page from taking those actions back. Pause and play go to
+      // Lilt too, which pauses and plays through the page as for its own buttons: that way it
+      // knows a pause came from the system (AirPods taken out) and can take the system's Play
+      // when they go back in, which after two Pauses no longer reaches this session.
       const ms = navigator.mediaSession;
       if (ms && typeof ms.setActionHandler === 'function') {
         const original = ms.setActionHandler.bind(ms);
         const ours = {
           nexttrack: () => post('REMOTE', { action: 'next' }),
           previoustrack: () => post('REMOTE', { action: 'previous' }),
+          pause: () => post('REMOTE', { action: 'pause' }),
+          play: () => post('REMOTE', { action: 'play' }),
         };
         ms.setActionHandler = (action, handler) => original(action, ours[action] || handler);
         Object.keys(ours).forEach((k) => { try { original(k, ours[k]); } catch (e) {} });
