@@ -10,11 +10,21 @@ import Observation
 /// no session exists and the keys have nowhere to go. This publishes Lilt's own entry through
 /// MediaPlayer for exactly that window, and withdraws it the moment the web view has a session,
 /// so there is never more than one Lilt in Now Playing.
+///
+/// It also listens for the system's Play after the system paused Lilt (AirPods taken out),
+/// web session or not. Taking both AirPods out sends two Pauses, and after the second macOS
+/// sends its Play only to apps with command targets in their own process, never to the web
+/// session it paused. So while `PlayerService.isPausedRemotely`, Lilt's own process has a play
+/// target, and nothing else: no Now Playing info or playback state, so the web session stays
+/// the one Lilt entry. The target goes the moment there's no pause to undo.
 @MainActor
 final class RemoteCommandBridge {
     private let player: PlayerService
     private var active = false
     private var targets: [(MPRemoteCommand, Any)] = []
+    /// Lilt's own play target waiting to undo a system pause, while there is one.
+    private(set) var isListeningForResume = false
+    private var resumeTarget: Any?
     private var artworkURL: URL?
 
     init(player: PlayerService) {
@@ -29,6 +39,7 @@ final class RemoteCommandBridge {
             _ = player.isPlaying
             _ = player.currentTime
             _ = player.duration
+            _ = player.isPausedRemotely
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.update()
@@ -45,6 +56,26 @@ final class RemoteCommandBridge {
             wanted ? register() : withdraw()
         }
         if active { publish() }
+        // Without a web session the full set of targets above already resumes on Play.
+        let listening = player.isPausedRemotely && !active
+        if listening != isListeningForResume {
+            isListeningForResume = listening
+            listening ? listenForResume() : stopListeningForResume()
+        }
+    }
+
+    private func listenForResume() {
+        let command = MPRemoteCommandCenter.shared().playCommand
+        command.isEnabled = true
+        resumeTarget = command.addTarget { [player] _ in
+            Task { @MainActor in player.resumeAfterRemotePause() }
+            return .success
+        }
+    }
+
+    private func stopListeningForResume() {
+        if let resumeTarget { MPRemoteCommandCenter.shared().playCommand.removeTarget(resumeTarget) }
+        resumeTarget = nil
     }
 
     private func register() {
