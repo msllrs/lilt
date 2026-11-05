@@ -130,6 +130,15 @@ final class PlayerService {
     /// system Now Playing entry and receives the media keys. False after a relaunch until the
     /// restored track is actually loaded; `RemoteCommandBridge` covers that window.
     private(set) var hasWebSession = false
+    /// The system paused a playing song (AirPods taken out, say) and nothing has been done by
+    /// hand since, so the system's Play when they go back in should resume it.
+    ///
+    /// macOS sends one Pause per AirPod taken out. With both out the second finds Lilt already
+    /// paused, and from then on macOS doesn't count Lilt's web session among the players it
+    /// paused: its Play goes only to apps listening in their own process. So this keeps the
+    /// first Pause's word through the second, and `RemoteCommandBridge` listens for that Play
+    /// in Lilt's own process while it's set.
+    private(set) var isPausedRemotely = false
     /// Position to seek to once the restored track is playing.
     private var pendingSeek: Double?
     private var lastSavedTime: Double = 0
@@ -298,6 +307,7 @@ final class PlayerService {
 
     func resume() {
         guard let index = currentIndex, current != nil else { return }
+        isPausedRemotely = false
         if needsLoad {
             pendingSeek = currentTime > 1 ? currentTime : nil
             load(index: index)
@@ -309,9 +319,28 @@ final class PlayerService {
 
     func pause() {
         guard current != nil else { return }
+        isPausedRemotely = false
         setPlayingOptimistically(false)
         bridge.pause()
         save()
+    }
+
+    /// The system's Pause, forwarded by the page's media session. Only a pause of something
+    /// playing is one to undo: a second Pause while already paused (the other AirPod) keeps the
+    /// first one's mark, and one with nothing playing doesn't make one.
+    private func pauseRemotely() {
+        guard isPlaying else { return }
+        pause()
+        isPausedRemotely = true
+    }
+
+    /// The system's Play after its own pause: resumes, and says so, only when the pause it
+    /// answers is still waiting, so a Play after you've paused by hand leaves the music be.
+    @discardableResult
+    func resumeAfterRemotePause() -> Bool {
+        guard isPausedRemotely else { return false }
+        resume()
+        return true
     }
 
     /// Flush the queue and playhead to disk (called when the app is about to quit).
@@ -349,6 +378,7 @@ final class PlayerService {
         bridge.unload()
         tearDownStandby()
         hasWebSession = false
+        isPausedRemotely = false
         save()
     }
 
@@ -542,6 +572,9 @@ final class PlayerService {
         }
         currentIndex = index
         needsLoad = false
+        // Another song, or the same one again, by hand or by the queue: whatever the system
+        // paused has been moved on from.
+        isPausedRemotely = false
         gap = nil
         failedCue = nil
         awaitingSound = nil
@@ -590,6 +623,10 @@ final class PlayerService {
             next()
         case .remote(.previous):
             previous()
+        case .remote(.pause):
+            pauseRemotely()
+        case .remote(.play):
+            resume()
         case .ended(let videoId):
             guard videoId == current?.id, let i = currentIndex else { return }
             let old = queue[i]
@@ -794,6 +831,8 @@ final class PlayerService {
         if s.isPlaying == isPlaying || Date.now >= trustWebPlayStateAfter {
             isPlaying = s.isPlaying
         }
+        // Playing again by some way of the page's own: there's no longer a pause to undo.
+        if isPlaying { isPausedRemotely = false }
         if let target = pendingSeek, s.isPlaying {
             pendingSeek = nil
             bridge.seek(to: target)

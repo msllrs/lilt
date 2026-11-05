@@ -33,8 +33,10 @@ enum PlayerEvent {
     case remote(RemoteAction)
 }
 
+/// The page's media session actions Lilt takes over: next and previous drive Lilt's queue, and
+/// pause and play come to Lilt so it knows when the system paused it (see `isPausedRemotely`).
 enum RemoteAction: String {
-    case next, previous
+    case next, previous, pause, play
 }
 
 /// What `PlayerService` needs from a web player, so tests can stand in a fake that never loads
