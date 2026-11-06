@@ -13,10 +13,10 @@ struct ScrubberClickTests {
     private let width: CGFloat = 320
     private let length: Double = 320
 
-    /// A Scrubber `width` wide with the playhead at `at`, in an off-screen window. `ended`
-    /// collects each value a click lands on.
-    private func host(playheadAt at: Double, ended: @escaping (Double) -> Void) async -> NSWindow {
-        let view = Scrubber(value: .constant(at), range: 0...length, onEditing: { value, done in if done { ended(value) } })
+    /// A Scrubber `width` wide with the playhead at `at`, in an off-screen window. `editing`
+    /// hears each value it reports, and whether that's the release.
+    private func host(playheadAt at: Double, editing: @escaping (Double, Bool) -> Void) async -> NSWindow {
+        let view = Scrubber(value: .constant(at), range: 0...length, onEditing: editing)
             .frame(width: width, height: 12)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 12), styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -48,7 +48,7 @@ struct ScrubberClickTests {
     /// Where each click lands, with the playhead at `at`.
     private func landings(_ xs: [CGFloat], playheadAt at: Double) async -> [Double] {
         var landed: [Double] = []
-        let window = await host(playheadAt: at) { landed.append($0) }
+        let window = await host(playheadAt: at) { value, ended in if ended { landed.append(value) } }
         defer { window.close() }
         for x in xs { await click(atX: x, in: window) }
         return landed
@@ -77,5 +77,33 @@ struct ScrubberClickTests {
     @Test func aClickBesideThePlayheadJumpsToIt() async {
         let xs: [CGFloat] = [152, 156, 164, 168]
         expectLanded(await landings(xs, playheadAt: 160), at: xs, "beside the playhead")
+    }
+
+    /// A mouse event of `type` at `x` along the line, halfway up it.
+    private func mouse(_ type: NSEvent.EventType, atX x: CGFloat, in window: NSWindow) -> NSEvent {
+        NSEvent.mouseEvent(with: type, location: CGPoint(x: x, y: 6), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
+    }
+
+    /// A drag scrubs live, each step reported where the pointer is and not as the release, and
+    /// the release reports where it let go. Picked up on the playhead, where a knob would be, it
+    /// follows the pointer rather than an offset from where it was picked up.
+    @Test func aDragScrubsLiveAndTheReleaseSeeks() async {
+        var reports: [(value: Double, ended: Bool)] = []
+        let window = await host(playheadAt: 160) { value, ended in reports.append((value, ended)) }
+        defer { window.close() }
+        let steps: [CGFloat] = [166, 200, 240]
+        NSApp.postEvent(mouse(.leftMouseDown, atX: steps[0], in: window), atStart: false)
+        for x in steps.dropFirst() { NSApp.postEvent(mouse(.leftMouseDragged, atX: x, in: window), atStart: false) }
+        NSApp.postEvent(mouse(.leftMouseUp, atX: 240, in: window), atStart: false)
+        await settle(2)
+
+        let live = reports.filter { !$0.ended }.map(\.value)
+        let released = reports.filter(\.ended).map(\.value)
+        for x in steps {
+            #expect(live.contains { abs($0 - Double(x)) <= 1 }, "a live report at \(x): \(live)")
+        }
+        #expect(released.count == 1, "one release: \(released)")
+        #expect(abs((released.first ?? 0) - 240) <= 1, "released at 240, landed at \(released)")
+        #expect(reports.last?.ended == true, "the release comes last")
     }
 }
