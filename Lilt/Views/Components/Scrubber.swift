@@ -67,6 +67,30 @@ final class LineSliderCell: NSSliderCell {
 
     override func drawKnob(_ knobRect: NSRect) {}
 
+    // The system reads the mouse over the knob-inset track, and picks up the knob, unseen here,
+    // to drag it by an offset from where it was grabbed. Either way the value isn't where the
+    // pointer is on the drawn line, so after the system's own tracking the value is set from the
+    // pointer over the full width, on the press and on every step of a drag. The action is sent
+    // after each of these, so a press, a drag and the release all report the corrected value.
+    override func startTracking(at startPoint: NSPoint, in controlView: NSView) -> Bool {
+        let tracking = super.startTracking(at: startPoint, in: controlView)
+        doubleValue = value(at: startPoint, in: controlView)
+        return tracking
+    }
+
+    override func continueTracking(last lastPoint: NSPoint, current currentPoint: NSPoint, in controlView: NSView) -> Bool {
+        let tracking = super.continueTracking(last: lastPoint, current: currentPoint, in: controlView)
+        doubleValue = value(at: currentPoint, in: controlView)
+        return tracking
+    }
+
+    /// The value at `point` along the line as drawn: edge to edge, clamped to the range.
+    private func value(at point: NSPoint, in controlView: NSView) -> Double {
+        let width = controlView.bounds.width
+        let fraction = width > 0 ? min(max((point.x - controlView.bounds.minX) / width, 0), 1) : 0
+        return minValue + Double(fraction) * (maxValue - minValue)
+    }
+
     override func drawBar(inside rect: NSRect, flipped: Bool) {
         // The system insets the bar by half a knob at each end; with no knob, run edge to edge
         // and derive the fill from the value rather than the (inset) knob position.
