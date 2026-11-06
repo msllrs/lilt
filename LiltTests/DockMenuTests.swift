@@ -49,6 +49,26 @@ struct DockMenuTests {
         }
     }
 
+    /// As laid out on 2026-11-06: the mix first, under the song; then playback, its modes, the
+    /// song's like and playlists, where it's from, and its link, each group divided.
+    @Test func theMenuIsGroupedAsLaidOut() throws {
+        try withPlayer([song]) { player in
+            let laidOut = [
+                "Schism — Tool", "—",
+                "Start Mix", "—",
+                "Play", "Next", "Previous", "—",
+                "Shuffle", "Repeat", "—",
+                "Like", "Add to Playlist", "—",
+                "Go to Artist", "Go to Album", "—",
+                "Copy Link", "—",
+            ]
+            // Recently Played may follow, from this Mac's own history, before Show Lilt.
+            let all = titles(menu(player))
+            #expect(Array(all.prefix(laidOut.count)) == laidOut)
+            #expect(all.last == "Show Lilt")
+        }
+    }
+
     @Test func aLikedSongOffersToUnlike() throws {
         try withPlayer([song]) { player in
             player.toggleLike()

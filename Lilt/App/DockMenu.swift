@@ -1,7 +1,7 @@
 import AppKit
 
 /// The Dock tile's menu. AppKit asks for it each time it opens, so it's built fresh from the
-/// player's state: the song, playback, then the song's own actions, the same ones the
+/// player's state: the song, its mix, playback, then the song's own actions, the same ones the
 /// now-playing bar's right-click menu offers.
 @MainActor
 enum DockMenu {
@@ -24,16 +24,25 @@ enum DockMenu {
             title.isEnabled = false
             menu.addItem(title)
             menu.addItem(.separator())
+            // The mix under the song, since it replaces what's playing rather than steering it;
+            // then playback and its modes, then the rest of the song's own actions.
+            let (mix, rest) = songGroups(for: track, isLiked: player.isLiked)
+            if !mix.isEmpty {
+                addSongActions(mix, for: track, to: menu, player: player, music: music, actions: actions, notices: notices)
+                menu.addItem(.separator())
+            }
             menu.addItem(ActionItem(player.isPlaying ? "Pause" : "Play") { player.togglePlayPause() })
             let next = ActionItem("Next") { player.next() }
             next.isEnabled = player.hasNext
             menu.addItem(next)
             menu.addItem(ActionItem("Previous") { player.previous() })
             menu.addItem(.separator())
-            addSongActions(for: track, to: menu, player: player, music: music, actions: actions, notices: notices)
-            menu.addItem(.separator())
             addPlaybackModes(to: menu, player: player)
             menu.addItem(.separator())
+            for group in rest {
+                addSongActions(group, for: track, to: menu, player: player, music: music, actions: actions, notices: notices)
+                menu.addItem(.separator())
+            }
             let lists = [upNextMenu(player: player), recentlyPlayedMenu(player: player, recents: recents)].compactMap { $0 }
             for list in lists { menu.addItem(list) }
             if !lists.isEmpty { menu.addItem(.separator()) }
@@ -42,9 +51,18 @@ enum DockMenu {
         return menu
     }
 
-    /// The bar's right-click menu for the playing song, as Dock menu items.
-    private static func addSongActions(for track: Track, to menu: NSMenu, player: PlayerService, music: YTMusicClient, actions: Actions, notices: NoticeCenter?) {
-        for action in RowMenu.nowPlaying(track, isLiked: player.isLiked).joined() {
+    /// What the bar's right-click menu offers for the playing song, grouped for the Dock: its
+    /// mix on its own, then its like with its playlists, where it's from, and its link.
+    private static func songGroups(for track: Track, isLiked: Bool) -> (mix: [RowAction], rest: [[RowAction]]) {
+        let offered = Array(RowMenu.nowPlaying(track, isLiked: isLiked).joined())
+        let groups: [[RowAction]] = [[.startMix], [.like, .unlike, .addToPlaylist], [.goToArtist, .goToAlbum], [.copyLink]]
+        let kept = groups.map { group in offered.filter(group.contains) }
+        return (kept[0], kept.dropFirst().filter { !$0.isEmpty })
+    }
+
+    /// Song actions as Dock menu items.
+    private static func addSongActions(_ group: [RowAction], for track: Track, to menu: NSMenu, player: PlayerService, music: YTMusicClient, actions: Actions, notices: NoticeCenter?) {
+        for action in group {
             switch action {
             case .startMix:
                 menu.addItem(ActionItem(action.title) { RowMenu.startMix(for: track, player: player, music: music, notices: notices) })
