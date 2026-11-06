@@ -77,7 +77,7 @@ struct DockMenuTests {
     }
 }
 
-/// Shuffle and repeat, ticked to show what's on.
+/// Shuffle, named for what it will do, and repeat, its mode ticked in its submenu.
 @MainActor
 struct DockMenuPlaybackModeTests {
     private let song = Track(id: "v1", title: "Schism", artist: "Tool")
@@ -95,11 +95,16 @@ struct DockMenuPlaybackModeTests {
         DockMenu.build(player: player, music: YTMusicClient(auth: AuthService()), recents: RecentsStore(), actions: .none)
     }
 
-    @Test func shuffleIsTickedWhenOn() throws {
+    /// Shuffle says what it will do rather than ticking: one tick makes the whole menu keep a
+    /// column for it, so every item would sit indented for the one that can be on.
+    @Test func shuffleSaysWhatItWillDo() throws {
         try withPlayer { player in
-            #expect(menu(player).item(withTitle: "Shuffle")?.state == .off)
+            #expect(menu(player).item(withTitle: "Shuffle") != nil)
+            #expect(menu(player).items.allSatisfy { $0.state == .off })
             player.toggleShuffle()
-            #expect(menu(player).item(withTitle: "Shuffle")?.state == .on)
+            #expect(menu(player).item(withTitle: "Shuffle") == nil)
+            #expect(menu(player).item(withTitle: "Stop Shuffling") != nil)
+            #expect(menu(player).items.allSatisfy { $0.state == .off })
         }
     }
 

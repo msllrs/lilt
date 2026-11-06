@@ -124,11 +124,11 @@ enum DockMenu {
         track.artist.isEmpty ? track.title : "\(track.title) — \(track.artist)"
     }
 
-    /// Shuffle, and the repeat modes in a submenu, each ticked when on.
+    /// Shuffle, named for what it will do, and the repeat modes in a submenu, the one in use
+    /// ticked. Shuffle isn't ticked: one tick makes the menu keep a column for it, indenting
+    /// every item for the one that can be on.
     private static func addPlaybackModes(to menu: NSMenu, player: PlayerService) {
-        let shuffle = ActionItem("Shuffle") { player.toggleShuffle() }
-        shuffle.state = player.isShuffled ? .on : .off
-        menu.addItem(shuffle)
+        menu.addItem(ActionItem(player.isShuffled ? "Stop Shuffling" : "Shuffle") { player.toggleShuffle() })
         let item = NSMenuItem(title: "Repeat", action: nil, keyEquivalent: "")
         let modes = NSMenu()
         for (mode, title) in [(PlayerService.RepeatMode.off, "Off"), (.all, "All"), (.one, "One")] {
