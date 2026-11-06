@@ -51,13 +51,12 @@ enum DockMenu {
         return menu
     }
 
-    /// What the bar's right-click menu offers for the playing song, grouped for the Dock: its
-    /// mix on its own, then its like with its playlists, where it's from, and its link.
+    /// The bar's right-click menu for the playing song, in its groups: its mix, then its like
+    /// with its playlists, where it's from, and its link.
     private static func songGroups(for track: Track, isLiked: Bool) -> (mix: [RowAction], rest: [[RowAction]]) {
-        let offered = Array(RowMenu.nowPlaying(track, isLiked: isLiked).joined())
-        let groups: [[RowAction]] = [[.startMix], [.like, .unlike, .addToPlaylist], [.goToArtist, .goToAlbum], [.copyLink]]
-        let kept = groups.map { group in offered.filter(group.contains) }
-        return (kept[0], kept.dropFirst().filter { !$0.isEmpty })
+        let groups = RowMenu.nowPlaying(track, isLiked: isLiked)
+        guard groups.first == [.startMix] else { return ([], groups) }
+        return (groups[0], Array(groups.dropFirst()))
     }
 
     /// Song actions as Dock menu items.

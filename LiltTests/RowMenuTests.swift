@@ -65,11 +65,24 @@ struct RowMenuTests {
 
     /// Start Mix sits with Play and Shuffle Play, for songs and every kind of page.
     @Test func everythingPlayableHasAMix() {
-        #expect(RowMenu.track(song, in: nil).first == [.play, .startMix, .playNext, .addToQueue])
+        #expect(RowMenu.track(song, in: nil).first == [.play, .startMix])
         #expect(RowMenu.item(page("UCtool", .artist)).first == [.play, .shuffle, .startMix])
         for kind in [BrowseKind.album, .playlist] {
-            #expect(RowMenu.item(page("x", kind)).first == [.play, .shuffle, .startMix, .playNext, .addToQueue])
+            #expect(RowMenu.item(page("x", kind)).first == [.play, .shuffle, .startMix])
         }
+    }
+
+    /// As laid out on 2026-11-06, to match the Dock menu: what starts playing, then what
+    /// queues, the song's like with its playlists, where it's from, and its link.
+    @Test func menusAreGroupedAsLaidOut() {
+        #expect(RowMenu.track(song, in: nil) == [[.play, .startMix], [.playNext, .addToQueue], [.like, .addToPlaylist], [.goToArtist, .goToAlbum], [.copyLink]])
+        var mine = song
+        mine.playlistEntry = PlaylistEntry(playlistId: "PLmine", setVideoId: "s1")
+        #expect(RowMenu.track(mine, in: page("VLPLmine", .playlist), isLiked: true)[2] == [.unlike, .addToPlaylist, .removeFromPlaylist])
+        for kind in [BrowseKind.album, .playlist] {
+            #expect(RowMenu.item(page("x", kind)) == [[.play, .shuffle, .startMix], [.playNext, .addToQueue], [.addToPlaylist], [.copyLink]])
+        }
+        #expect(RowMenu.item(page("UCtool", .artist)) == [[.play, .shuffle, .startMix], [.copyLink]])
     }
 
     @Test func linksPointAtYouTubeMusic() {
@@ -93,7 +106,7 @@ struct QueueAndPlatterMenuTests {
         #expect(actions.contains(.play) && actions.contains(.addToPlaylist) && actions.contains(.unlike))
         #expect(actions.contains(.goToArtist) && actions.contains(.goToAlbum) && actions.contains(.copyLink))
         #expect(!actions.contains(.addToQueue), "it's already queued")
-        #expect(RowMenu.queued(song, removable: true, isLiked: nil).first == [.play, .startMix])
+        #expect(RowMenu.queued(song, removable: true, isLiked: nil) == [[.play, .startMix], [.removeFromQueue], [.like, .addToPlaylist], [.goToArtist, .goToAlbum], [.copyLink]])
     }
 
     @Test func theBarIsAboutTheSong() {
@@ -101,6 +114,6 @@ struct QueueAndPlatterMenuTests {
         // Its mix carries on from the song, so it belongs here even though playing doesn't.
         #expect(actions == [.startMix, .like, .addToPlaylist, .goToArtist, .goToAlbum, .copyLink])
         #expect(RowMenu.nowPlaying(song, isLiked: true).first == [.startMix])
-        #expect(RowMenu.nowPlaying(song, isLiked: true)[1] == [.unlike])
+        #expect(RowMenu.nowPlaying(song, isLiked: true) == [[.startMix], [.unlike, .addToPlaylist], [.goToArtist, .goToAlbum], [.copyLink]])
     }
 }

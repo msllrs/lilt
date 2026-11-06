@@ -28,25 +28,26 @@ enum RowAction: Hashable {
     }
 }
 
-/// What a row's right-click menu offers: groups of actions, split by dividers. Depends on what
-/// the row is and on the list it sits in (your own playlists' songs can come out of them).
+/// What a row's right-click menu offers: groups of actions, split by dividers, laid out as the
+/// Dock menu is (what starts playing, what queues, like and playlists, where it's from, the
+/// link). Depends on what the row is and on the list it sits in (your own playlists' songs can
+/// come out of them).
 enum RowMenu {
     /// `isLiked`: the song's like state as far as Lilt knows; nil when the response didn't say.
     static func track(_ track: Track, in source: BrowseItem?, isLiked: Bool? = nil) -> [[RowAction]] {
-        var playlist: [RowAction] = [.addToPlaylist]
         // Liked Music's songs leave it by being unliked, not by playlist edits.
         let inLikedMusic = source.map(BrowseScreen.isLikedMusic) ?? false
-        let library: [RowAction] = inLikedMusic || isLiked == true ? [.unlike] : [.like]
+        var library: [RowAction] = [inLikedMusic || isLiked == true ? .unlike : .like, .addToPlaylist]
         if track.playlistEntry != nil, !inLikedMusic {
-            playlist.append(.removeFromPlaylist)
+            library.append(.removeFromPlaylist)
         }
-        return [[.play, .startMix, .playNext, .addToQueue], playlist, library, links(track, except: source), [.copyLink]].filter { !$0.isEmpty }
+        return [[.play, .startMix], [.playNext, .addToQueue], library, links(track, except: source), [.copyLink]].filter { !$0.isEmpty }
     }
 
     /// A row in the up-next list. Only songs you queued by hand can come out of it. Its mix
     /// starts from it and replaces the queue, as Play jumps to it.
     static func queued(_ track: Track, removable: Bool, isLiked: Bool?) -> [[RowAction]] {
-        [[.play, .startMix], removable ? [.removeFromQueue] : [], [.addToPlaylist], [isLiked == true ? .unlike : .like], links(track), [.copyLink]]
+        [[.play, .startMix], removable ? [.removeFromQueue] : [], [isLiked == true ? .unlike : .like, .addToPlaylist], links(track), [.copyLink]]
             .filter { !$0.isEmpty }
     }
 
@@ -54,7 +55,7 @@ enum RowMenu {
     /// controls, so the menu is about the song itself: its mix (which carries on from it
     /// without starting it over), its like, playlists and links.
     static func nowPlaying(_ track: Track, isLiked: Bool) -> [[RowAction]] {
-        [[.startMix], [isLiked ? .unlike : .like], [.addToPlaylist], links(track), [.copyLink]].filter { !$0.isEmpty }
+        [[.startMix], [isLiked ? .unlike : .like, .addToPlaylist], links(track), [.copyLink]].filter { !$0.isEmpty }
     }
 
     private static func links(_ track: Track, except source: BrowseItem? = nil) -> [RowAction] {
@@ -71,7 +72,7 @@ enum RowMenu {
             return [[.play, .shuffle, .startMix], [.copyLink]]
         case .album, .playlist:
             let go: [RowAction] = item.artistItem != nil ? [.goToArtist] : []
-            return [[.play, .shuffle, .startMix, .playNext, .addToQueue], [.addToPlaylist], go, [.copyLink]].filter { !$0.isEmpty }
+            return [[.play, .shuffle, .startMix], [.playNext, .addToQueue], [.addToPlaylist], go, [.copyLink]].filter { !$0.isEmpty }
         case .library:
             return []
         }
