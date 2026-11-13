@@ -215,26 +215,35 @@ final class PlayerService {
     /// Its title, for the up-next list's "from" line.
     private(set) var sourceTitle: String?
 
+    /// Plays `tracks` from `index` in their own order. Shuffle belongs to the list it was turned
+    /// on for, so a new list starts with it off.
     func play(_ tracks: [Track], startingAt index: Int, source: BrowseItem? = nil) {
+        start(tracks, at: index, source: source, shuffled: false)
+    }
+
+    /// Starts `tracks` in a random order with shuffle on.
+    func playShuffled(_ tracks: [Track], source: BrowseItem? = nil) {
+        guard !tracks.isEmpty else { return }
+        start(tracks, at: Int.random(in: tracks.indices), source: source, shuffled: true)
+    }
+
+    /// Replaces the queue with `tracks` and plays the one at `index`, shuffling what follows it
+    /// when asked to.
+    private func start(_ tracks: [Track], at index: Int, source: BrowseItem?, shuffled: Bool) {
         guard tracks.indices.contains(index) else { return }
         sourceId = source?.id
         sourceTitle = source?.title
         queue = tracks
         unshuffledQueue = nil
         manualTokens = []
-        if isShuffled { shuffleRemainder(keeping: index) } else { load(index: index) }
-    }
-
-    /// Starts `tracks` in a random order with shuffle on.
-    func playShuffled(_ tracks: [Track], source: BrowseItem? = nil) {
-        guard !tracks.isEmpty else { return }
-        isShuffled = true
-        play(tracks, startingAt: Int.random(in: tracks.indices), source: source)
+        isShuffled = shuffled
+        if shuffled { shuffleRemainder(keeping: index) } else { load(index: index) }
     }
 
     /// Plays a mix from its first song, as `play` does, unless that song is the one playing (a
     /// mix started from the song you're listening to): then it plays on uninterrupted and the
-    /// mix becomes what follows it, in place of the rest of the queue.
+    /// mix becomes what follows it, in place of the rest of the queue. Either way the mix plays
+    /// in its own order, with shuffle off.
     func playMix(_ tracks: [Track], source: BrowseItem) {
         guard let first = tracks.first else { return }
         guard let current, current.id == first.id else {
@@ -247,7 +256,7 @@ final class PlayerService {
         currentIndex = 0
         unshuffledQueue = nil
         manualTokens = []
-        if isShuffled { shuffleRemainder(keeping: 0, reload: false) }
+        isShuffled = false
         save()
     }
 
