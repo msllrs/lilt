@@ -209,7 +209,8 @@ final class PlayerService {
 
     /// The browse id of the album or playlist the queue was started from, so only that page
     /// (and its row) shows as playing; a track played from anywhere else has no source, even
-    /// if some playlist happens to contain it.
+    /// if some playlist happens to contain it. It goes once YouTube Music carries on past the
+    /// queue with a pick of its own.
     private(set) var sourceId: String?
     /// Its title, for the up-next list's "from" line.
     private(set) var sourceTitle: String?
@@ -903,8 +904,10 @@ final class PlayerService {
     }
 
     /// YouTube Music moved on to a track we didn't queue (its radio continuation). Append it so
-    /// the UI follows along.
+    /// the UI follows along. The queue has left its album or playlist, so that's no longer the source.
     private func adopt(videoId: String, from s: PlaybackSnapshot) {
+        sourceId = nil
+        sourceTitle = nil
         let track = Track(id: videoId, title: s.title, artist: s.artist, artworkURL: s.artworkURL)
         if let i = currentIndex {
             queue.insert(track, at: i + 1)
