@@ -49,7 +49,9 @@ final class PanelRest {
     @ObservationIgnored var pointerIsInside: () -> Bool?
 
     @ObservationIgnored private var isAvailable = false
-    @ObservationIgnored private(set) var isPointerInside = true
+    /// Whether the pointer is over the panel, whatever the setting: rows show their lengths only
+    /// then. Changes only on the transitions.
+    private(set) var isPointerInside = true
     @ObservationIgnored private(set) var holds: Set<Hold> = []
     @ObservationIgnored private var cancelWait: (() -> Void)?
 
@@ -82,19 +84,23 @@ final class PanelRest {
     func setAvailable(_ available: Bool) {
         guard available != isAvailable else { return }
         isAvailable = available
-        if available, let inside = pointerIsInside() { isPointerInside = inside }
+        if available, let inside = pointerIsInside() { setPointerInside(inside) }
         wake()
         armIfIdle()
     }
 
     func pointerEntered() {
-        isPointerInside = true
+        setPointerInside(true)
         wake()
     }
 
     func pointerExited() {
-        isPointerInside = false
+        setPointerInside(false)
         armIfIdle()
+    }
+
+    private func setPointerInside(_ inside: Bool) {
+        if isPointerInside != inside { isPointerInside = inside }
     }
 
     /// A key pressed in the panel: back at once, and the wait starts over.

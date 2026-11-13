@@ -12,6 +12,9 @@ struct TrackRow: View {
     @Environment(NavigationModel.self) private var navigation
     @Environment(YTMusicClient.self) private var music
     @Environment(NoticeCenter.self) private var notices: NoticeCenter?
+    /// Nil where a row is hosted on its own; lengths then always show.
+    @Environment(PanelRest.self) private var rest: PanelRest?
+    private var isPointerOverPanel: Bool { rest?.isPointerInside ?? true }
     /// An album page's cover palette, for the text and the playing row's pill.
     @Environment(\.coverPalette) private var coverPalette
     @Environment(\.colorScheme) private var colorScheme
@@ -82,6 +85,10 @@ struct TrackRow: View {
                         .opacity(isHovering ? 0 : 1)
                         // Swaps with the button instantly; the eased hover fade is for the row.
                         .transaction { $0.animation = nil }
+                        // Lengths are for someone using the panel: away from it they fade out,
+                        // and the list reads as titles alone.
+                        .opacity(isPointerOverPanel ? 1 : 0)
+                        .animation(Theme.Motion.quick, value: isPointerOverPanel)
                         .padding(.leading, Theme.Space.sm)
                 }
             }

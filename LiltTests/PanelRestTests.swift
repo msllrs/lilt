@@ -201,4 +201,18 @@ struct PanelRestTests {
         defaults.set(true, forKey: PanelRest.enabledKey)
         #expect(PanelRest.isEnabled(in: defaults))
     }
+
+    // MARK: The pointer
+
+    /// Rows show their lengths only with the pointer over the panel, so it's followed with the
+    /// setting off too.
+    @Test func thePointerIsFollowedWhetherOrNotThePanelCanRest() {
+        let rest = makeRest(available: false)
+        #expect(rest.isPointerInside)
+        rest.pointerExited()
+        #expect(!rest.isPointerInside)
+        rest.pointerEntered()
+        #expect(rest.isPointerInside)
+        #expect(clock.pending == 0, "nothing waits to rest")
+    }
 }
