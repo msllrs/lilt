@@ -138,12 +138,15 @@ struct NoticeUndoTests {
         #expect(center.current?.action == nil)
     }
 
-    @Test func aFailedWritePostsNothing() async throws {
+    /// A failed write never confirms itself, nor offers to undo what didn't happen; it says it
+    /// failed (EditFailureTests).
+    @Test func aFailedWriteIsntConfirmed() async throws {
         let music = YTMusicClient(auth: AuthService(), write: { _, _ in throw URLError(.notConnectedToInternet) })
         let center = notices()
         RowMenu.add(schism, to: OwnPlaylist(id: "PLmine", title: "run"), music: music, notices: center)
         try await Task.sleep(for: .milliseconds(100))
-        #expect(center.current == nil)
+        #expect(center.current?.label != "Added")
+        #expect(center.current?.action == nil)
     }
 
     @Test func savingAnAlbumConfirmsItAndUndoTakesItBackOut() async throws {

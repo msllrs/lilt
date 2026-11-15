@@ -99,17 +99,30 @@ extension RowMenu {
     /// the entry it made; Undo takes that entry out. Nothing went in (it was there already), no Undo.
     static func add(_ track: Track, to playlist: OwnPlaylist, music: YTMusicClient, notices: NoticeCenter?) {
         Task {
-            guard let added = try? await music.add(track, to: playlist) else { return }
-            postAdded(added, key: track.id, named: track.title, artwork: track.artworkURL, to: playlist, music: music, notices: notices)
+            do {
+                let added = try await music.add(track, to: playlist)
+                postAdded(added, key: track.id, named: track.title, artwork: track.artworkURL, to: playlist, music: music, notices: notices)
+            } catch {
+                postFailure("\(track.title) to \(playlist.title)", label: "Couldn't add", notices: notices)
+            }
         }
     }
 
     /// Adds an album's or playlist's songs to one of yours, the same way.
     static func add(_ item: BrowseItem, to playlist: OwnPlaylist, music: YTMusicClient, notices: NoticeCenter?) {
         Task {
-            guard let added = try? await music.add(item, to: playlist) else { return }
-            postAdded(added, key: item.id, named: item.title, artwork: item.artworkURL, to: playlist, music: music, notices: notices)
+            do {
+                let added = try await music.add(item, to: playlist)
+                postAdded(added, key: item.id, named: item.title, artwork: item.artworkURL, to: playlist, music: music, notices: notices)
+            } catch {
+                postFailure("\(item.title) to \(playlist.title)", label: "Couldn't add", notices: notices)
+            }
         }
+    }
+
+    /// An edit YouTube Music didn't take, named as its confirmation would have been.
+    private static func postFailure(_ name: String, label: String, notices: NoticeCenter?) {
+        notices?.post(name, label: label, icon: .symbol("exclamationmark.triangle"))
     }
 
     private static func postAdded(_ added: [YTMusicClient.AddedSong], key: String, named name: String, artwork: URL?, to playlist: OwnPlaylist, music: YTMusicClient, notices: NoticeCenter?) {
@@ -122,18 +135,27 @@ extension RowMenu {
     /// back would put it at the end under a new entry, and the row still on screen would name
     /// the old one.
     static func removeFromPlaylist(_ track: Track, in source: BrowseItem?, music: YTMusicClient, notices: NoticeCenter?) {
+        let name = source.map { "\(track.title) from \($0.title)" } ?? track.title
         Task {
-            guard (try? await music.removeFromPlaylist(track)) != nil else { return }
-            notices?.post(source.map { "\(track.title) from \($0.title)" } ?? track.title, label: "Removed", icon: .artwork(track.artworkURL))
+            do {
+                try await music.removeFromPlaylist(track)
+                notices?.post(name, label: "Removed", icon: .artwork(track.artworkURL))
+            } catch {
+                postFailure(name, label: "Couldn't remove", notices: notices)
+            }
         }
     }
 
     /// Saves an album or playlist to your library, or takes it out, confirmed once YouTube has;
     /// Undo sets it back the same way.
     static func setSaved(_ saved: Bool, page: BrowsePage, music: YTMusicClient, notices: NoticeCenter?) async {
-        guard (try? await music.setSaved(saved, page: page)) != nil else { return }
+        let name = "\(page.item.title) \(saved ? "to" : "from") Library"
+        guard (try? await music.setSaved(saved, page: page)) != nil else {
+            postFailure(name, label: saved ? "Couldn't save" : "Couldn't remove", notices: notices)
+            return
+        }
         notices?.post(
-            "\(page.item.title) \(saved ? "to" : "from") Library",
+            name,
             label: saved ? "Saved" : "Removed",
             icon: .symbol(saved ? "bookmark.fill" : "bookmark.slash"),
             action: .undo { Task { try? await music.setSaved(!saved, page: page) } }
