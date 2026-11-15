@@ -12,6 +12,8 @@ final class YTMusicClient {
     @ObservationIgnored private let client: InnerTubeClient
     /// Fetches a browse page's raw response. Tests stand in for the network here.
     @ObservationIgnored private let fetchPage: @MainActor (_ browseId: String) async throws -> JSONObject
+    /// Fetches the next page of a long list by its continuation token. Tests stand in here.
+    @ObservationIgnored private let fetchContinuation: @MainActor (_ token: String) async throws -> JSONObject
     /// Calls that change the account (likes, playlist edits), standable in for by tests.
     @ObservationIgnored private let write: @MainActor (_ endpoint: String, _ body: [String: Any]) async throws -> JSONObject
     /// Fetches the up-next panel for a video, which names its artist and album. Tests stand in here.
@@ -66,6 +68,7 @@ final class YTMusicClient {
     init(
         auth: AuthService,
         fetchPage: (@MainActor (_ browseId: String) async throws -> JSONObject)? = nil,
+        fetchContinuation: (@MainActor (_ token: String) async throws -> JSONObject)? = nil,
         write: (@MainActor (_ endpoint: String, _ body: [String: Any]) async throws -> JSONObject)? = nil,
         fetchNext: (@MainActor (_ videoId: String) async throws -> JSONObject)? = nil,
         fetchWatch: (@MainActor (_ playlistId: String, _ videoId: String?) async throws -> JSONObject)? = nil,
@@ -76,6 +79,7 @@ final class YTMusicClient {
         let client = InnerTubeClient(auth: auth)
         self.client = client
         self.fetchPage = fetchPage ?? { browseId in try await client.post("browse", body: ["browseId": browseId]) }
+        self.fetchContinuation = fetchContinuation ?? { token in try await client.post("browse", body: ["continuation": token]) }
         self.write = write ?? { endpoint, body in try await client.post(endpoint, body: body) }
         self.fetchNext = fetchNext ?? { videoId in
             try await client.post("next", body: ["videoId": videoId, "enablePersistentPlaylistPanel": true, "isAudioOnly": true])
@@ -479,4 +483,10 @@ final class YTMusicClient {
         )
         return page
     }
+
+    /// The page with its next page of songs added.
+    func nextPage(of page: BrowsePage) async throws -> BrowsePage { page }
+
+    /// The page with every one of its songs, for playing a list without opening it.
+    func fullPage(for item: BrowseItem) async throws -> BrowsePage { try await page(for: item) }
 }

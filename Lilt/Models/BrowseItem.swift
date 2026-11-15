@@ -107,6 +107,9 @@ struct BrowsePage: Equatable, Sendable {
     /// derived from the channel id and so has to come from the page.
     var radioId: String?
     var sections: [BrowseSection] = []
+    /// Where the rest of a long list is: the token for its next page of songs, nil once the
+    /// last page is in.
+    var continuation: String?
 }
 
 /// YouTube Music's radio for a song, album, playlist or artist: a watch playlist that grows

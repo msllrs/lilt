@@ -150,6 +150,9 @@ enum SearchParser {
 
     // MARK: Browse pages
 
+    /// The token for a long list's next page, in a page or in a continuation of one.
+    static func continuationToken(in response: [String: Any]) -> String? { nil }
+
     static func browsePage(from response: [String: Any], for item: BrowseItem) -> BrowsePage {
         var page = BrowsePage(item: item)
         if item.id.hasPrefix("VL") { page.playlistId = String(item.id.dropFirst(2)) }
