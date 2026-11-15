@@ -386,7 +386,7 @@ final class YTMusicClient {
 
     /// Starts fetching your playlists if nothing has yet. The dialog's request is keyed by a
     /// song, but the playlists it lists are the same for any song.
-    func warmOwnPlaylists(videoId: String) {
+    func warmOwnPlaylists(videoId: String, now: Date = .now) {
         guard ownPlaylists.isEmpty, ownPlaylistsTask == nil else { return }
         ownPlaylistsTask = Task {
             if let response = try? await write("playlist/get_add_to_playlist", ["videoIds": [videoId]]) {
