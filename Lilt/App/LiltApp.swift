@@ -47,9 +47,11 @@ struct LiltApp: App {
                     .keyboardShortcut(.leftArrow, modifiers: .command)
                     .disabled(delegate.player.current == nil)
                 Divider()
-                Button("Shuffle") { delegate.player.toggleShuffle() }
+                // Named for what they'll do, as the Dock menu's Shuffle is: pressed with the
+                // panel hidden, nothing else shows which mode ⌘⇧S or ⌘⇧R left you in.
+                Button(delegate.player.isShuffled ? "Stop Shuffling" : "Shuffle") { delegate.player.toggleShuffle() }
                     .keyboardShortcut("s", modifiers: [.command, .shift])
-                Button("Repeat") { delegate.player.cycleRepeat() }
+                Button(Self.repeatTitle(after: delegate.player.repeatMode)) { delegate.player.cycleRepeat() }
                     .keyboardShortcut("r", modifiers: [.command, .shift])
                 #if DEBUG
                 Divider()
@@ -57,6 +59,15 @@ struct LiltApp: App {
                     .keyboardShortcut("t", modifiers: [.command, .option])
                 #endif
             }
+        }
+    }
+
+    /// The repeat item says the mode it moves on to.
+    static func repeatTitle(after mode: PlayerService.RepeatMode) -> String {
+        switch mode.next {
+        case .all: "Repeat All"
+        case .one: "Repeat One"
+        case .off: "Stop Repeating"
         }
     }
 }
