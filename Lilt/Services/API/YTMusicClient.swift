@@ -180,6 +180,10 @@ final class YTMusicClient {
         libraryFetch?.cancel()
         libraryFetch = nil
         cachedAccount = nil
+        ownPlaylists = []
+        ownPlaylistsTask = nil
+        ownPlaylistsFetched = nil
+        addedTo = [:]
         if persists { try? FileManager.default.removeItem(at: Self.persistedURL) }
         accountGeneration += 1
     }
@@ -379,18 +383,28 @@ final class YTMusicClient {
     /// Records a like made another way (the playing track's own heart), so rows agree.
     func noteLiked(_ liked: Bool, track: Track) { likeChanges[track.id] = liked }
 
-    /// Your own playlists, for Add to Playlist. Fetched once, ahead of the first menu that
-    /// needs them (a menu can't wait on the network while it's open).
+    /// Your own playlists, for Add to Playlist. Fetched ahead of the menus that need them (a
+    /// menu can't wait on the network while it's open), and again once they're a few minutes
+    /// old, so a playlist made on the phone turns up while Lilt is still running.
     private(set) var ownPlaylists: [OwnPlaylist] = []
     @ObservationIgnored private var ownPlaylistsTask: Task<Void, Never>?
+    @ObservationIgnored private var ownPlaylistsFetched: Date?
+    private static let ownPlaylistsTTL: TimeInterval = 5 * 60
 
-    /// Starts fetching your playlists if nothing has yet. The dialog's request is keyed by a
-    /// song, but the playlists it lists are the same for any song.
+    /// Starts fetching your playlists unless a fetch is under way or the list is fresh. The
+    /// dialog's request is keyed by a song, but the playlists it lists are the same for any
+    /// song. The list there is stays in the menu until the new one is in.
     func warmOwnPlaylists(videoId: String, now: Date = .now) {
-        guard ownPlaylists.isEmpty, ownPlaylistsTask == nil else { return }
+        guard ownPlaylistsTask == nil else { return }
+        if let fetched = ownPlaylistsFetched, now.timeIntervalSince(fetched) < Self.ownPlaylistsTTL { return }
+        let generation = accountGeneration
         ownPlaylistsTask = Task {
-            if let response = try? await write("playlist/get_add_to_playlist", ["videoIds": [videoId]]) {
+            let response = try? await write("playlist/get_add_to_playlist", ["videoIds": [videoId]])
+            // Asked for the account before a switch: its playlists aren't this one's.
+            guard generation == accountGeneration else { return }
+            if let response {
                 ownPlaylists = SearchParser.ownPlaylists(from: response.value)
+                ownPlaylistsFetched = now
             }
             ownPlaylistsTask = nil
         }
