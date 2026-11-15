@@ -221,7 +221,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // The expanded height is remembered when collapsing from a settled window, never from a
         // frame caught mid-animation (a collapse started during an expand would record a
         // half-grown height and the next expand would stop there).
-        if mini, !navigation.isFrameAnimating, current.height >= Theme.Size.panelMinHeight { expandedHeight = current.height }
+        if mini, Self.remembersExpandedHeight(collapsingFrom: current.height, launching: !miniEverApplied, animating: navigation.isFrameAnimating) { expandedHeight = current.height }
         let height = mini ? miniHeight(reveal: queueReveal ?? (navigation.isQueueVisible ? 1 : 0)) : expandedHeight
         let target = Self.onScreen(NSRect(x: current.minX, y: current.minY, width: current.width, height: height), near: screen)
         let cornerRadius = mini ? Theme.Radius.panel : Theme.Radius.window
@@ -306,6 +306,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func openLibrary() { navigation.open(NavigationModel.library) }
     /// Fetches the screen on top again (⌘R).
     func refresh() { navigation.refresh() }
+
+    /// Whether a window going mini is at the expanded height to come back to.
+    static func remembersExpandedHeight(collapsingFrom height: CGFloat, launching: Bool, animating: Bool) -> Bool {
+        !animating && height >= Theme.Size.panelMinHeight
+    }
 
     /// Nudges a window frame so it lies within the screen's visible area.
     static func onScreen(_ frame: NSRect, near screen: NSScreen) -> NSRect {
