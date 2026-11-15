@@ -80,11 +80,15 @@ extension RowMenu {
 
     // MARK: Library
 
-    /// Like or Unlike from a menu; Undo sets it back the same way.
+    /// Like or Unlike from a menu; Undo sets it back the same way. Said at once, and said again
+    /// if YouTube Music didn't take it.
     static func setLiked(_ liked: Bool, _ track: Track, player: PlayerService, music: YTMusicClient, notices: NoticeCenter?) {
-        setLiked(liked, track, player: player, music: music)
+        let name = liked ? track.title : "\(track.title) from Liked"
+        setLiked(liked, track, player: player, music: music) {
+            notices?.post(name, label: liked ? "Couldn't like" : "Couldn't remove", icon: .symbol("exclamationmark.triangle"))
+        }
         notices?.post(
-            liked ? track.title : "\(track.title) from Liked",
+            name,
             label: liked ? "Liked" : "Removed",
             icon: .symbol(liked ? "hand.thumbsup.fill" : "hand.thumbsup.slash"),
             action: .undo { setLiked(!liked, track, player: player, music: music) }

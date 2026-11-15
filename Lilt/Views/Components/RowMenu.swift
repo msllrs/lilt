@@ -91,13 +91,16 @@ enum RowMenu {
     }
 
     /// Likes or unlikes a song from a menu. The playing song goes through the player's own
-    /// button, so the bar stays in step with the web player; any other song through the API.
+    /// button, so the bar stays in step with the web player; any other song through the API,
+    /// with `failed` called if YouTube Music didn't take it.
     @MainActor
-    static func setLiked(_ liked: Bool, _ track: Track, player: PlayerService, music: YTMusicClient) {
+    static func setLiked(_ liked: Bool, _ track: Track, player: PlayerService, music: YTMusicClient, failed: (@MainActor () -> Void)? = nil) {
         if player.current?.id == track.id {
             if player.isLiked != liked { player.toggleLike() }
         } else {
-            Task { try? await music.setLiked(liked, track: track) }
+            Task {
+                do { try await music.setLiked(liked, track: track) } catch { failed?() }
+            }
         }
     }
 
