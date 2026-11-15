@@ -16,6 +16,8 @@ struct SearchScreen: View {
     @State private var phase: Phase = .idle
     @State private var results = SearchResults()
     @State private var scrollOffset: CGFloat = 0
+    /// Bumped by Try Again, to run the same search once more.
+    @State private var attempt = 0
 
     var body: some View {
         @Bindable var navigation = navigation
@@ -42,7 +44,7 @@ struct SearchScreen: View {
                     .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
                 }
             }
-            .task(id: navigation.query) { await search() }
+            .task(id: SearchRequest(query: navigation.query, attempt: attempt)) { await search() }
     }
 
     @ViewBuilder
@@ -59,7 +61,7 @@ struct SearchScreen: View {
                 case .loading:
                     EmptyView()
                 case .failed(let message):
-                    EmptyHint(symbol: "exclamationmark.triangle", title: "Something went wrong", detail: message)
+                    EmptyHint(symbol: "exclamationmark.triangle", title: "Something went wrong", detail: message) { attempt += 1 }
                 case .loaded where results.isEmpty:
                     EmptyHint(symbol: "music.note", title: "Nothing found", detail: "Try a different search.")
                         .onAppear { scrollTracker.report(remainingBelow: 0, for: ScrollTracker.searchKey) }
@@ -113,12 +115,18 @@ struct SearchScreen: View {
         }
     }
 
+    private struct SearchRequest: Equatable {
+        var query: String
+        var attempt: Int
+    }
+
     private func search() async {
         let trimmed = navigation.query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { phase = .idle; return }
         try? await Task.sleep(for: .milliseconds(300))
         guard !Task.isCancelled else { return }
-        if phase == .idle { phase = .loading }
+        // Results on screen stay there until the new ones land; a failure gives way at once.
+        if phase != .loaded { phase = .loading }
         do {
             let found = try await music.search(trimmed)
             guard !Task.isCancelled else { return }
@@ -168,6 +176,9 @@ struct EmptyHint: View {
     let symbol: String
     let title: String
     let detail: String
+    /// For a screen that couldn't load: a Try Again button under the message, so the way back
+    /// is where the failure is rather than ⌘R.
+    var retry: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: Theme.Space.sm) {
@@ -180,6 +191,11 @@ struct EmptyHint: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+            if let retry {
+                Button("Try Again", action: retry)
+                    .buttonStyle(.glass)
+                    .padding(.top, Theme.Space.xs)
+            }
         }
         .padding(.horizontal, Theme.Space.xl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

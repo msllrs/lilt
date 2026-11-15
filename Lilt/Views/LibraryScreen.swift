@@ -64,7 +64,10 @@ struct LibraryScreen: View {
             case .loading:
                 EmptyView()
             case .failed(let message):
-                EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load your library", detail: message)
+                EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load your library", detail: message) {
+                    phase = .loading
+                    Task { await load() }
+                }
             case .loaded where content.isEmpty:
                 EmptyHint(symbol: "books.vertical", title: "Nothing saved yet", detail: "Albums, playlists and artists you save on YouTube Music appear here.")
             case .loaded:

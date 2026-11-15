@@ -33,7 +33,10 @@ struct HomeScreen: View {
             case .loading:
                 EmptyView()
             case .failed(let message):
-                EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load Home", detail: message)
+                EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load Home", detail: message) {
+                    phase = .loading
+                    Task { await load() }
+                }
             case .loaded where sections.isEmpty:
                 EmptyHint(symbol: "magnifyingglass", title: "Search YouTube Music", detail: "Songs, artists, albums and playlists.")
             case .loaded:
