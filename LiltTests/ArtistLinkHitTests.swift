@@ -183,7 +183,10 @@ struct ArtistLinkHitTests {
     /// collapses its window to the mini player; that is observed there and put back afterwards.
     @Test func doubleClickOnEmptyPlatterTogglesTheMiniPlayer() async throws {
         let delegate = try #require(AppDelegate.shared, "the platter's mini toggle goes through the app delegate")
-        let wasMini = delegate.navigation.isMiniPlayer
+        try await withPreservedPanel(delegate) { await doubleClickToggles(delegate) }
+    }
+
+    private func doubleClickToggles(_ delegate: AppDelegate) async {
         delegate.setMiniPlayer(false)
         await settle(4)
         let (window, navigation) = await host(
@@ -200,8 +203,5 @@ struct ArtistLinkHitTests {
         await settle(20)
         #expect(delegate.panelFrame.height < expandedHeight, "the window should shrink to the platter; was \(expandedHeight), now \(delegate.panelFrame.height)")
         #expect(navigation.path.isEmpty, "a double-click on empty platter should not open anything")
-        // The change is deferred a run loop and persisted, so it needs a moment to land.
-        delegate.setMiniPlayer(wasMini)
-        await settle(4)
     }
 }

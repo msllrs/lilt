@@ -10,9 +10,10 @@ struct AmbienceDrawerTests {
 
     @Test func miniWindowGrowsForTheDrawer() async throws {
         let delegate = try #require(AppDelegate.shared)
-        let wasMini = delegate.navigation.isMiniPlayer
-        let hadDrawer = delegate.navigation.isAmbienceVisible
-        defer { Task { @MainActor in delegate.setAmbienceVisible(hadDrawer); delegate.setMiniPlayer(wasMini) } }
+        try await withPreservedPanel(delegate) { await drawerGrows(delegate) }
+    }
+
+    private func drawerGrows(_ delegate: AppDelegate) async {
         delegate.setAmbienceVisible(false)
         delegate.setMiniPlayer(true)
         await settle(30)
@@ -51,15 +52,13 @@ struct AmbienceDrawerTests {
 
     @Test func miniWindowGrowsForTheDrawerWithTheQueueOpen() async throws {
         let delegate = try #require(AppDelegate.shared)
-        try await withQueuedSongs(delegate.player) { try await drawerGrowsWithQueueOpen(delegate) }
+        try await withPreservedPanel(delegate) {
+            try await withQueuedSongs(delegate.player) { try await drawerGrowsWithQueueOpen(delegate) }
+        }
     }
 
     private func drawerGrowsWithQueueOpen(_ delegate: AppDelegate) async throws {
         try #require(delegate.player.upcoming.count == 2, "the seeded queue should show in Up Next")
-        let wasMini = delegate.navigation.isMiniPlayer
-        let hadDrawer = delegate.navigation.isAmbienceVisible
-        let hadQueue = delegate.navigation.isQueueVisible
-        defer { Task { @MainActor in delegate.setAmbienceVisible(hadDrawer); delegate.setQueueVisible(hadQueue); delegate.setMiniPlayer(wasMini) } }
         delegate.setAmbienceVisible(false)
         delegate.setMiniPlayer(true)
         await settle(30)
