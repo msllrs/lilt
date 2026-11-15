@@ -210,27 +210,44 @@ final class YTMusicClient {
         return try await fetch.value
     }
 
+    /// One of the library's feeds, or why it couldn't be had.
+    private func feed(_ browseId: String) async -> Result<JSONObject, Error> {
+        do { return .success(try await fetchPage(browseId)) } catch { return .failure(error) }
+    }
+
+    /// A feed that fails leaves its shelf as it was (or empty, with nothing before) and the
+    /// library stale, so the next ask fetches it again; only every feed failing is a failure.
     private func fetchLibrary() async throws -> LibraryContent {
-        async let playlists = fetchPage("FEmusic_liked_playlists")
-        async let albums = fetchPage("FEmusic_liked_albums")
-        async let artists = fetchPage("FEmusic_library_corpus_track_artists")
+        async let playlistsFeed = feed("FEmusic_liked_playlists")
+        async let albumsFeed = feed("FEmusic_liked_albums")
+        async let artistsFeed = feed("FEmusic_library_corpus_track_artists")
         // Artists you've subscribed to live under a separate id from artists of saved tracks.
-        async let subscriptions = fetchPage("FEmusic_library_corpus_artists")
+        async let subscriptionsFeed = feed("FEmusic_library_corpus_artists")
+        let feeds = await [playlistsFeed, albumsFeed, artistsFeed, subscriptionsFeed]
+        let responses = feeds.map { try? $0.get().value }
+        if responses.allSatisfy({ $0 == nil }), case .failure(let error) = feeds[0] { throw error }
+        let (playlists, albums, artists, subscriptions) = (responses[0], responses[1], responses[2], responses[3])
+        let before = libraryCache?.content
         var content = LibraryContent()
         // The playlists feed includes a "New playlist" tile and the liked-music auto playlist;
         // drop anything without a real playlist id and make sure Liked Music leads.
-        var lists = SearchParser.libraryItems(from: try await playlists.value).filter { $0.kind == .playlist && $0.id != "VLSE" }
+        var lists = playlists.map { SearchParser.libraryItems(from: $0).filter { $0.kind == .playlist && $0.id != "VLSE" } } ?? before?.playlists ?? []
         if let liked = lists.firstIndex(where: { $0.id == "VLLM" }) {
             lists.insert(lists.remove(at: liked), at: 0)
         } else {
             lists.insert(BrowseItem(id: "VLLM", kind: .playlist, title: "Liked Music", subtitle: "Auto playlist", artworkURL: nil), at: 0)
         }
         content.playlists = lists
-        content.albums = SearchParser.libraryItems(from: try await albums.value).filter { $0.kind == .album }
-        var seenArtists = Set<String>()
-        content.artists = (SearchParser.libraryItems(from: try await artists.value) + SearchParser.libraryItems(from: try await subscriptions.value))
-            .filter { $0.kind == .artist && seenArtists.insert($0.id).inserted }
-        libraryCache = (content, .now)
+        content.albums = albums.map { SearchParser.libraryItems(from: $0).filter { $0.kind == .album } } ?? before?.albums ?? []
+        if let artists, let subscriptions {
+            var seenArtists = Set<String>()
+            content.artists = (SearchParser.libraryItems(from: artists) + SearchParser.libraryItems(from: subscriptions))
+                .filter { $0.kind == .artist && seenArtists.insert($0.id).inserted }
+        } else {
+            content.artists = before?.artists ?? ([artists, subscriptions].compactMap { $0 }.flatMap(SearchParser.libraryItems).filter { $0.kind == .artist })
+        }
+        let complete = !responses.contains { $0 == nil }
+        libraryCache = (content, complete ? .now : .distantPast)
         persist()
         Self.prefetchArtwork(of: content)
         ImageCache.shared.prefetch((content.playlists + content.albums + content.artists).prefix(24).map(\.artworkURL))
