@@ -24,13 +24,15 @@ struct ArtistLinkHitTests {
     )
 
     /// A player whose current track is `track`, seeded through the saved state it restores from
-    /// so nothing is sent to the web player (which would really play it).
+    /// so nothing is sent to the web player (which would really play it). The real app's saved
+    /// playback is put back afterwards.
     private static func playerShowing(_ track: Track) -> PlayerService {
-        let saved: [String: Any] = ["queue": [try! JSONSerialization.jsonObject(with: JSONEncoder().encode(track))], "index": 0, "time": 0]
-        UserDefaults.standard.set(try! JSONSerialization.data(withJSONObject: saved), forKey: "playbackState")
-        let player = PlayerService(auth: AuthService())
-        UserDefaults.standard.removeObject(forKey: "playbackState")
-        return player
+        let key = "playbackState"
+        let real = UserDefaults.standard.data(forKey: key)
+        defer { if let real { UserDefaults.standard.set(real, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) } }
+        let seeded: [String: Any] = ["queue": [try! JSONSerialization.jsonObject(with: JSONEncoder().encode(track))], "index": 0, "time": 0]
+        UserDefaults.standard.set(try! JSONSerialization.data(withJSONObject: seeded), forKey: key)
+        return PlayerService(auth: AuthService())
     }
 
     /// The navigation model persists every change to the shared defaults, which the real app
