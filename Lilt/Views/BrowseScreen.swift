@@ -240,11 +240,7 @@ struct BrowseScreen: View {
                 Divider()
             }
             Button("Open in YouTube Music") { if let url = webURL(for: page) { NSWorkspace.shared.open(url) } }
-            Button("Copy Link") {
-                guard let url = webURL(for: page) else { return }
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(url.absoluteString, forType: .string)
-            }
+            Button("Copy Link") { RowMenu.copyLink(webURL(for: page), named: page.item.title, notices: notices) }
         } label: {
             Image(systemName: "ellipsis")
                 .font(.body.weight(.semibold))
