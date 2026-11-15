@@ -421,13 +421,13 @@ struct NowPlayingBar: View {
                 }
                 Spacer(minLength: 0)
                 HStack(spacing: Theme.Space.xl) {
-                    TransportButton(symbol: "backward.fill", size: Theme.Size.controlIcon, enabled: player.current != nil) {
+                    TransportButton(symbol: "backward.fill", label: "Previous", size: Theme.Size.controlIcon, enabled: player.current != nil) {
                         player.previous()
                     }
-                    TransportButton(symbol: player.isPlaying ? "pause.fill" : "play.fill", size: Theme.Size.playIcon, enabled: player.current != nil) {
+                    TransportButton(symbol: player.isPlaying ? "pause.fill" : "play.fill", label: player.isPlaying ? "Pause" : "Play", size: Theme.Size.playIcon, enabled: player.current != nil) {
                         player.togglePlayPause()
                     }
-                    TransportButton(symbol: "forward.fill", size: Theme.Size.controlIcon, enabled: player.hasNext) {
+                    TransportButton(symbol: "forward.fill", label: "Next", size: Theme.Size.controlIcon, enabled: player.hasNext) {
                         player.next()
                     }
                 }
@@ -567,6 +567,9 @@ private struct ModeButton: View {
 
 private struct TransportButton: View {
     let symbol: String
+    /// What the button does, as the Controls menu names it: its tooltip and its VoiceOver name,
+    /// which would otherwise be the glyph's.
+    let label: String
     let size: CGFloat
     let enabled: Bool
     let action: () -> Void
@@ -587,6 +590,8 @@ private struct TransportButton: View {
         .buttonStyle(.pressable(scale: 0.9))
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.35)
+        .help(label)
+        .accessibilityLabel(label)
     }
 }
 

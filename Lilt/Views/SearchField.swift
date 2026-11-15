@@ -24,6 +24,8 @@ struct SearchField: View {
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
+                .help("Clear")
+                .accessibilityLabel("Clear Search")
             }
         }
         .font(.body)
