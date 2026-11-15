@@ -488,13 +488,23 @@ struct BrowseScreen: View {
     /// already on screen stays put while it does: no skeleton, the scroll position kept, and a
     /// changed page eases in. If the fetch fails, the cached copy stays rather than an error.
     /// `announce`: a refresh you asked for, which says how it went in a notice.
+    ///
+    /// A long list comes a hundred songs at a time: the first page shows at once and the rest
+    /// join it as they come in, while the page is open. A cached copy longer than the first page
+    /// waits for the whole list instead, so a list on screen never shrinks to regrow.
     private func load(announce: Bool = false) async {
         let showingCached = phase == .loaded
         let before = page
         if case .failed = phase { phase = .loading }
+        var list: BrowsePage
         do {
-            var loaded = try await music.page(for: item)
+            list = try await music.page(for: item)
             guard !Task.isCancelled else { return }
+            if showingCached, let before, before.tracks.count > list.tracks.count, list.continuation != nil {
+                list = try await music.wholeList(from: list)
+                guard !Task.isCancelled else { return }
+            }
+            var loaded = list
             // Fill short album pages out with the artist's other releases and related artists
             // rather than leaving dead space under the tracks. The artist's page rarely changes,
             // so a copy we have is used as is, and a refetched album keeps those sections
@@ -511,9 +521,28 @@ struct BrowseScreen: View {
                 show(loaded, animated: true)
             }
         } catch is CancellationError {
+            return
         } catch {
             if !showingCached { phase = .failed(error.localizedDescription) }
             if announce { notices?.postRefresh(.failed, of: item.title) }
+            return
+        }
+        await loadRest(of: list)
+    }
+
+    /// The rest of a long list, a page at a time, each put under the songs already shown without
+    /// animation: the rows are a lazy stack and the new ones land below them. A page that fails
+    /// leaves the list as far as it got.
+    private func loadRest(of list: BrowsePage) async {
+        var list = list
+        var pages = 0
+        while list.continuation != nil, pages < YTMusicClient.pageLimit {
+            guard let next = try? await music.nextPage(of: list), !Task.isCancelled, var shown = page else { return }
+            list = next
+            pages += 1
+            shown.tracks = list.tracks
+            shown.continuation = list.continuation
+            page = shown
         }
     }
 

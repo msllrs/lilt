@@ -484,9 +484,38 @@ final class YTMusicClient {
         return page
     }
 
-    /// The page with its next page of songs added.
-    func nextPage(of page: BrowsePage) async throws -> BrowsePage { page }
+    /// The most pages a list is followed for: thousands of songs at a hundred a page, and an
+    /// end to a server that never stops handing out tokens.
+    static let pageLimit = 100
+
+    /// The page with its next page of songs added, and the token for the one after (nil at the
+    /// end). Cached whole, so going back draws as much of the list as has come in. A server
+    /// that hands back the token it was asked with has nothing more to give.
+    func nextPage(of page: BrowsePage) async throws -> BrowsePage {
+        guard let token = page.continuation else { return page }
+        let response = try await fetchContinuation(token)
+        var next = page
+        SearchParser.appendTracks(in: response.value, to: &next)
+        let following = SearchParser.continuationToken(in: response.value)
+        next.continuation = following == token ? nil : following
+        pageCache[page.item.id] = next
+        return next
+    }
+
+    /// The page with the rest of its list gathered, `pageLimit` pages more at most.
+    func wholeList(from page: BrowsePage) async throws -> BrowsePage {
+        var page = page
+        var pages = 0
+        while page.continuation != nil, pages < Self.pageLimit {
+            try Task.checkCancellation()
+            page = try await nextPage(of: page)
+            pages += 1
+        }
+        return page
+    }
 
     /// The page with every one of its songs, for playing a list without opening it.
-    func fullPage(for item: BrowseItem) async throws -> BrowsePage { try await page(for: item) }
+    func fullPage(for item: BrowseItem) async throws -> BrowsePage {
+        try await wholeList(from: page(for: item))
+    }
 }

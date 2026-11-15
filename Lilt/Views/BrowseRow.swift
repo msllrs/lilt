@@ -92,10 +92,11 @@ struct BrowseRow: View {
         }
     }
 
-    /// The page's tracks, fetched if need be, for playing it without opening it.
+    /// Every one of the page's tracks, a long list's later pages too, for playing it without
+    /// opening it.
     private func withTracks(_ use: @escaping ([Track]) -> Void) {
         Task {
-            guard let page = try? await music.page(for: item), !page.tracks.isEmpty else { return }
+            guard let page = try? await music.fullPage(for: item), !page.tracks.isEmpty else { return }
             use(page.tracks)
         }
     }

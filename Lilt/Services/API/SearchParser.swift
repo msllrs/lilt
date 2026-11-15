@@ -150,8 +150,44 @@ enum SearchParser {
 
     // MARK: Browse pages
 
-    /// The token for a long list's next page, in a page or in a continuation of one.
-    static func continuationToken(in response: [String: Any]) -> String? { nil }
+    /// The token for a long list's next page, in a page or in a continuation of one. Only the
+    /// song list's own: a playlist's section list carries a token too, for its suggestions. Lists
+    /// end in a `continuationItemRenderer` now; some shelves still send the older
+    /// `nextContinuationData` beside their contents.
+    static func continuationToken(in response: [String: Any]) -> String? {
+        let lists = ["musicPlaylistShelfRenderer", "musicShelfRenderer", "musicPlaylistShelfContinuation", "musicShelfContinuation"]
+            .flatMap { JSON.findAll(key: $0, in: response) }
+        let rows = lists.compactMap { JSON.array($0["contents"]) }
+            + JSON.findAll(key: "appendContinuationItemsAction", in: response).compactMap { JSON.array($0["continuationItems"]) }
+        let tokenPath: [Any] = ["continuationItemRenderer", "continuationEndpoint", "continuationCommand", "token"]
+        if let token = rows.lazy.compactMap({ $0.last.flatMap { JSON.string(JSON.value(at: tokenPath, in: $0)) } }).first {
+            return token
+        }
+        return lists.lazy.compactMap { JSON.string(JSON.value(at: ["continuations", 0, "nextContinuationData", "continuation"], in: $0)) }.first
+    }
+
+    /// A list's rows as songs, after the songs the page has already. Rows leave out what the page
+    /// says once for all of them (the artist, the cover, the album), so each is filled in from
+    /// the page, the continuation's rows the same as the first page's.
+    static func appendTracks(in response: [String: Any], to page: inout BrowsePage) {
+        var seen = Set(page.tracks.map(\.id))
+        let item = page.item
+        for raw in JSON.findAll(key: "musicResponsiveListItemRenderer", in: response) {
+            guard var track = track(from: raw), seen.insert(track.id).inserted else { continue }
+            if track.artist.isEmpty {
+                track.artist = item.kind == .artist ? item.title : item.subtitle
+            }
+            if track.artistId == nil {
+                track.artistId = item.kind == .artist ? item.id : page.artistId
+            }
+            if track.artworkURL == nil { track.artworkURL = item.artworkURL }
+            if item.kind == .album {
+                track.album = item.title
+                track.albumId = item.id
+            }
+            page.tracks.append(track)
+        }
+    }
 
     static func browsePage(from response: [String: Any], for item: BrowseItem) -> BrowsePage {
         var page = BrowsePage(item: item)
@@ -199,22 +235,8 @@ enum SearchParser {
         }
 
         // Tracks: album/playlist contents, or an artist's top songs.
-        var seen = Set<String>()
-        for raw in JSON.findAll(key: "musicResponsiveListItemRenderer", in: response) {
-            guard var track = track(from: raw), seen.insert(track.id).inserted else { continue }
-            if track.artist.isEmpty {
-                track.artist = item.kind == .artist ? page.item.title : page.item.subtitle
-            }
-            if track.artistId == nil {
-                track.artistId = item.kind == .artist ? item.id : page.artistId
-            }
-            if track.artworkURL == nil { track.artworkURL = page.item.artworkURL }
-            if item.kind == .album {
-                track.album = page.item.title
-                track.albumId = item.id
-            }
-            page.tracks.append(track)
-        }
+        appendTracks(in: response, to: &page)
+        page.continuation = continuationToken(in: response)
 
         // Artist pages: the songs shelf title links to the full songs playlist.
         for shelf in JSON.findAll(key: "musicShelfRenderer", in: response) {
