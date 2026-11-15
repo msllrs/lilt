@@ -16,6 +16,13 @@ struct SearchField: View {
             TextField("Search", text: $text)
                 .textFieldStyle(.plain)
                 .focused($isFocused)
+                // As in any search field on the Mac: Escape lets the search go, and the field
+                // keeps the caret for the next one.
+                .onKeyPress(.escape) {
+                    guard !text.isEmpty else { return .ignored }
+                    text = ""
+                    return .handled
+                }
             if !text.isEmpty {
                 Button {
                     text = ""
