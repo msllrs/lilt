@@ -309,7 +309,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// Whether a window going mini is at the expanded height to come back to.
     static func remembersExpandedHeight(collapsingFrom height: CGFloat, launching: Bool, animating: Bool) -> Bool {
-        !animating && height >= Theme.Size.panelMinHeight
+        !launching && !animating && height >= Theme.Size.panelMinHeight
     }
 
     /// Nudges a window frame so it lies within the screen's visible area.
