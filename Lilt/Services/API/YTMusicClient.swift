@@ -180,7 +180,7 @@ final class YTMusicClient {
         libraryFetch?.cancel()
         libraryFetch = nil
         cachedAccount = nil
-        try? FileManager.default.removeItem(at: Self.persistedURL)
+        if persists { try? FileManager.default.removeItem(at: Self.persistedURL) }
         accountGeneration += 1
     }
 
