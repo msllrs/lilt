@@ -50,6 +50,46 @@ struct RetryTests {
         #expect(fetches == 8, "Try Again fetches the library again")
     }
 
+    @Test func aPageThatFailedLoadsAgainFromItsButton() async throws {
+        let saved = UserDefaults.standard.data(forKey: "navigationState")
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: "navigationState") } else { UserDefaults.standard.removeObject(forKey: "navigationState") }
+        }
+        var online = false
+        var fetches = 0
+        let auth = AuthService()
+        let music = YTMusicClient(auth: auth, fetchPage: { _ in
+            fetches += 1
+            guard online else { throw URLError(.notConnectedToInternet) }
+            return JSONObject(value: [:])
+        }, persists: false)
+        let item = BrowseItem(id: "VL-retry", kind: .playlist, title: "Retry", subtitle: "", artworkURL: nil)
+        let navigation = NavigationModel()
+        navigation.path = [item]
+        let view = BrowseScreen(item: item)
+            .environment(auth)
+            .environment(PlayerService(auth: auth, makeBridge: { FakeBridge() }))
+            .environment(music)
+            .environment(navigation)
+            .environment(ScrollTracker())
+            .frame(width: Self.size.width, height: Self.size.height)
+        let panel = PanelWindow(contentRect: NSRect(x: -10_000, y: -10_000, width: Self.size.width, height: Self.size.height))
+        panel.contentView = NSHostingView(rootView: view)
+        panel.orderFront(nil)
+        defer { panel.orderOut(nil); panel.close() }
+
+        await settle(until: { fetches == 1 })
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(fetches == 1)
+
+        online = true
+        for y in stride(from: 120.0, through: 480, by: 8) where fetches == 1 {
+            click(CGPoint(x: Self.size.width / 2, y: y), in: panel)
+            try await Task.sleep(for: .milliseconds(60))
+        }
+        #expect(fetches == 2, "Try Again fetches the page again")
+    }
+
     /// A click at `point`, in SwiftUI's coordinates (origin top-left).
     private func click(_ point: CGPoint, in window: NSWindow) {
         let location = CGPoint(x: point.x, y: window.frame.height - point.y)

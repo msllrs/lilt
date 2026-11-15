@@ -330,7 +330,7 @@ struct BrowseScreen: View {
                 } else {
                     switch phase {
                     case .failed(let message):
-                        EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load", detail: message)
+                        EmptyHint(symbol: "exclamationmark.triangle", title: "Couldn't load", detail: message) { Task { await load() } }
                             .padding(.top, Theme.Space.xl)
                     case .loaded where page.tracks.isEmpty && page.sections.isEmpty:
                         // e.g. Liked Music before anything has been liked in YouTube Music.
