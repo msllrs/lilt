@@ -44,6 +44,52 @@ struct SleepTimerTests {
         }
     }
 
+    // MARK: Across a relaunch
+
+    /// A timer set before quitting still pauses at the time it was set for; the menu ticks the
+    /// length it was set to.
+    @Test func aRunningTimerSurvivesARelaunch() async throws {
+        let defaults = try #require(UserDefaults(suiteName: "SleepTimerTests.\(UUID().uuidString)"))
+        try await withFakePlayer(songs, gapless: false) { player, fakes in
+            fakes.startPlaying(player)
+            player.setSleepTimer(.seconds(30 * 60))
+            SleepTimerStore.save(player, to: defaults)
+            player.setSleepTimer(nil)
+
+            let now = Date.now.addingTimeInterval(29 * 60 + 59.8)
+            SleepTimerStore.restore(into: player, from: defaults, now: now)
+            #expect(player.sleepTimer == .seconds(30 * 60), "the menu still ticks 30 Minutes")
+            try await Task.sleep(for: .milliseconds(600))
+            #expect(!player.isPlaying, "it pauses when the time it was set for comes")
+        }
+    }
+
+    @Test func aTimerThatRanOutWhileQuitIsForgotten() async throws {
+        let defaults = try #require(UserDefaults(suiteName: "SleepTimerTests.\(UUID().uuidString)"))
+        try await withFakePlayer(songs, gapless: false) { player, fakes in
+            fakes.startPlaying(player)
+            player.setSleepTimer(.seconds(15 * 60))
+            SleepTimerStore.save(player, to: defaults)
+            player.setSleepTimer(nil)
+
+            SleepTimerStore.restore(into: player, from: defaults, now: .now.addingTimeInterval(16 * 60))
+            #expect(player.sleepTimer == nil)
+            #expect(player.isPlaying, "nothing pauses a relaunch hours later")
+            #expect(defaults.object(forKey: SleepTimerStore.endsKey) == nil, "and the spent timer is cleared")
+        }
+    }
+
+    @Test func turningItOffClearsTheSavedTimer() async throws {
+        let defaults = try #require(UserDefaults(suiteName: "SleepTimerTests.\(UUID().uuidString)"))
+        try await withFakePlayer(songs, gapless: false) { player, _ in
+            player.setSleepTimer(.seconds(60 * 60))
+            SleepTimerStore.save(player, to: defaults)
+            player.setSleepTimer(nil)
+            SleepTimerStore.save(player, to: defaults)
+            #expect(defaults.object(forKey: SleepTimerStore.endsKey) == nil)
+        }
+    }
+
     @Test func theControlsMenuOffersItsTimes() async throws {
         let player = try #require(AppDelegate.shared?.player)
         defer { player.setSleepTimer(nil) }

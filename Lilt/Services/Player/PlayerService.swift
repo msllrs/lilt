@@ -354,20 +354,27 @@ final class PlayerService {
     }
 
     /// Controls ▸ Sleep Timer: how long it was set for, while it runs. When the time is up the
-    /// music pauses, whatever is playing by then, and the timer is spent. Not saved: a timer
-    /// belongs to the evening it was set in.
+    /// music pauses, whatever is playing by then, and the timer is spent. The app saves it
+    /// (`SleepTimerStore`), so a relaunch before then still pauses on time.
     private(set) var sleepTimer: Duration?
+    /// When a running timer pauses the music.
+    private(set) var sleepEnds: Date?
     @ObservationIgnored private var sleepTask: Task<Void, Never>?
 
-    /// Sets the timer running for `duration` from now, in place of any before it; nil turns it off.
-    func setSleepTimer(_ duration: Duration?) {
+    /// Sets the timer running for `duration` from now, in place of any before it; nil turns it
+    /// off. `remaining` runs a timer of that length already partly spent.
+    func setSleepTimer(_ duration: Duration?, remaining: Duration? = nil) {
         sleepTask?.cancel()
         sleepTimer = duration
-        guard let duration else { return }
+        guard let duration else { sleepEnds = nil; return }
+        let wait = remaining ?? duration
+        sleepEnds = Date.now.addingTimeInterval(Double(wait.components.seconds) + Double(wait.components.attoseconds) / 1e18)
         sleepTask = Task { [weak self] in
-            try? await Task.sleep(for: duration)
+            try? await Task.sleep(for: wait)
             guard !Task.isCancelled, let self else { return }
             sleepTimer = nil
+            sleepEnds = nil
+            trace("sleep timer paused the music")
             pause()
         }
     }

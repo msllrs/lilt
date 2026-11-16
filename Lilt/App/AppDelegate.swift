@@ -57,6 +57,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         observeCurrentForDockMenu()
         observeWindowTitle()
         observeQueue()
+        SleepTimerStore.restore(into: player)
+        observeSleepTimer()
         remoteCommands = RemoteCommandBridge(player: player)
         observeMiniPlayer()
         songNotifier.start()
@@ -196,6 +198,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             Task { @MainActor in
                 self?.queueDidChange()
                 self?.observeQueue()
+            }
+        }
+    }
+
+    /// Saves the sleep timer as it's set, changed, turned off or spent.
+    private func observeSleepTimer() {
+        withObservationTracking {
+            _ = player.sleepEnds
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                SleepTimerStore.save(self.player)
+                self.observeSleepTimer()
             }
         }
     }
