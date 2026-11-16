@@ -45,9 +45,9 @@ struct ShelfSearchRevealTests {
         click(CGPoint(x: content.bounds.width - Theme.Space.panelInset - Theme.Size.headerRow / 2, y: content.safeAreaInsets.top + Theme.Space.panelInset + Theme.Size.headerRow / 2), in: host.panel)
         for _ in 0..<25 where Self.textField(in: host.panel.contentView) == nil { try await Task.sleep(for: .milliseconds(20)) }
         let field = try #require(Self.textField(in: host.panel.contentView), "the button opens the field")
-        for _ in 0..<25 where !(host.panel.firstResponder is NSTextView) { try await Task.sleep(for: .milliseconds(20)) }
-        if !(host.panel.firstResponder is NSTextView) { host.panel.makeFirstResponder(field) }
-        #expect(host.panel.firstResponder is NSTextView, "with the caret in it")
+        // The field takes the caret itself: nothing here hands it over, as a click wouldn't.
+        for _ in 0..<25 where !Self.isEditing(field, in: host.panel) { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(Self.isEditing(field, in: host.panel), "with the caret in it")
 
         host.panel.sendEvent(Self.key(53, "\u{1b}", in: host.panel))
         for _ in 0..<25 where Self.textField(in: host.panel.contentView) != nil { try await Task.sleep(for: .milliseconds(20)) }
@@ -90,6 +90,11 @@ struct ShelfSearchRevealTests {
         for (type, offset) in [(NSEvent.EventType.leftMouseDown, 0.0), (.leftMouseUp, 0.05)] {
             window.sendEvent(NSEvent.mouseEvent(with: type, location: location, modifierFlags: [], timestamp: time + offset, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0)!)
         }
+    }
+
+    /// The field has the caret: the window's field editor is editing it.
+    private static func isEditing(_ field: NSTextField, in window: NSWindow) -> Bool {
+        (window.firstResponder as? NSTextView)?.delegate === field
     }
 
     private static func textField(in view: NSView?) -> NSTextField? {
