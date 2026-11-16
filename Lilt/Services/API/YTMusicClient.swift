@@ -28,6 +28,9 @@ final class YTMusicClient {
     @ObservationIgnored private var libraryFetch: Task<LibraryContent, Error>?
     /// Which account the API answers for. Tests stand in here.
     @ObservationIgnored private let fetchAccount: (@MainActor () async throws -> AccountInfo?)?
+    /// Fetches a home feed: the selected account's for nil, else the channel with that page id
+    /// (`.some(nil)` the primary account). Tests stand in here.
+    @ObservationIgnored private let fetchHome: @MainActor (_ pageId: String??) async throws -> JSONObject
     /// Whether the caches come from and go to disk. Tests keep everything in memory.
     @ObservationIgnored private let persists: Bool
 
@@ -74,10 +77,14 @@ final class YTMusicClient {
         fetchWatch: (@MainActor (_ playlistId: String, _ videoId: String?) async throws -> JSONObject)? = nil,
         persists: Bool = true,
         library: LibraryContent? = nil,
-        fetchAccount: (@MainActor () async throws -> AccountInfo?)? = nil
+        fetchAccount: (@MainActor () async throws -> AccountInfo?)? = nil,
+        fetchHome: (@MainActor (_ pageId: String??) async throws -> JSONObject)? = nil
     ) {
         let client = InnerTubeClient(auth: auth)
         self.client = client
+        self.fetchHome = fetchHome ?? { pageId in
+            try await client.post("browse", body: ["browseId": "FEmusic_home"], pageIdOverride: pageId)
+        }
         self.fetchPage = fetchPage ?? { browseId in try await client.post("browse", body: ["browseId": browseId]) }
         self.fetchContinuation = fetchContinuation ?? { token in try await client.post("browse", body: ["continuation": token]) }
         self.write = write ?? { endpoint, body in try await client.post(endpoint, body: body) }
@@ -125,18 +132,20 @@ final class YTMusicClient {
         if !forceRefresh, let cached = homeCache, Date.now.timeIntervalSince(cached.fetched) < Self.homeTTL {
             return cached.sections
         }
-        async let active = client.post("browse", body: ["browseId": "FEmusic_home"])
-        async let info = try? account()
-        var sections = SearchParser.home(from: try await active.value)
-        if let others = await info?.alternatives, !others.isEmpty {
-            for other in others {
-                guard let response = try? await client.post("browse", body: ["browseId": "FEmusic_home"], pageIdOverride: .some(other.pageId)) else { continue }
-                let extra = SearchParser.home(from: response.value).map { section in
-                    HomeSection(title: "\(section.title) · \(other.name)", items: section.items)
-                }
-                sections.append(contentsOf: extra)
-            }
+        // The other channels' feeds set off as soon as the account names them, alongside the
+        // active one and each other; one that fails is left out.
+        let others = Task { [weak self] () -> [HomeSection] in
+            guard let self else { return [] }
+            let channels = (try? await account())?.alternatives ?? []
+            let feeds = channels.map { channel in Task { await self.homeSections(of: channel) } }
+            var sections: [HomeSection] = []
+            for feed in feeds { sections += await feed.value }
+            return sections
         }
+        let active: JSONObject
+        do { active = try await fetchHome(nil) } catch { others.cancel(); throw error }
+        var sections = SearchParser.home(from: active.value)
+        sections.append(contentsOf: await others.value)
         homeCache = (sections, .now)
         persist()
         ImageCache.shared.prefetch(sections.prefix(3).flatMap { section in
@@ -148,6 +157,14 @@ final class YTMusicClient {
             }
         })
         return sections
+    }
+
+    /// Another channel's home shelves, each labelled with its name; none if it couldn't load.
+    private func homeSections(of channel: AccountInfo.Alternative) async -> [HomeSection] {
+        guard let response = try? await fetchHome(.some(channel.pageId)) else { return [] }
+        return SearchParser.home(from: response.value).map { section in
+            HomeSection(title: "\(section.title) · \(channel.name)", items: section.items)
+        }
     }
 
     /// Which Google account the API is answering for, and the other channels on the login.
