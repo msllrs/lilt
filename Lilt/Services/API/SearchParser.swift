@@ -47,8 +47,18 @@ enum SearchParser {
             artistId: artistRuns.first.flatMap(browseId(of:)),
             albumId: albumRun.flatMap(browseId(of:)),
             isLiked: likeState(of: item),
-            playlistEntry: playlistEntry(of: item)
+            playlistEntry: playlistEntry(of: item),
+            isExplicit: hasExplicitBadge(item["badges"]) ? true : nil,
+            isUnavailable: JSON.string(item["musicItemRendererDisplayPolicy"]) == "MUSIC_ITEM_RENDERER_DISPLAY_POLICY_GREY_OUT" ? true : nil
         )
+    }
+
+    /// Whether `badges` (a row's `badges`, a card's `subtitleBadges`) hold the explicit badge.
+    static func hasExplicitBadge(_ badges: Any?) -> Bool {
+        guard let badges else { return false }
+        return JSON.findAll(key: "musicInlineBadgeRenderer", in: badges).contains {
+            JSON.string(JSON.value(at: ["icon", "iconType"], in: $0)) == "MUSIC_EXPLICIT_BADGE"
+        }
     }
 
     /// The playlists YouTube Music's "Save to playlist" dialog offers: the ones you can edit.
@@ -359,7 +369,8 @@ enum SearchParser {
             durationText: JSON.string(JSON.value(at: ["lengthText", "runs", 0, "text"], in: item)),
             artworkURL: JSON.string(JSON.dict(thumbs?.last)?["url"]).flatMap { artworkURL($0, size: 240) },
             artistId: artistRuns.first.flatMap(browseId(of:)),
-            albumId: albumRun.flatMap(browseId(of:))
+            albumId: albumRun.flatMap(browseId(of:)),
+            isExplicit: hasExplicitBadge(item["badges"]) ? true : nil
         )
     }
 
@@ -418,7 +429,8 @@ enum SearchParser {
             title: title,
             artist: artist,
             artworkURL: firstThumbnail(in: JSON.dict(two["thumbnailRenderer"]) ?? [:], size: 240),
-            artistId: artistRuns.first.flatMap(browseId(of:))
+            artistId: artistRuns.first.flatMap(browseId(of:)),
+            isExplicit: hasExplicitBadge(two["subtitleBadges"]) ? true : nil
         )
     }
 

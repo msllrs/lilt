@@ -37,6 +37,11 @@ struct Track: Identifiable, Hashable, Codable, Sendable {
     var isLiked: Bool?
     /// Where this song sits in a playlist you can edit. Only your own playlists' rows carry it.
     var playlistEntry: PlaylistEntry?
+    /// YouTube Music's explicit badge.
+    var isExplicit: Bool? = nil
+    /// Greyed out by YouTube Music: listed, but it can't be played here (taken down, or not
+    /// licensed in this country).
+    var isUnavailable: Bool? = nil
 
     var artistItem: BrowseItem? {
         guard let artistId else { return nil }
