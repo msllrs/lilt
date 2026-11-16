@@ -14,6 +14,7 @@ struct ArtistLink: View {
     @Environment(YTMusicClient.self) private var music
     @Environment(\.coverPalette) private var coverPalette
     @State private var isHovering = false
+    @State private var warmer: HoverWarmer?
 
     private var resting: Color { color ?? coverPalette?.secondary ?? .secondary }
     /// Hover lifts it to the title's colour: the tinted one on an album page.
@@ -33,7 +34,14 @@ struct ArtistLink: View {
             .buttonStyle(.plain)
             .onHover { hovering in
                 isHovering = hovering
-                if hovering, music.cachedPage(for: item) == nil { Task { _ = try? await music.page(for: item) } }
+                // Warms the artist page once the pointer rests here, for the artist shown now:
+                // the bar's link stays put while its song, and so its artist, changes.
+                if hovering {
+                    warmer = HoverWarmer { [music] in
+                        if music.cachedPage(for: item) == nil { Task { _ = try? await music.page(for: item) } }
+                    }
+                }
+                warmer?.hovering(hovering)
             }
             .help(name)
         } else {

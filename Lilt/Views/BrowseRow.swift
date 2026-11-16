@@ -19,6 +19,8 @@ struct BrowseRow: View {
     @State private var shine = ShineTrigger()
     /// Where the cover is, for the hero morph's flight to the page.
     @State private var coverFrame = HeroFrameBox()
+    /// Warms the row's page once the pointer rests on it.
+    @State private var warmer: HoverWarmer?
     @Environment(\.heroTracking) private var tracksHeroes
     @Environment(\.pageKey) private var screen
 
@@ -66,12 +68,19 @@ struct BrowseRow: View {
         }
         .onHover { hovering in
             isHovering = hovering
-            // Warm the cache so the page is ready by the time it's clicked. Only once: opening
-            // the page fetches it fresh anyway, so a warm copy needn't be fetched again here.
-            if hovering, music.cachedPage(for: item) == nil { Task { _ = try? await music.page(for: item) } }
-            // Your playlists, for Add to Playlist; any song will do to ask for them.
-            if hovering, let song = music.cachedPage(for: item)?.tracks.first { music.warmOwnPlaylists(videoId: song.id) }
+            // A fresh one each time the pointer arrives, so it warms the row's item as it is now.
+            if hovering { warmer = HoverWarmer { [music, item] in Self.warm(item, music: music) } }
+            warmer?.hovering(hovering)
         }
+    }
+
+    /// Once the pointer rests on the row, warms the cache so the page is ready by the time it's
+    /// clicked. Only once: opening the page fetches it fresh anyway, so a warm copy needn't be
+    /// fetched again here.
+    private static func warm(_ item: BrowseItem, music: YTMusicClient) {
+        if music.cachedPage(for: item) == nil { Task { _ = try? await music.page(for: item) } }
+        // Your playlists, for Add to Playlist; any song will do to ask for them.
+        if let song = music.cachedPage(for: item)?.tracks.first { music.warmOwnPlaylists(videoId: song.id) }
     }
 
     private func perform(_ action: RowAction) {
