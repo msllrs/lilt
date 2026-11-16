@@ -57,6 +57,8 @@ struct LibraryShelfScreen: View {
     @State private var content: LibraryContent
     @State private var filter = ""
     @State private var scrollOffset: CGFloat = 0
+    @State private var isFiltering = false
+    @Namespace private var glass
 
     init(shelf: LibraryShelf, music: YTMusicClient? = nil) {
         self.shelf = shelf
@@ -72,27 +74,66 @@ struct LibraryShelfScreen: View {
             .task { if let fresh = try? await music.library() { content = fresh } }
     }
 
-    /// Titled as Library is, centred and medium when Library's is.
+    /// Titled as Library is, centred and medium when Library's is. The filter waits behind a
+    /// search button in the trailing slot, so the header is Library's height until it's wanted;
+    /// on Liquid Glass the button's glass flows out into the field's.
     private var header: some View {
         let centred = ArtworkStyle.shared.centredLibraryTitle
-        return VStack(spacing: Theme.Space.sm) {
+        return GlassEffectContainer {
             HStack(spacing: Theme.Space.sm) {
                 // Slot for the back button, which the navigation column draws statically on top.
                 Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
-                if centred { Spacer(minLength: 0) }
-                Text(shelf.title)
-                    .font(centred ? .body.weight(.medium) : .body)
-                Spacer(minLength: 0)
-                // A slot matching the back button's, so the title sits in the middle.
-                if centred { Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow) }
+                if isFiltering {
+                    SearchField(text: $filter, prompt: "Filter \(shelf.title)", screenId: shelf.page.id) { focused in
+                        if !focused { foldFilterIfEmpty() }
+                    }
+                    // The field lets an Escape through once it's empty.
+                    .onKeyPress(.escape) {
+                        foldFilterIfEmpty()
+                        return .handled
+                    }
+                    .glassEffectID(Self.filterGlass, in: glass)
+                } else {
+                    if centred { Spacer(minLength: 0) }
+                    Text(shelf.title)
+                        .font(centred ? .body.weight(.medium) : .body)
+                    Spacer(minLength: 0)
+                    Button(action: openFilter) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                            .headerControl()
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffectID(Self.filterGlass, in: glass)
+                    .help("Filter \(shelf.title)")
+                }
             }
-            .frame(height: Theme.Size.headerRow)
-            SearchField(text: $filter, prompt: "Filter \(shelf.title)", screenId: shelf.page.id)
+        }
+        .frame(height: Theme.Size.headerRow)
+        .background {
+            // ⌘F, as Find is anywhere on the Mac.
+            Button("Filter \(shelf.title)", action: openFilter)
+                .keyboardShortcut("f")
+                .opacity(0)
+                .accessibilityHidden(true)
         }
         .padding(.top, Theme.Space.panelInset)
         .padding(.horizontal, Theme.Space.panelInset)
         .padding(.bottom, Theme.Space.sm)
         .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
+    }
+
+    private static let filterGlass = "filter"
+
+    private func openFilter() {
+        withAnimation(Theme.Motion.standard) { isFiltering = true }
+    }
+
+    /// A filter typed in keeps the field: folding it away would hide why the list is short.
+    private func foldFilterIfEmpty() {
+        guard filter.isEmpty else { return }
+        withAnimation(Theme.Motion.standard) { isFiltering = false }
     }
 
     private var list: some View {

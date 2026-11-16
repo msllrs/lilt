@@ -5,6 +5,8 @@ struct SearchField: View {
     var prompt = "Search"
     /// The page the field belongs to; nil for the search screen at the root.
     var screenId: String? = nil
+    /// Told when the caret arrives in the field or leaves it.
+    var onFocusChange: ((Bool) -> Void)? = nil
     @Environment(NavigationModel.self) private var navigation
     @FocusState private var isFocused: Bool
 
@@ -50,6 +52,7 @@ struct SearchField: View {
         .onAppear { isFocused = isOnTop }
         // Give focus up when a page opens over the search root, take it back when you return.
         .onChange(of: isOnTop) { _, onTop in isFocused = onTop }
+        .onChange(of: isFocused) { _, focused in onFocusChange?(focused) }
         // The panel often isn't key when this first appears; re-claim focus when it becomes key
         // so showing the panel means you can type straight away. Only our panel, only on the
         // search root, and only when the field doesn't already have focus: re-focusing a field
