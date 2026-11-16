@@ -28,12 +28,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private lazy var songNotifier = SongNotifier(player: player, panel: { [weak self] in self?.panel })
     /// The system-wide shortcut that shows or hides the panel; set up at launch.
     private(set) var showLiltShortcut: ShowLiltShortcut?
+    /// Crash and hang reports for Help ▸ Show Diagnostics.
+    private let crashReports = CrashReports()
 
     private var panel: PanelWindow?
     private var loginWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
+        let info = Bundle.main.infoDictionary
+        Diagnostics.shared.record(.app, "launched Lilt \(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?")) on macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
+        crashReports.start()
         NSApp.setActivationPolicy(.regular)
         AppTheme.stored().apply()
         player.linkResolver = { [music] videoId in try await music.links(forVideoId: videoId) }
@@ -67,6 +72,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         player.persistNow()
+        Diagnostics.shared.record(.app, "quit")
+        Diagnostics.shared.flush()
+    }
+
+    /// Help ▸ Show Diagnostics: the folder in Finder, its log selected.
+    func showDiagnostics() {
+        let diagnostics = Diagnostics.shared
+        diagnostics.flush()
+        try? FileManager.default.createDirectory(at: diagnostics.directory, withIntermediateDirectories: true)
+        NSWorkspace.shared.activateFileViewerSelecting([FileManager.default.fileExists(atPath: diagnostics.logURL.path) ? diagnostics.logURL : diagnostics.directory])
     }
 
     // MARK: Mini player

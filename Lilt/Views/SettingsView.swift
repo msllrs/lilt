@@ -46,6 +46,7 @@ struct SettingsView: View {
             }
             NotificationsSection()
             UpdatesSection()
+            DiagnosticsSection()
         }
         .formStyle(.grouped)
         .frame(width: 380)
@@ -184,6 +185,26 @@ private struct NotificationsSection: View {
             let allowed = await SongNotifier.requestAuthorization()
             isDenied = !allowed
             if !allowed { enabled = false }
+        }
+    }
+}
+
+/// Lilt's own log, kept on this Mac (see `Diagnostics`), and the switch for keeping YouTube
+/// Music's raw responses beside it while a bug in how a page reads is being traced.
+private struct DiagnosticsSection: View {
+    @AppStorage(Diagnostics.recordsResponsesKey) private var recordsResponses = false
+
+    var body: some View {
+        Section {
+            Toggle("Keep YouTube Music responses", isOn: $recordsResponses)
+            LabeledContent("Log") {
+                Button("Show in Finder") { AppDelegate.shared?.showDiagnostics() }
+            }
+        } header: {
+            Text("Diagnostics")
+        } footer: {
+            Text("Lilt keeps a log of what it did on this Mac, to trace a problem after it happens. Nothing is sent anywhere. Keeping responses also saves the pages YouTube Music sends, your library included, until you turn it off.")
+                .foregroundStyle(.secondary)
         }
     }
 }

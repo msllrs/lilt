@@ -18,6 +18,9 @@ struct LiltApp: App {
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates…") { delegate.updater.checkForUpdates(nil) }
             }
+            CommandGroup(after: .help) {
+                Button("Show Diagnostics") { delegate.showDiagnostics() }
+            }
             // ⌘R, as in Safari; ⌘⇧R is Repeat.
             CommandGroup(before: .toolbar) {
                 Button("Refresh") { delegate.refresh() }
