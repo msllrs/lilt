@@ -127,8 +127,8 @@ struct SeeAllRow: View {
             navigation.open(shelf.page)
         } label: {
             HStack(spacing: Theme.Space.md) {
-                Text("See All \(count)")
-                    .font(.body)
+                Text("See All")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right")
