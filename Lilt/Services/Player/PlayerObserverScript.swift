@@ -107,6 +107,9 @@ enum PlayerObserverScript {
         v.addEventListener('ended', () => post('TRACK_ENDED', { videoId: videoId() }));
         // Sound actually under way (not just asked for), for timing the gap between tracks.
         v.addEventListener('playing', () => post('PLAYING', { videoId: videoId() }));
+        // What macOS is told about this page as it starts to sound, and again once YouTube
+        // Music has had time to fill it in, for the diagnostics log.
+        v.addEventListener('playing', () => { reportSession('playing'); setTimeout(() => reportSession('2s later'), 2000); });
         v.addEventListener('error', () => {
           const e = v.error;
           post('PLAYBACK_ERROR', { videoId: videoId(), reason: '<video> error ' + (e ? e.code + (e.message ? ' ' + e.message : '') : '?') });
@@ -267,16 +270,31 @@ enum PlayerObserverScript {
       // knows a pause came from the system (AirPods taken out) and can take the system's Play
       // when they go back in, which after two Pauses no longer reaches this session.
       const ms = navigator.mediaSession;
+      // The actions this page's session offers, as set through it (handlers can't be read back).
+      const offered = new Set();
       if (ms && typeof ms.setActionHandler === 'function') {
         const original = ms.setActionHandler.bind(ms);
+        const offer = (action, handler) => { if (handler) { offered.add(action); } else { offered.delete(action); } return original(action, handler); };
         const ours = {
           nexttrack: () => post('REMOTE', { action: 'next' }),
           previoustrack: () => post('REMOTE', { action: 'previous' }),
           pause: () => post('REMOTE', { action: 'pause' }),
           play: () => post('REMOTE', { action: 'play' }),
         };
-        ms.setActionHandler = (action, handler) => original(action, ours[action] || handler);
-        Object.keys(ours).forEach((k) => { try { original(k, ours[k]); } catch (e) {} });
+        ms.setActionHandler = (action, handler) => offer(action, ours[action] || handler);
+        Object.keys(ours).forEach((k) => { try { offer(k, ours[k]); } catch (e) {} });
+      }
+      function reportSession(when) {
+        const m = ms && ms.metadata;
+        post('SESSION', {
+          when, videoId: videoId() || '', hold: state.hold,
+          title: (m && m.title) || '', artist: (m && m.artist) || '', album: (m && m.album) || '',
+          artwork: (m && m.artwork) ? m.artwork.length : -1,
+          artworkSrc: (m && m.artwork && m.artwork.length) ? String(m.artwork[m.artwork.length - 1].src).slice(0, 80) : '',
+          actions: Array.from(offered).sort().join(','),
+          playbackState: (ms && ms.playbackState) || '',
+          muted: state.video ? (state.video.muted || state.video.volume === 0) : null,
+        });
       }
 
       window.__lilt = {

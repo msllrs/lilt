@@ -70,6 +70,8 @@ final class PlayerBridge: NSObject, PlayerBridging {
     private let view: WKWebView
     var webView: WKWebView? { view }
     var onEvent: ((PlayerEvent) -> Void)?
+    /// What the diagnostics log calls this page ("web player 2"); the player names it.
+    var logName = "web player"
 
     /// True once the observer script has announced itself in the current document.
     private var isReady = false
@@ -197,6 +199,10 @@ final class PlayerBridge: NSObject, PlayerBridging {
             #endif
         case "PLAYING":
             onEvent?(.playing(videoId: body["videoId"] as? String))
+        case "SESSION":
+            let fields = ["videoId", "title", "artist", "album", "artwork", "artworkSrc", "actions", "playbackState", "muted", "hold"]
+                .map { "\($0)=\(body[$0].map { "\($0)" } ?? "nil")" }
+            Diagnostics.shared.record(.player, "media session of \(logName) (\(body["when"] as? String ?? "?")): " + fields.joined(separator: " "))
         case "PLAYBACK_ERROR":
             onEvent?(.playbackError(videoId: body["videoId"] as? String, reason: body["reason"] as? String ?? "?"))
         case "CUED":

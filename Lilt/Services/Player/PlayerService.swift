@@ -189,6 +189,7 @@ final class PlayerService {
     /// commands are about a song nobody is listening to.
     private func route(_ player: any PlayerBridging) {
         bridgeNames[ObjectIdentifier(player)] = "web player \(bridgeNames.count + 1)"
+        (player as? PlayerBridge)?.logName = bridgeNames[ObjectIdentifier(player)] ?? "web player"
         player.onEvent = { [weak self, weak player] event in
             guard let self, let player else { return }
             self.traceArrival(of: event, from: player)
