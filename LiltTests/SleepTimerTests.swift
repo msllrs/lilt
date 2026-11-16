@@ -99,14 +99,19 @@ struct SleepTimerTests {
             controls.delegate?.menuNeedsUpdate?(controls)
             return controls.items.first { $0.title == "Sleep Timer" }?.submenu
         }
+        /// The submenu's items without the separators the inline picker draws around itself.
+        func items(_ menu: NSMenu) -> [NSMenuItem] { menu.items.filter { !$0.isSeparatorItem } }
         player.setSleepTimer(nil)
         for _ in 0..<5 { try await Task.sleep(for: .milliseconds(20)) }
         let menu = try #require(timer(), "Controls ▸ Sleep Timer")
-        #expect(menu.items.map(\.title) == ["Off", "15 Minutes", "30 Minutes", "1 Hour"])
-        #expect(menu.items.map(\.state) == [.on, .off, .off, .off])
+        #expect(items(menu).map(\.title) == ["Off", "15 Minutes", "30 Minutes", "1 Hour"])
+        #expect(items(menu).map(\.state) == [.on, .off, .off, .off])
 
         player.setSleepTimer(.seconds(30 * 60))
         for _ in 0..<5 { try await Task.sleep(for: .milliseconds(20)) }
-        #expect(try #require(timer()).items.map(\.state) == [.off, .off, .on, .off])
+        let running = try #require(timer())
+        #expect(items(running).prefix(4).map(\.state) == [.off, .off, .on, .off])
+        let ends = try #require(player.sleepEnds)
+        #expect(items(running).last?.title == "Pauses at \(ends.formatted(date: .omitted, time: .shortened))", "the menu says when")
     }
 }

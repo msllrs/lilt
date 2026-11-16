@@ -57,11 +57,19 @@ struct LiltApp: App {
                 Button(Self.repeatTitle(after: delegate.player.repeatMode)) { delegate.player.cycleRepeat() }
                     .keyboardShortcut("r", modifiers: [.command, .shift])
                 Divider()
-                Picker("Sleep Timer", selection: Binding(get: { delegate.player.sleepTimer }, set: { delegate.player.setSleepTimer($0) })) {
-                    Text("Off").tag(Duration?.none)
-                    Text("15 Minutes").tag(Duration?.some(.seconds(15 * 60)))
-                    Text("30 Minutes").tag(Duration?.some(.seconds(30 * 60)))
-                    Text("1 Hour").tag(Duration?.some(.seconds(60 * 60)))
+                Menu("Sleep Timer") {
+                    Picker("Sleep Timer", selection: Binding(get: { delegate.player.sleepTimer }, set: { delegate.player.setSleepTimer($0) })) {
+                        Text("Off").tag(Duration?.none)
+                        Text("15 Minutes").tag(Duration?.some(.seconds(15 * 60)))
+                        Text("30 Minutes").tag(Duration?.some(.seconds(30 * 60)))
+                        Text("1 Hour").tag(Duration?.some(.seconds(60 * 60)))
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                    if let ends = delegate.player.sleepEnds {
+                        Divider()
+                        Text("Pauses at \(ends.formatted(date: .omitted, time: .shortened))")
+                    }
                 }
                 #if DEBUG
                 Divider()
