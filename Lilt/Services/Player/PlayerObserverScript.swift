@@ -250,10 +250,28 @@ enum PlayerObserverScript {
       };
       // The handover: unmute at YouTube's own level and play straight from the element, which
       // is the quickest way to sound from a buffered pause.
+      // WebKit loads a session's artwork when it adopts the session, and a held page isn't
+      // adopted while YouTube Music fills the artwork in, so after a handover Now Playing had
+      // the title but no artwork. Clearing the metadata and giving back the same object makes
+      // WebKit take the session afresh. Not a copy: that catches the metadata half filled in
+      // and cuts off YouTube Music's later updates, which go into its own object.
+      const readoptSession = (id) => {
+        const m = ms && ms.metadata;
+        if (!m || state.hold || videoId() !== id) { return; }
+        try { ms.metadata = null; ms.metadata = m; } catch (e) {}
+      };
       const start = () => {
+        const wasHeld = state.hold;
         release();
         const v = state.video;
         if (!v) { return; }
+        if (wasHeld) {
+          // Once it sounds, and again when YouTube Music has filled the artwork in.
+          const id = videoId();
+          const sounding = () => readoptSession(id);
+          v.addEventListener('playing', sounding, { once: true });
+          setTimeout(() => { v.removeEventListener('playing', sounding); readoptSession(id); }, 2000);
+        }
         const p = playerApi();
         let volume = state.ytVolume;
         if (volume == null) { try { volume = p && p.getVolume ? p.getVolume() / 100 : 1; } catch (e) { volume = 1; } }
