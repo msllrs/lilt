@@ -7,6 +7,7 @@ struct LibraryScreen: View {
     @Environment(NavigationModel.self) private var navigation
     @Environment(NoticeCenter.self) private var notices: NoticeCenter?
     @Environment(CollapsedSections.self) private var collapsedSections
+    @AppStorage(LibraryShelf.previewKey) private var storedPreview = LibraryShelf.standardPreview
 
     private enum Phase: Equatable {
         case loading
@@ -142,9 +143,10 @@ struct LibraryScreen: View {
     private func section(_ shelf: LibraryShelf) -> some View {
         let title = shelf.title
         let all = shelf.items(in: content)
-        let items = Array(all.prefix(LibraryShelf.preview))
+        let preview = LibraryShelf.preview(stored: storedPreview)
+        let items = Array(all.prefix(preview))
         // Rows come in one by one when the library is pushed under a staggering transition.
-        let first = LibraryShelf.allCases.prefix { $0 != shelf }.reduce(0) { $0 + min($1.items(in: content).count, LibraryShelf.preview + 1) }
+        let first = LibraryShelf.allCases.prefix { $0 != shelf }.reduce(0) { $0 + min($1.items(in: content).count, preview + 1) }
         let order = Dictionary(items.enumerated().map { ($1.id, first + $0) }, uniquingKeysWith: { a, _ in a })
         CollapsibleSection(title: title, scope: "library", items: items) { BrowseRow(item: $0).entrance(.row(order[$0.id] ?? .max)) } empty: {
             Text(title == "Albums" ? "Albums you save to your library will show here."

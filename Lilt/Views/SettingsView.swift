@@ -80,6 +80,7 @@ private struct AppearanceSection: View {
     @AppStorage(TrackRow.alwaysShowsLengthsKey) private var alwaysShowsLengths = false
     @AppStorage(TrackRow.showsExplicitBadgesKey) private var showsExplicitBadges = true
     @AppStorage(TrackRows.hidesUnavailableKey) private var hidesUnavailableSongs = false
+    @AppStorage(LibraryShelf.previewKey) private var libraryPreview = LibraryShelf.standardPreview
     @Bindable private var style = ArtworkStyle.shared
     @Environment(PlayerService.self) private var player
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -139,6 +140,12 @@ private struct AppearanceSection: View {
             Toggle(isOn: $hidesUnavailableSongs) {
                 Text("Hide unavailable songs")
                 Text("Songs YouTube Music can't play here are left out of lists, instead of shown dimmed.")
+            }
+            Picker(selection: Binding(get: { LibraryShelf.preview(stored: libraryPreview) }, set: { libraryPreview = $0 })) {
+                ForEach(LibraryShelf.previewCounts, id: \.self) { Text("\($0)").tag($0) }
+            } label: {
+                Text("Library shelves show")
+                Text("How many playlists, albums and artists Library shows before See All.")
             }
             Toggle(isOn: $fadesWhenNotInUse) {
                 Text("Fade when not in use")

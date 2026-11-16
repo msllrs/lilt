@@ -3,7 +3,7 @@ import SwiftUI
 import Testing
 @testable import Lilt
 
-/// Library shows the first six of each shelf and See All for the rest, which opens the shelf as
+/// Library shows the first eight of each shelf (or the 16 or 32 Settings picks) and See All for the rest, which opens the shelf as
 /// a page of its own with a field to narrow it, rather than one list of every album and artist.
 @MainActor
 struct LibraryShelfTests {
@@ -14,6 +14,13 @@ struct LibraryShelfTests {
     @Test func aShelfPageIsKnownByItsId() {
         for shelf in LibraryShelf.allCases { #expect(LibraryShelf(page: shelf.page) == shelf) }
         #expect(LibraryShelf(page: NavigationModel.library) == nil, "Library itself isn't a shelf")
+    }
+
+    @Test func aShelfShowsEightUnlessSettingsPicksAnother() {
+        #expect(LibraryShelf.preview(stored: 16) == 16)
+        #expect(LibraryShelf.preview(stored: 32) == 32)
+        #expect(LibraryShelf.preview(stored: 0) == 8, "nothing chosen yet")
+        #expect(LibraryShelf.preview(stored: 6) == 8, "a count Settings doesn't offer")
     }
 
     @Test func theFieldNarrowsByTitleOrByline() {
@@ -34,6 +41,10 @@ struct LibraryShelfTests {
         let navigation = NavigationModel()
         let saved = UserDefaults.standard.data(forKey: "navigationState")
         defer { if let saved { UserDefaults.standard.set(saved, forKey: "navigationState") } else { UserDefaults.standard.removeObject(forKey: "navigationState") } }
+        // The test host shares the app's defaults, so hold the count at eight and give back theirs.
+        let chosen = UserDefaults.standard.object(forKey: LibraryShelf.previewKey)
+        UserDefaults.standard.set(8, forKey: LibraryShelf.previewKey)
+        defer { UserDefaults.standard.set(chosen, forKey: LibraryShelf.previewKey) }
         navigation.path = [NavigationModel.library]
         let size = CGSize(width: 320, height: 900)
         let view = LibraryScreen(music: music)
@@ -61,7 +72,7 @@ struct LibraryShelfTests {
             if navigation.path.last?.id == albumsPage.id { opened = true; break }
             // A preview row opens its album: that's not See All, so go back and carry on down.
             if navigation.path.count > 1 { navigation.path = [NavigationModel.library] }
-            #expect(navigation.path.last?.id != "MPREb-7", "only six albums are shown before See All")
+            #expect(navigation.path.last?.id != "MPREb-9", "only eight albums are shown before See All")
         }
         #expect(opened, "See All 10 opens the Albums shelf")
     }

@@ -5,8 +5,16 @@ import SwiftUI
 enum LibraryShelf: String, CaseIterable {
     case playlists, albums, artists
 
-    /// How many rows Library shows before See All.
-    static let preview = 6
+    /// How many rows Library shows of each shelf before See All, which Settings chooses from
+    /// `previewCounts`.
+    static let previewKey = "libraryPreviewCount"
+    static let previewCounts = [8, 16, 32]
+    static let standardPreview = 8
+
+    /// The chosen count, or the standard one for anything Settings doesn't offer.
+    static func preview(stored: Int) -> Int {
+        previewCounts.contains(stored) ? stored : standardPreview
+    }
 
     var title: String {
         switch self {
