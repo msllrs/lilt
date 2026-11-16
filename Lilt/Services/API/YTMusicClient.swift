@@ -191,6 +191,8 @@ final class YTMusicClient {
     func switchAccount(pageId: String?) {
         client.pageId = pageId
         pageCache = [:]
+        // A page on its way is the old account's; a new ask mustn't join it.
+        pageFetches = [:]
         homeCache = nil
         libraryCache = nil
         // The old account's library mustn't be what the new one's screen joins.
@@ -567,17 +569,29 @@ final class YTMusicClient {
         return first
     }
 
+    /// Browse pages on their way, by id, which another ask for the same page joins.
+    @ObservationIgnored private var pageFetches: [String: Task<BrowsePage, Error>] = [:]
+
     /// Always asks the server: a playlist can change elsewhere (a song liked on the phone), and
-    /// the cached copy is only for `cachedPage(for:)` to draw a first frame from.
+    /// the cached copy is only for `cachedPage(for:)` to draw a first frame from. An ask for a
+    /// page already on its way (a hover warming it, then the page opening) joins that request
+    /// rather than making another; a failed one isn't kept, so the next ask tries again.
     func page(for item: BrowseItem) async throws -> BrowsePage {
-        let response = try await fetchPage(item.id)
-        let page = SearchParser.browsePage(from: response.value, for: item)
-        pageCache[item.id] = page
-        ImageCache.shared.prefetch(
-            [page.item.artworkURL] + page.tracks.prefix(20).map(\.artworkURL)
-                + page.sections.flatMap { $0.items.prefix(8).map(\.artworkURL) }
-        )
-        return page
+        if let inFlight = pageFetches[item.id] { return try await inFlight.value }
+        let generation = accountGeneration
+        let task = Task {
+            defer { if generation == accountGeneration { pageFetches[item.id] = nil } }
+            let response = try await fetchPage(item.id)
+            let page = SearchParser.browsePage(from: response.value, for: item)
+            if generation == accountGeneration { pageCache[item.id] = page }
+            ImageCache.shared.prefetch(
+                [page.item.artworkURL] + page.tracks.prefix(20).map(\.artworkURL)
+                    + page.sections.flatMap { $0.items.prefix(8).map(\.artworkURL) }
+            )
+            return page
+        }
+        pageFetches[item.id] = task
+        return try await task.value
     }
 
     /// The most pages a list is followed for: thousands of songs at a hundred a page, and an
