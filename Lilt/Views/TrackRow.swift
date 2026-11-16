@@ -3,6 +3,8 @@ import SwiftUI
 struct TrackRow: View {
     /// Settings ▸ Appearance ▸ Always show song lengths.
     static let alwaysShowsLengthsKey = "alwaysShowsLengths"
+    /// Settings ▸ Appearance ▸ Show explicit badges.
+    static let showsExplicitBadgesKey = "showsExplicitBadges"
 
     let track: Track
     let isCurrent: Bool
@@ -18,6 +20,7 @@ struct TrackRow: View {
     /// Nil where a row is hosted on its own; lengths then always show.
     @Environment(PanelRest.self) private var rest: PanelRest?
     @Environment(\.alwaysShowsLengths) private var alwaysShowsLengths
+    @Environment(\.showsExplicitBadges) private var showsExplicitBadges
     private var showsLength: Bool { alwaysShowsLengths || (rest?.isPointerInside ?? true) }
     /// An album page's cover palette, for the text and the playing row's pill.
     @Environment(\.coverPalette) private var coverPalette
@@ -75,7 +78,16 @@ struct TrackRow: View {
                 artwork
                 VStack(alignment: .leading, spacing: 2) {
                     MarqueeText(text: track.title, isActive: isHovering, font: .body, color: coverPalette.style(\.primary, or: .primary))
-                    ArtistLink(name: track.artist, item: track.artistItem)
+                    // Where YouTube Music puts it: before the artist, at the byline's size.
+                    HStack(spacing: Theme.Space.xs) {
+                        if showsExplicitBadges, track.isExplicit == true {
+                            Image(systemName: "e.square.fill")
+                                .font(.caption)
+                                .foregroundStyle(coverPalette.style(\.secondary, or: .secondary))
+                                .accessibilityLabel("Explicit")
+                        }
+                        ArtistLink(name: track.artist, item: track.artistItem)
+                    }
                 }
                 // Takes every point the trailing item doesn't need, so titles run wide when
                 // there's no duration to show. On hover the add-to-queue button sits over the

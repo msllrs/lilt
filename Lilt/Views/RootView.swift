@@ -15,6 +15,7 @@ struct RootView: View {
     /// Settings ▸ Appearance, and the system's Reduce Motion: read once here for every disc.
     @AppStorage(SpinningArtwork.spinsKey) private var spinsPlayingCover = true
     @AppStorage(TrackRow.alwaysShowsLengthsKey) private var alwaysShowsLengths = false
+    @AppStorage(TrackRow.showsExplicitBadgesKey) private var showsExplicitBadges = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -109,6 +110,7 @@ struct RootView: View {
         .environment(\.screenIsParked, navigation.isPanelOutOfSight)
         .environment(\.discsHoldStill, !spinsPlayingCover || reduceMotion || Theme.Motion.reducesMotion)
         .environment(\.alwaysShowsLengths, alwaysShowsLengths)
+        .environment(\.showsExplicitBadges, showsExplicitBadges)
     }
 }
 
@@ -341,4 +343,7 @@ extension EnvironmentValues {
     /// Settings ▸ Appearance ▸ Always show song lengths: rows keep their lengths with the
     /// pointer away from the panel.
     @Entry var alwaysShowsLengths: Bool = false
+    /// Settings ▸ Appearance ▸ Show explicit badges: an E before the artist of a song YouTube
+    /// Music marks explicit.
+    @Entry var showsExplicitBadges: Bool = true
 }
