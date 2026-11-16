@@ -53,8 +53,11 @@ struct PreviousEarlyTests {
 
     @Test func pastTheFirstSecondsItStartsTheSongAgain() async throws {
         try await withFakePlayer(lateralus, gapless: false) { player, fakes in
+            var clock = Date.now
+            player.now = { clock }
             fakes.startPlaying(player)
             player.next()
+            clock += 12
             fakes.first.report("eon", time: 12)
             player.previous()
             #expect(player.current?.id == "eon")

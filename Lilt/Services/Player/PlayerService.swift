@@ -28,6 +28,13 @@ final class PlayerService {
     private var unshuffledQueue: [Track]?
     private(set) var currentTime: Double = 0
     private(set) var duration: Double = 0
+    /// When the current song came on from its start (loaded, handed over, or picked up from the
+    /// page), by the clock. For a moment after a song changes the page can still report the
+    /// old song's time under the new song's id, so `previous()` counts a song this young as
+    /// in its first seconds whatever time is showing.
+    @ObservationIgnored private var cameOnAt: Date?
+    /// The clock `cameOnAt` is read against; a test sets its own to let time pass.
+    @ObservationIgnored var now: () -> Date = { .now }
 
     /// Metadata as reported by the web player; falls back to the queued track.
     private(set) var liveTitle = ""
@@ -400,11 +407,20 @@ final class PlayerService {
         }
     }
 
+    /// Back to the song before in a song's first seconds, as in any music app; past them, the
+    /// song from its start. A song that came on under 3s ago is in its first seconds even when
+    /// the page still shows the old song's time for it. Each press is logged with which way it
+    /// went and why, to check in the running app.
     func previous() {
-        guard let i = currentIndex else { return }
-        if currentTime > 3 || i == 0 {
+        guard let i = currentIndex, let id = current?.id else { return }
+        let sinceCameOn = cameOnAt.map { now().timeIntervalSince($0) }
+        let justCameOn = sinceCameOn.map { $0 < 3 } ?? false
+        if i == 0 || (currentTime > 3 && !justCameOn) {
+            trace("previous: restart \(id) at \(Int(currentTime))s" + (i == 0 ? " (first in the queue)" : ""))
             seek(to: 0)
         } else {
+            let came = sinceCameOn.map { String(format: "%.1fs since \(id) came on", $0) } ?? "\(id) has no start time"
+            trace("previous: back to \(queue[i - 1].id) (\(came), page says \(Int(currentTime))s)")
             load(index: i - 1)
         }
     }
@@ -624,6 +640,8 @@ final class PlayerService {
         awaitingSound = nil
         handoverWatch?.cancel()
         let resumeAt = pendingSeek
+        // A song resumed partway through hasn't just come on: its saved time is its own.
+        cameOnAt = resumeAt == nil ? now() : nil
         resetLiveState()
         // Resuming a restored track: keep the saved position on screen instead of dipping to
         // 0:00 until the seek lands.
@@ -954,6 +972,7 @@ final class PlayerService {
         sourceId = nil
         sourceTitle = nil
         let track = Track(id: videoId, title: s.title, artist: s.artist, artworkURL: s.artworkURL)
+        cameOnAt = now()
         if let i = currentIndex {
             queue.insert(track, at: i + 1)
             currentIndex = i + 1
