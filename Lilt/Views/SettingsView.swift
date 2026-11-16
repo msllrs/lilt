@@ -65,6 +65,7 @@ private struct AppearanceSection: View {
     @AppStorage(AppTheme.key) private var theme = AppTheme.system
     @AppStorage(SpinningArtwork.spinsKey) private var spinsPlayingCover = true
     @AppStorage(PanelRest.enabledKey) private var fadesWhenNotInUse = PanelRest.enabledByDefault
+    @AppStorage(TrackRow.alwaysShowsLengthsKey) private var alwaysShowsLengths = false
     @Bindable private var style = ArtworkStyle.shared
     @Environment(PlayerService.self) private var player
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -116,6 +117,10 @@ private struct AppearanceSection: View {
                 }
             }
             Toggle("Spin the cover of the playing song", isOn: $spinsPlayingCover)
+            Toggle(isOn: $alwaysShowsLengths) {
+                Text("Always show song lengths")
+                Text("Otherwise lengths show only while the pointer is over the panel.")
+            }
             Toggle(isOn: $fadesWhenNotInUse) {
                 Text("Fade when not in use")
                 Text("A few seconds after the pointer leaves, the list dims so the panel sits quietly on the edge. The player stays as it is.")

@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct TrackRow: View {
+    /// Settings ▸ Appearance ▸ Always show song lengths.
+    static let alwaysShowsLengthsKey = "alwaysShowsLengths"
+
     let track: Track
     let isCurrent: Bool
     let isPlaying: Bool
@@ -14,7 +17,8 @@ struct TrackRow: View {
     @Environment(NoticeCenter.self) private var notices: NoticeCenter?
     /// Nil where a row is hosted on its own; lengths then always show.
     @Environment(PanelRest.self) private var rest: PanelRest?
-    private var isPointerOverPanel: Bool { rest?.isPointerInside ?? true }
+    @Environment(\.alwaysShowsLengths) private var alwaysShowsLengths
+    private var showsLength: Bool { alwaysShowsLengths || (rest?.isPointerInside ?? true) }
     /// An album page's cover palette, for the text and the playing row's pill.
     @Environment(\.coverPalette) private var coverPalette
     @Environment(\.colorScheme) private var colorScheme
@@ -86,9 +90,9 @@ struct TrackRow: View {
                         // Swaps with the button instantly; the eased hover fade is for the row.
                         .transaction { $0.animation = nil }
                         // Lengths are for someone using the panel: away from it they fade out,
-                        // and the list reads as titles alone.
-                        .opacity(isPointerOverPanel ? 1 : 0)
-                        .animation(Theme.Motion.quick, value: isPointerOverPanel)
+                        // and the list reads as titles alone, unless Settings keeps them.
+                        .opacity(showsLength ? 1 : 0)
+                        .animation(Theme.Motion.quick, value: showsLength)
                         .padding(.leading, Theme.Space.sm)
                 }
             }

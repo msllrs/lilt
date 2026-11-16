@@ -14,6 +14,7 @@ struct RootView: View {
     @State private var columnHeight: CGFloat = 0
     /// Settings ▸ Appearance, and the system's Reduce Motion: read once here for every disc.
     @AppStorage(SpinningArtwork.spinsKey) private var spinsPlayingCover = true
+    @AppStorage(TrackRow.alwaysShowsLengthsKey) private var alwaysShowsLengths = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -107,6 +108,7 @@ struct RootView: View {
         // see the panel too; screens combine this with their own parked state above.
         .environment(\.screenIsParked, navigation.isPanelOutOfSight)
         .environment(\.discsHoldStill, !spinsPlayingCover || reduceMotion || Theme.Motion.reducesMotion)
+        .environment(\.alwaysShowsLengths, alwaysShowsLengths)
     }
 }
 
@@ -336,4 +338,7 @@ extension EnvironmentValues {
     /// The playing song's disc stays a disc but doesn't turn: spinning is off in Settings ▸
     /// Appearance, or Reduce Motion is on.
     @Entry var discsHoldStill: Bool = false
+    /// Settings ▸ Appearance ▸ Always show song lengths: rows keep their lengths with the
+    /// pointer away from the panel.
+    @Entry var alwaysShowsLengths: Bool = false
 }
