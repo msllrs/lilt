@@ -18,7 +18,9 @@ struct SongFlagRowTests {
             .environment(YTMusicClient(auth: auth, persists: false))
             .environment(NavigationModel())
             .frame(width: Self.width)
-            .background(Color.white))
+            .background(Color.white)
+            // Ink is counted against white, so the row draws light whatever the Mac is set to.
+            .environment(\.colorScheme, .light))
         let hosting = NSHostingView(rootView: root)
         let window = NSWindow(contentRect: CGRect(x: -10_000, y: -10_000, width: Self.width, height: 400), styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false

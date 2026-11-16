@@ -25,6 +25,8 @@ struct AlwaysShowLengthsTests {
             .environment(\.alwaysShowsLengths, alwaysShows)
             .frame(width: Self.size.width, height: Self.size.height)
             .background(Color.white)
+            // Ink is counted against white, so the row draws light whatever the Mac is set to.
+            .environment(\.colorScheme, .light)
         let hosting = NSHostingView(rootView: view)
         hosting.frame = CGRect(origin: .zero, size: Self.size)
         let window = NSWindow(contentRect: CGRect(origin: CGPoint(x: -10_000, y: -10_000), size: Self.size), styleMask: [.borderless], backing: .buffered, defer: false)
