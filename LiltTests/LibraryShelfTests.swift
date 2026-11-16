@@ -45,6 +45,17 @@ struct LibraryShelfTests {
         let chosen = UserDefaults.standard.object(forKey: LibraryShelf.previewKey)
         UserDefaults.standard.set(8, forKey: LibraryShelf.previewKey)
         defer { UserDefaults.standard.set(chosen, forKey: LibraryShelf.previewKey) }
+        // Likewise the folded sections: the sweep below clicks shelf headers too, and a header
+        // folded and left folded hid See All on every other run.
+        let folded = UserDefaults.standard.object(forKey: "collapsedSections")
+        defer { UserDefaults.standard.set(folded, forKey: "collapsedSections") }
+        let collapsedSections = CollapsedSections()
+        func unfold() {
+            for shelf in LibraryShelf.allCases where collapsedSections.isCollapsed("library/\(shelf.title)") {
+                collapsedSections.toggle("library/\(shelf.title)")
+            }
+        }
+        unfold()
         navigation.path = [NavigationModel.library]
         let size = CGSize(width: 320, height: 900)
         let view = LibraryScreen(music: music)
@@ -53,7 +64,7 @@ struct LibraryShelfTests {
             .environment(music)
             .environment(navigation)
             .environment(ScrollTracker())
-            .environment(CollapsedSections())
+            .environment(collapsedSections)
             .frame(width: size.width, height: size.height)
         let hosting = NSHostingView(rootView: view)
         hosting.frame = CGRect(origin: .zero, size: size)
@@ -70,6 +81,7 @@ struct LibraryShelfTests {
             click(CGPoint(x: size.width / 2, y: y), in: window)
             try await Task.sleep(for: .milliseconds(30))
             if navigation.path.last?.id == albumsPage.id { opened = true; break }
+            unfold()
             // A preview row opens its album: that's not See All, so go back and carry on down.
             if navigation.path.count > 1 { navigation.path = [NavigationModel.library] }
             #expect(navigation.path.last?.id != "MPREb-9", "only eight albums are shown before See All")
