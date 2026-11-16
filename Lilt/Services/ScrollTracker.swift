@@ -10,7 +10,7 @@ final class ScrollTracker {
 
     /// How much content below the bar fades its glass fully in. The bar draws nothing different
     /// past it, so that's as far as this counts.
-    static let glassFadeDistance: CGFloat = 24
+    nonisolated static let glassFadeDistance: CGFloat = 24
 
     /// Points of content extending below the visible area, keyed by screen, up to
     /// `glassFadeDistance`: a scroll far from a list's end then changes nothing here, where a
@@ -22,7 +22,12 @@ final class ScrollTracker {
     var activeRemainingBelow: CGFloat { remainingBelow[activeKey] ?? 0 }
 
     func report(remainingBelow value: CGFloat, for key: String) {
-        let clamped = min(max(value, 0), Self.glassFadeDistance)
+        let clamped = Self.counted(value)
         if remainingBelow[key] != clamped { remainingBelow[key] = clamped }
+    }
+
+    /// Content below the bar as far as it is counted: none to `glassFadeDistance`.
+    nonisolated static func counted(_ remainingBelow: CGFloat) -> CGFloat {
+        min(max(remainingBelow, 0), glassFadeDistance)
     }
 }

@@ -13,17 +13,19 @@ struct ScrollMetrics: Equatable {
 }
 
 /// What a list screen under a header acts on from its scroll: the header's backdrop, faded in
-/// over the first points, and how much list is left under the now-playing bar.
+/// over the first points, and how much list is left under the now-playing bar, near the end.
+/// Both are kept only as far as they change anything, so between the two a scroll leaves this
+/// as it was and `onScrollGeometryChange` has nothing to tell the screen. Kept as the raw
+/// offset, it changed the screen's state on every frame and re-laid out its header with it.
 struct ListScroll: Equatable {
-    var offset: CGFloat = 0
+    var backdropVisibility: CGFloat = 0
+    /// Up to `ScrollTracker.glassFadeDistance`, as the now-playing bar is told it.
     var remainingBelow: CGFloat = 0
 
     init() {}
 
     init(_ metrics: ScrollMetrics) {
-        offset = metrics.offset
-        remainingBelow = metrics.remainingBelow
+        backdropVisibility = HeaderBackdrop.visibility(forScrollOffset: metrics.offset)
+        remainingBelow = ScrollTracker.counted(metrics.remainingBelow)
     }
-
-    var backdropVisibility: CGFloat { HeaderBackdrop.visibility(forScrollOffset: offset) }
 }
