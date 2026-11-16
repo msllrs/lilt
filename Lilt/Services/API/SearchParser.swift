@@ -294,6 +294,20 @@ enum SearchParser {
 
     // MARK: Library
 
+    /// The token for a library shelf's next page: its grid's or shelf's older
+    /// `nextContinuationData` (on the first page and each continuation of it), or a newer
+    /// continuation item at the end of appended rows. Not the tab's `reloadContinuationData`,
+    /// which asks for the same page again.
+    static func libraryContinuationToken(in response: [String: Any]) -> String? {
+        let lists = ["gridRenderer", "gridContinuation", "musicShelfRenderer", "musicShelfContinuation"]
+            .flatMap { JSON.findAll(key: $0, in: response) }
+        if let token = lists.lazy.compactMap({ JSON.string(JSON.value(at: ["continuations", 0, "nextContinuationData", "continuation"], in: $0)) }).first {
+            return token
+        }
+        let appended = JSON.findAll(key: "appendContinuationItemsAction", in: response).compactMap { JSON.array($0["continuationItems"])?.last }
+        return appended.lazy.compactMap { JSON.string(JSON.value(at: ["continuationItemRenderer", "continuationEndpoint", "continuationCommand", "token"], in: $0)) }.first
+    }
+
     /// Every artist/album/playlist item in a library browse response, whether YouTube laid it
     /// out as a grid of tiles or a list of rows.
     static func libraryItems(from response: [String: Any]) -> [BrowseItem] {
