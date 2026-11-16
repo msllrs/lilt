@@ -186,6 +186,29 @@ struct ArtistLinkHitTests {
         try await withPreservedPanel(delegate) { await doubleClickToggles(delegate) }
     }
 
+    /// Settings ▸ Playback ▸ Double-click the player: Up Next opens and closes the list instead,
+    /// and the window stays expanded.
+    @Test func doubleClickCanOpenUpNextInstead() async throws {
+        let delegate = try #require(AppDelegate.shared, "the platter's double-click goes through the app delegate")
+        let defaults = UserDefaults.standard
+        let saved = defaults.object(forKey: PlatterDoubleClick.key)
+        defer { if let saved { defaults.set(saved, forKey: PlatterDoubleClick.key) } else { defaults.removeObject(forKey: PlatterDoubleClick.key) } }
+        defaults.set(PlatterDoubleClick.upNext.rawValue, forKey: PlatterDoubleClick.key)
+        try await withPreservedPanel(delegate) {
+            delegate.setMiniPlayer(false)
+            delegate.setQueueVisible(false)
+            await settle(4)
+            let (window, _) = await host(
+                NowPlayingBar(), size: CGSize(width: 320, height: 170), player: Self.playerShowing(Self.track)
+            )
+            defer { window.close() }
+            await doubleClick(CGPoint(x: Theme.Space.barPadding / 2, y: 85), in: window)
+            await settle(4)
+            #expect(delegate.navigation.isQueueVisible, "double-clicking the platter should open Up Next")
+            #expect(!delegate.navigation.isMiniPlayer, "and leave the window expanded")
+        }
+    }
+
     private func doubleClickToggles(_ delegate: AppDelegate) async {
         delegate.setMiniPlayer(false)
         await settle(4)

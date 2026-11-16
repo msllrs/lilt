@@ -27,6 +27,7 @@ struct SettingsView: View {
             }
             Section {
                 Toggle("Gapless playback", isOn: $player.isGapless)
+                DoubleClickPicker()
             } header: {
                 Text("Playback")
             } footer: {
@@ -50,6 +51,17 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 380)
+    }
+}
+
+/// What a double-click on the player's empty glass does.
+private struct DoubleClickPicker: View {
+    @AppStorage(PlatterDoubleClick.key) private var doubleClick = PlatterDoubleClick.miniPlayer
+
+    var body: some View {
+        Picker("Double-click the player", selection: $doubleClick) {
+            ForEach(PlatterDoubleClick.allCases) { Text($0.label).tag($0) }
+        }
     }
 }
 

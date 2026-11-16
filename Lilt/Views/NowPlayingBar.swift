@@ -8,6 +8,7 @@ struct NowPlayingBar: View {
     @Environment(ScrollTracker.self) private var scrollTracker
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @AppStorage(PlatterDoubleClick.key) private var doubleClick = PlatterDoubleClick.miniPlayer
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous) }
     private var platter: PlatterStyle { ArtworkStyle.shared.platter }
@@ -258,14 +259,15 @@ struct NowPlayingBar: View {
         // transparent and macOS would pass clicks straight through to the window behind. A
         // near-invisible fill makes the platter solid to hit-testing.
         //
-        // Double-click anywhere on the platter collapses to the mini player or expands back. The
+        // Double-click anywhere on the platter collapses to the mini player or expands back (or,
+        // as Settings says, opens and closes Up Next). The
         // gesture lives on this fill rather than over the rows: a double-tap wrapped around the
         // content swallows single clicks on the buttons inside it (the cover, the artist), while
         // here it only sees clicks that nothing above has claimed, so the whole rectangle counts
         // except where a control takes the click for itself.
         .background {
             shape.fill(Color.black.opacity(0.012))
-                .onTapGesture(count: 2) { AppDelegate.shared?.setMiniPlayer(!navigation.isMiniPlayer) }
+                .onTapGesture(count: 2) { doubleClick.perform(on: AppDelegate.shared) }
         }
         .contentShape(shape)
         // Right-click anywhere on the platter: the playing song's own actions.
