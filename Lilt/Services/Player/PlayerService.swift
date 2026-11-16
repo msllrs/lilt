@@ -217,14 +217,20 @@ final class PlayerService {
 
     /// Plays `tracks` from `index` in their own order. Shuffle belongs to the list it was turned
     /// on for, so a new list starts with it off.
+    /// Songs YouTube Music greys out are left out of the queue; `index` counts them, so the
+    /// song asked for still plays, and asking for one of them plays nothing.
     func play(_ tracks: [Track], startingAt index: Int, source: BrowseItem? = nil) {
-        start(tracks, at: index, source: source, shuffled: false)
+        guard tracks.indices.contains(index), tracks[index].isUnavailable != true else { return }
+        let playable = tracks.filter { $0.isUnavailable != true }
+        let skipped = tracks[..<index].count { $0.isUnavailable == true }
+        start(playable, at: index - skipped, source: source, shuffled: false)
     }
 
-    /// Starts `tracks` in a random order with shuffle on.
+    /// Starts `tracks` in a random order with shuffle on, leaving out the greyed-out ones.
     func playShuffled(_ tracks: [Track], source: BrowseItem? = nil) {
-        guard !tracks.isEmpty else { return }
-        start(tracks, at: Int.random(in: tracks.indices), source: source, shuffled: true)
+        let playable = tracks.filter { $0.isUnavailable != true }
+        guard !playable.isEmpty else { return }
+        start(playable, at: Int.random(in: playable.indices), source: source, shuffled: true)
     }
 
     /// Replaces the queue with `tracks` and plays the one at `index`, shuffling what follows it
@@ -481,6 +487,7 @@ final class PlayerService {
     /// identities, none when they started playing instead.
     @discardableResult
     func playNext(_ tracks: [Track]) -> [UUID] {
+        let tracks = tracks.filter { $0.isUnavailable != true }
         guard !tracks.isEmpty else { return [] }
         guard let i = currentIndex, current != nil else {
             play(tracks, startingAt: 0)
