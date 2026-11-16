@@ -553,6 +553,20 @@ final class YTMusicClient {
         }
     }
 
+    /// The clock the kept pages' ages are read against; tests set their own.
+    @ObservationIgnored var now: () -> Date = { .now }
+
+    /// A page opened again. For now, as the page screen has done: the first page afresh, and a
+    /// kept list longer than it gathered whole again.
+    func revisitedPage(for item: BrowseItem, forceRefresh: Bool = false) async throws -> BrowsePage {
+        let before = pageCache[item.id]
+        let first = try await page(for: item)
+        if let before, before.tracks.count > first.tracks.count, first.continuation != nil {
+            return try await wholeList(from: first)
+        }
+        return first
+    }
+
     /// Always asks the server: a playlist can change elsewhere (a song liked on the phone), and
     /// the cached copy is only for `cachedPage(for:)` to draw a first frame from.
     func page(for item: BrowseItem) async throws -> BrowsePage {
