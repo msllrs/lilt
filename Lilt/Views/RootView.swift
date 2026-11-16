@@ -183,7 +183,9 @@ private struct NavigationColumn: View {
 
     @ViewBuilder
     private func screen(for item: BrowseItem) -> some View {
-        if item.kind == .library {
+        if let shelf = LibraryShelf(page: item) {
+            LibraryShelfScreen(shelf: shelf)
+        } else if item.kind == .library {
             LibraryScreen()
         } else {
             BrowseScreen(item: item)

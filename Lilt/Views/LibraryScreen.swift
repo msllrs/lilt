@@ -6,6 +6,7 @@ struct LibraryScreen: View {
     @Environment(ScrollTracker.self) private var scrollTracker
     @Environment(NavigationModel.self) private var navigation
     @Environment(NoticeCenter.self) private var notices: NoticeCenter?
+    @Environment(CollapsedSections.self) private var collapsedSections
 
     private enum Phase: Equatable {
         case loading
@@ -86,9 +87,7 @@ struct LibraryScreen: View {
     private var list: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                section("Playlists", content.playlists)
-                section("Albums", content.albums)
-                section("Artists", content.artists)
+                ForEach(LibraryShelf.allCases, id: \.self) { section($0) }
             }
             .padding(.horizontal, Theme.Space.rowInset)
             .padding(.bottom, Theme.Space.sm)
@@ -138,10 +137,14 @@ struct LibraryScreen: View {
 
     /// Empty sections still show, with YouTube's own explanation, so it's clear the page loaded
     /// and the account simply has nothing saved there.
+    /// The first few of a shelf, and See All for the rest on a page of its own.
     @ViewBuilder
-    private func section(_ title: String, _ items: [BrowseItem]) -> some View {
+    private func section(_ shelf: LibraryShelf) -> some View {
+        let title = shelf.title
+        let all = shelf.items(in: content)
+        let items = Array(all.prefix(LibraryShelf.preview))
         // Rows come in one by one when the library is pushed under a staggering transition.
-        let first = title == "Playlists" ? 0 : title == "Albums" ? content.playlists.count : content.playlists.count + content.albums.count
+        let first = LibraryShelf.allCases.prefix { $0 != shelf }.reduce(0) { $0 + min($1.items(in: content).count, LibraryShelf.preview + 1) }
         let order = Dictionary(items.enumerated().map { ($1.id, first + $0) }, uniquingKeysWith: { a, _ in a })
         CollapsibleSection(title: title, scope: "library", items: items) { BrowseRow(item: $0).entrance(.row(order[$0.id] ?? .max)) } empty: {
             Text(title == "Albums" ? "Albums you save to your library will show here."
@@ -151,6 +154,10 @@ struct LibraryScreen: View {
                 .foregroundStyle(.tertiary)
                 .padding(.horizontal, Theme.Space.rowPadding)
                 .padding(.vertical, Theme.Space.xs)
+        }
+        if all.count > items.count, !collapsedSections.isCollapsed("library/\(title)") {
+            SeeAllRow(shelf: shelf, count: all.count)
+                .entrance(.row(first + items.count))
         }
     }
 
