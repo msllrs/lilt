@@ -34,6 +34,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var panel: PanelWindow?
     private var loginWindow: NSWindow?
 
+    /// macOS 26's AutoFill heuristics showed an empty box under the search field as the panel
+    /// opened. Lilt has nothing for AutoFill to fill, so it's off: the same switch Chromium,
+    /// Electron and Zed ship. Registered, so a `defaults write` still wins.
+    private static let autoFillHeuristicsKey = "NSAutoFillHeuristicControllerEnabled"
+
+    /// Before any window or text field exists, so AutoFill never sees the search field take focus.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        UserDefaults.standard.register(defaults: [Self.autoFillHeuristicsKey: false])
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
         let info = Bundle.main.infoDictionary
