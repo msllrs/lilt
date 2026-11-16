@@ -91,7 +91,7 @@ enum SearchParser {
     /// rows only carry the menu's liked-songs toggle, whose default action is what a click does:
     /// LIKE for a song you haven't liked, INDIFFERENT for one you have.
     static func likeState(of item: [String: Any]) -> Bool? {
-        if let status = JSON.string(JSON.findAll(key: "likeButtonRenderer", in: item).first?["likeStatus"]) {
+        if let status = JSON.string(JSON.findFirst(key: "likeButtonRenderer", in: item)?["likeStatus"]) {
             return status == "LIKE"
         }
         for toggle in JSON.findAll(key: "toggleMenuServiceItemRenderer", in: item) {
@@ -119,7 +119,7 @@ enum SearchParser {
             }
         }
         // YouTube's top-result card gets its own slot above everything else.
-        if let card = JSON.findAll(key: "musicCardShelfRenderer", in: response).first,
+        if let card = JSON.findFirst(key: "musicCardShelfRenderer", in: response),
            let top = browseItem(fromCard: card) {
             results.top = top
             seen.insert(top.id)
@@ -215,7 +215,7 @@ enum SearchParser {
             "musicResponsiveHeaderRenderer", "musicDetailHeaderRenderer", "musicImmersiveHeaderRenderer",
             "musicVisualHeaderRenderer", "musicEditablePlaylistDetailHeaderRenderer",
         ]
-        if let header = headerKeys.lazy.compactMap({ JSON.findAll(key: $0, in: response).first }).first {
+        if let header = headerKeys.lazy.compactMap({ JSON.findFirst(key: $0, in: response) }).first {
             if let title = runsText(JSON.value(at: ["title", "runs"], in: header)), !title.isEmpty {
                 page.item.title = title
             }
@@ -235,7 +235,7 @@ enum SearchParser {
             }
             // The playlist to save: the header's play button carries it for albums (their audio
             // playlist) and playlists alike; a playlist's browse id is also just "VL" + the id.
-            if let endpoint = JSON.findAll(key: "watchPlaylistEndpoint", in: header).first,
+            if let endpoint = JSON.findFirst(key: "watchPlaylistEndpoint", in: header),
                let id = JSON.string(endpoint["playlistId"]) {
                 page.playlistId = id
             }
@@ -279,7 +279,7 @@ enum SearchParser {
 
     /// From `account/account_menu`: the active account header and any switchable identities.
     static func account(from response: [String: Any]) -> AccountInfo? {
-        guard let header = JSON.findAll(key: "activeAccountHeaderRenderer", in: response).first else { return nil }
+        guard let header = JSON.findFirst(key: "activeAccountHeaderRenderer", in: response) else { return nil }
         let name = runsText(JSON.value(at: ["accountName", "runs"], in: header)) ?? ""
         let email = runsText(JSON.value(at: ["email", "runs"], in: header)) ?? ""
         let photo = JSON.array(JSON.value(at: ["accountPhoto", "thumbnails"], in: header))
@@ -293,7 +293,7 @@ enum SearchParser {
         for item in JSON.findAll(key: "accountItem", in: response) {
             guard let title = runsText(JSON.value(at: ["accountName", "runs"], in: item)),
                   (item["isSelected"] as? Bool) != true else { continue }
-            let pageId = JSON.findAll(key: "pageIdToken", in: item).first.flatMap { JSON.string($0["pageId"]) }
+            let pageId = JSON.findFirst(key: "pageIdToken", in: item).flatMap { JSON.string($0["pageId"]) }
             alternatives.append(.init(name: title, pageId: pageId))
         }
         return alternatives
@@ -355,7 +355,7 @@ enum SearchParser {
     /// with a video counterpart sits in a wrapper whose primary renderer is the one queued; the
     /// counterpart (the video) isn't a song of its own.
     static func mix(from response: [String: Any], playlistId: String) -> Mix? {
-        guard let panel = JSON.findAll(key: "playlistPanelRenderer", in: response).first else { return nil }
+        guard let panel = JSON.findFirst(key: "playlistPanelRenderer", in: response) else { return nil }
         var seen = Set<String>()
         var tracks: [Track] = []
         for entry in (JSON.array(panel["contents"]) ?? []).compactMap(JSON.dict) {

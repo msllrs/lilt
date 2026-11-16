@@ -40,4 +40,23 @@ enum JSON {
         walk(root)
         return found
     }
+
+    /// The dictionary `findAll` would list first, without walking the rest of the tree for the
+    /// others: a big page's header and buttons sit near its top, its hundreds of rows below.
+    static func findFirst(key: String, in root: Any) -> [String: Any]? {
+        func walk(_ node: Any) -> [String: Any]? {
+            if let d = dict(node) {
+                for (k, v) in d {
+                    if k == key, let match = dict(v) { return match }
+                    if let found = walk(v) { return found }
+                }
+            } else if let a = array(node) {
+                for element in a {
+                    if let found = walk(element) { return found }
+                }
+            }
+            return nil
+        }
+        return walk(root)
+    }
 }

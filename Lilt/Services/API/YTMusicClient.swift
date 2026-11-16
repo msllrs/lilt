@@ -618,7 +618,7 @@ final class YTMusicClient {
         let task = Task {
             defer { if generation == accountGeneration { pageFetches[item.id] = nil } }
             let response = try await fetchPage(item.id)
-            let page = SearchParser.browsePage(from: response.value, for: item)
+            let page = await Self.read(response, for: item)
             if generation == accountGeneration {
                 let keptIsLonger = (pageCache[item.id]?.tracks.count ?? 0) > page.tracks.count
                 if !keptIsLonger || page.continuation == nil {
@@ -646,11 +646,24 @@ final class YTMusicClient {
     func nextPage(of page: BrowsePage) async throws -> BrowsePage {
         guard let token = page.continuation else { return page }
         let response = try await fetchContinuation(token)
+        var next = await Self.read(response, after: page)
+        if next.continuation == token { next.continuation = nil }
+        pageCache[page.item.id] = next
+        return next
+    }
+
+    /// A page read from its response, off the main actor: walking a big list's JSON held the
+    /// main thread for hundreds of milliseconds, a frozen scroll for every page warmed under it.
+    @concurrent private nonisolated static func read(_ response: JSONObject, for item: BrowseItem) async -> BrowsePage {
+        SearchParser.browsePage(from: response.value, for: item)
+    }
+
+    /// The page with a continuation's songs added and its token for the page after, read off
+    /// the main actor like a first page.
+    @concurrent private nonisolated static func read(_ response: JSONObject, after page: BrowsePage) async -> BrowsePage {
         var next = page
         SearchParser.appendTracks(in: response.value, to: &next)
-        let following = SearchParser.continuationToken(in: response.value)
-        next.continuation = following == token ? nil : following
-        pageCache[page.item.id] = next
+        next.continuation = SearchParser.continuationToken(in: response.value)
         return next
     }
 
