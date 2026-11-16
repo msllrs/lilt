@@ -793,11 +793,13 @@ final class PlayerService {
 
     // MARK: Gapless trace (DEBUG)
 
-    /// `Lilt gapless: …` lines in the unified log, one per step of a handover, to see in the
-    /// running app where one stops. Nothing in release builds.
+    /// One line per step of a handover (and each playback error), in the diagnostics log, to
+    /// see in the running app where one stops; debug builds keep the `Lilt gapless: …` line too.
     private func trace(_ message: @autoclosure () -> String) {
+        let line = message()
+        Diagnostics.shared.record(.player, line)
         #if DEBUG
-        DebugLog.player("Lilt gapless: " + message())
+        DebugLog.player("Lilt gapless: " + line)
         #endif
     }
 

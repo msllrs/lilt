@@ -519,6 +519,7 @@ struct BrowseScreen: View {
         } catch is CancellationError {
             return
         } catch {
+            Diagnostics.shared.record(.screen, "\(item.kind) \(item.id) couldn't load: \(error)")
             if !showingCached { phase = .failed(error.localizedDescription) }
             if announce { notices?.postRefresh(.failed, of: item.title) }
             return

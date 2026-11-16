@@ -135,6 +135,7 @@ struct SearchScreen: View {
         } catch is CancellationError {
         } catch {
             guard !Task.isCancelled else { return }
+            Diagnostics.shared.record(.screen, "Search couldn't load: \(error)")
             phase = .failed(error.localizedDescription)
         }
     }

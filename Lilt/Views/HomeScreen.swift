@@ -98,6 +98,7 @@ struct HomeScreen: View {
             }
         } catch is CancellationError {
         } catch {
+            Diagnostics.shared.record(.screen, "Home couldn't load: \(error)")
             if !(refresh && phase == .loaded) { phase = .failed(error.localizedDescription) }
             if refresh { notices?.postRefresh(.failed, of: "Home") }
         }

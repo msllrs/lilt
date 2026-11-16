@@ -122,6 +122,7 @@ final class NoticeCenter {
 
     /// Shows `notice` in place of the current one.
     func post(_ notice: Notice) {
+        Diagnostics.shared.record(.notice, [notice.message, notice.label].compactMap { $0 }.joined(separator: " — "))
         guard !isSuppressed() else { return }
         timer?.cancel()
         timer = nil
