@@ -74,4 +74,24 @@ struct LinkWarmingTests {
         #expect(music.warmLinks(for: linked) == nil)
         #expect(requests == 0)
     }
+
+    /// The player looking up the playing song's links and a hover warming the same song's row
+    /// at once share one request; the diagnostics log showed four songs in fifty asked twice,
+    /// 11ms apart. A song already looked up isn't asked about again by either.
+    @Test func thePlayerAndAHoverShareOneLookup() async throws {
+        var asked = 0
+        let music = YTMusicClient(auth: AuthService(), fetchNext: { _ in
+            asked += 1
+            try await Task.sleep(for: .milliseconds(50))
+            return nextResponse(album: true)
+        })
+        async let fromPlayer = music.links(forVideoId: song.id)
+        let warming = music.warmLinks(for: song)
+        let links = try await fromPlayer
+        await warming?.value
+        #expect(asked == 1, "one request for both (\(asked))")
+        #expect(links?.albumId == "MPREb-lateralus")
+        _ = try await music.links(forVideoId: song.id)
+        #expect(asked == 1, "and none for a song already looked up")
+    }
 }

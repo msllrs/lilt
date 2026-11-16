@@ -297,9 +297,11 @@ final class YTMusicClient {
         return content
     }
 
-    /// Artist/album links for a track that arrived without them (home feed, radio continuation).
+    /// Artist/album links for a track that arrived without them (home feed, radio continuation):
+    /// the ones already looked up, or the lookup on its way, which a row's warming shares.
     func links(forVideoId videoId: String) async throws -> TrackLinks? {
-        SearchParser.links(from: try await fetchNext(videoId).value, videoId: videoId)
+        if let known = resolvedLinks[videoId] { return known }
+        return try await linkLookup(videoId).value
     }
 
     // MARK: Mixes
@@ -357,7 +359,7 @@ final class YTMusicClient {
     /// Links looked up for rows that arrived without them, by video id. A lookup that found
     /// nothing is kept too (all nil), so the same song isn't asked about again.
     private(set) var resolvedLinks: [String: TrackLinks] = [:]
-    @ObservationIgnored private var linkTasks: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored private var linkTasks: [String: Task<TrackLinks?, Error>] = [:]
 
     /// Looks up a song's artist and album ahead of its menu, which can't wait on the network
     /// while it's open. Once per song: nothing happens if the row already has both ids or the
@@ -366,14 +368,20 @@ final class YTMusicClient {
     @discardableResult
     func warmLinks(for track: Track) -> Task<Void, Never>? {
         guard track.artistId == nil || track.albumId == nil, resolvedLinks[track.id] == nil else { return nil }
-        if let inFlight = linkTasks[track.id] { return inFlight }
+        let lookup = linkLookup(track.id)
+        return Task { _ = try? await lookup.value }
+    }
+
+    /// A song's links from `next`, kept once found; the one lookup on its way is joined.
+    private func linkLookup(_ videoId: String) -> Task<TrackLinks?, Error> {
+        if let inFlight = linkTasks[videoId] { return inFlight }
         let task = Task {
-            do {
-                resolvedLinks[track.id] = try await links(forVideoId: track.id) ?? TrackLinks()
-            } catch {}
-            linkTasks[track.id] = nil
+            defer { linkTasks[videoId] = nil }
+            let links = SearchParser.links(from: try await fetchNext(videoId).value, videoId: videoId)
+            resolvedLinks[videoId] = links ?? TrackLinks()
+            return links
         }
-        linkTasks[track.id] = task
+        linkTasks[videoId] = task
         return task
     }
 
