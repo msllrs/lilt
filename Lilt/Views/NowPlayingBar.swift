@@ -36,7 +36,7 @@ struct NowPlayingBar: View {
     private var glassVisibility: CGFloat {
         // Held at full through a mini transition and for a beat after it: the tracker reports
         // nothing mid-move, and a platter going bare with rows passing beneath it reads as a flash.
-        platter.alwaysGlass || navigation.isMiniPlayer || navigation.isFrameAnimating || holdsGlass ? 1 : min(max(scrollTracker.activeRemainingBelow / 24, 0), 1)
+        platter.alwaysGlass || navigation.isMiniPlayer || navigation.isFrameAnimating || holdsGlass ? 1 : min(max(scrollTracker.activeRemainingBelow / ScrollTracker.glassFadeDistance, 0), 1)
     }
 
     /// The current artwork, for the ambient fill (any cached size will do once blurred).

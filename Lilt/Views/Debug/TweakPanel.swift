@@ -23,7 +23,8 @@ struct TweakPanel: View {
         @Bindable var motion = motion
         Form {
             Section("Live") {
-                LabeledContent("Content under platter", value: String(format: "%.0f pt", scrollTracker.activeRemainingBelow))
+                // Counted only as far as the glass fades in over, so it stops there.
+                LabeledContent("Content under platter", value: String(format: "%.0f pt (to %.0f)", scrollTracker.activeRemainingBelow, ScrollTracker.glassFadeDistance))
                 LabeledContent("Active screen", value: scrollTracker.activeKey)
             }
             Section("Motion") {
