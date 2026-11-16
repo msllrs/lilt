@@ -73,7 +73,7 @@ struct LiltApp: App {
                 }
                 #if DEBUG
                 Divider()
-                Button("Tweak Artwork…") { delegate.showTweakPanel() }
+                Button("Developer Panel…") { delegate.showTweakPanel() }
                     .keyboardShortcut("t", modifiers: [.command, .option])
                 #endif
             }

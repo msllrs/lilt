@@ -718,7 +718,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 backing: .buffered,
                 defer: false
             )
-            window.title = "Tweak Artwork"
+            window.title = "Developer Panel"
             window.isReleasedWhenClosed = false
             window.isFloatingPanel = true
             window.hidesOnDeactivate = false
