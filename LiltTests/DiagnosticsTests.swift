@@ -73,3 +73,17 @@ struct DiagnosticsTests {
         #expect(!names.contains { $0.hasSuffix("-v0.json") }, "the oldest goes")
     }
 }
+
+/// The log names what each request asked for without keeping what was typed into search.
+struct RequestDescriptionTests {
+    @Test func aRequestIsNamedByItsIds() {
+        #expect(InnerTubeClient.describe(["browseId": "VLPL123", "params": "ggMC"]) == "browseId=VLPL123 params=ggMC")
+        #expect(InnerTubeClient.describe(["continuation": "4qmFsgKbARIMRkVtdXNpY19ob21l"]) == "continuation=4qmFsgKbARIM…")
+    }
+
+    @Test func aSearchIsNamedByItsLength() {
+        let described = InnerTubeClient.describe(["query": "lateralus tool"])
+        #expect(described == "query(14 characters)")
+        #expect(!described.contains("lateralus"))
+    }
+}
