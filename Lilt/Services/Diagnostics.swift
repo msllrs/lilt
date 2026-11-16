@@ -14,9 +14,11 @@ final class Diagnostics: @unchecked Sendable {
         case app, network, player, notice, screen
     }
 
+    /// The test host is a whole Lilt sharing the app's container; its lines go to a folder of
+    /// their own so they never read as something the app did.
     static let shared = Diagnostics(
         directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Diagnostics")
+            .appendingPathComponent(ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil ? "Diagnostics" : "Diagnostics (Tests)")
     )
 
     /// Whether raw responses are kept. Off by default: they hold the library's contents.
