@@ -27,6 +27,8 @@ final class ImageCache {
     /// Decoded pixels. Covers are decoded no larger than needed (see `load`), so this holds
     /// several hundred of them.
     private static let costLimit = 160 * 1024 * 1024
+    /// Where making room stops: a quarter of the budget freed at a time.
+    private static let lowWaterMark = costLimit / 4 * 3
     /// Average colour per cached URL, for balancing ambient shadows and tinting the platter.
     private var averages: [String: (r: CGFloat, g: CGFloat, b: CGFloat)] = [:]
     /// Average luminance of the outer perimeter per cached URL, for picking the keyline colour.
@@ -61,14 +63,17 @@ final class ImageCache {
         return entry.image
     }
 
-    /// Makes room for `cost` more, least recently used first.
+    /// Makes room for `cost` more, least recently used first. Once over the limit it clears down
+    /// to the low-water mark in one sort, so the next hundred or so covers fit without another:
+    /// making room only for the one coming in sorted everything held for every cover a shelf
+    /// brought in, 19% of the main thread while one opened.
     private func evict(toFit cost: Int) {
         guard totalCost + cost > Self.costLimit else { return }
         for (key, entry) in images.sorted(by: { $0.value.lastUsed < $1.value.lastUsed }) {
             images[key] = nil
             totalCost -= entry.cost
             Self.log.debug("evicting \(key, privacy: .public) (\(entry.cost / 1024)KB)")
-            if totalCost + cost <= Self.costLimit { break }
+            if totalCost + cost <= Self.lowWaterMark { break }
         }
     }
 
