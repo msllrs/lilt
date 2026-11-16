@@ -2,18 +2,21 @@ import SwiftUI
 
 struct SearchField: View {
     @Binding var text: String
+    var prompt = "Search"
+    /// The page the field belongs to; nil for the search screen at the root.
+    var screenId: String? = nil
     @Environment(NavigationModel.self) private var navigation
     @FocusState private var isFocused: Bool
 
-    /// The search screen stays mounted (parked) under pages; the field only owns focus while
-    /// it's actually the screen on top, or typing on a page would silently edit the query.
-    private var isOnTop: Bool { navigation.path.isEmpty }
+    /// Screens stay mounted (parked) under the ones above them; the field only owns focus while
+    /// its screen is actually on top, or typing on a page would silently edit another's text.
+    private var isOnTop: Bool { screenId == nil ? navigation.path.isEmpty : navigation.path.last?.id == screenId }
 
     var body: some View {
         HStack(spacing: Theme.Space.sm) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField("Search", text: $text)
+            TextField(prompt, text: $text)
                 .textFieldStyle(.plain)
                 .focused($isFocused)
                 // As in any search field on the Mac: Escape lets the search go, and the field
