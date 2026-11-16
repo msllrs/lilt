@@ -72,14 +72,19 @@ struct LibraryShelfScreen: View {
             .task { if let fresh = try? await music.library() { content = fresh } }
     }
 
+    /// Titled as Library is, centred and medium when Library's is.
     private var header: some View {
-        VStack(spacing: Theme.Space.sm) {
+        let centred = ArtworkStyle.shared.centredLibraryTitle
+        return VStack(spacing: Theme.Space.sm) {
             HStack(spacing: Theme.Space.sm) {
                 // Slot for the back button, which the navigation column draws statically on top.
                 Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
+                if centred { Spacer(minLength: 0) }
                 Text(shelf.title)
-                    .font(.body)
+                    .font(centred ? .body.weight(.medium) : .body)
                 Spacer(minLength: 0)
+                // A slot matching the back button's, so the title sits in the middle.
+                if centred { Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow) }
             }
             .frame(height: Theme.Size.headerRow)
             SearchField(text: $filter, prompt: "Filter \(shelf.title)", screenId: shelf.page.id)
