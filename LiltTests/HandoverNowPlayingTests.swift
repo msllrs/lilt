@@ -43,7 +43,8 @@ struct HandoverNowPlayingTests {
         // The script finds the page's <video> on its next tick.
         try await Task.sleep(for: .milliseconds(1200))
 
-        _ = try await view.evaluateJavaScript("window.__lilt.start(); true")
+        // Held first, as a standby page is while the song before plays.
+        _ = try await view.evaluateJavaScript("window.__lilt.hold(); window.__lilt.start(); true")
         try await Task.sleep(for: .milliseconds(2500))
 
         let renewed = try await view.evaluateJavaScript("navigator.mediaSession.metadata !== window.firstMetadata") as? Bool

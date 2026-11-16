@@ -250,10 +250,33 @@ enum PlayerObserverScript {
       };
       // The handover: unmute at YouTube's own level and play straight from the element, which
       // is the quickest way to sound from a buffered pause.
+      // WebKit loads a session's artwork when it adopts the session, and a held page isn't
+      // adopted while YouTube Music fills the artwork in, so after a handover Now Playing had
+      // the title but no artwork. Setting the same metadata again once the page sounds, and
+      // again when YouTube Music has finished filling it in, has WebKit load it as on an
+      // ordinary load. Only on timers and our own 'playing', never on the page's updates, so
+      // it can't feed itself.
+      const renewSession = (id) => {
+        const m = ms && ms.metadata;
+        if (!m || state.hold || videoId() !== id || typeof MediaMetadata !== 'function') { return; }
+        try {
+          ms.metadata = new MediaMetadata({
+            title: m.title, artist: m.artist, album: m.album,
+            artwork: Array.from(m.artwork || []).map((a) => ({ src: a.src, sizes: a.sizes, type: a.type })),
+          });
+        } catch (e) {}
+      };
       const start = () => {
+        const wasHeld = state.hold;
         release();
         const v = state.video;
         if (!v) { return; }
+        if (wasHeld) {
+          const id = videoId();
+          const sounding = () => renewSession(id);
+          v.addEventListener('playing', sounding, { once: true });
+          setTimeout(() => { v.removeEventListener('playing', sounding); renewSession(id); }, 2000);
+        }
         const p = playerApi();
         let volume = state.ytVolume;
         if (volume == null) { try { volume = p && p.getVolume ? p.getVolume() / 100 : 1; } catch (e) { volume = 1; } }
