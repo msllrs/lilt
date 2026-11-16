@@ -18,7 +18,7 @@ struct LibraryScreen: View {
     @State private var phase: Phase = .loading
     @State private var content = LibraryContent()
     @State private var account: AccountInfo?
-    @State private var scrollOffset: CGFloat = 0
+    @State private var scroll = ListScroll()
 
     /// `music` is the client in the environment, which the app's is unless a test hosts its own.
     init(music: YTMusicClient? = nil) {
@@ -56,7 +56,7 @@ struct LibraryScreen: View {
         .padding(.top, Theme.Space.panelInset)
         .padding(.horizontal, Theme.Space.panelInset)
         .padding(.bottom, Theme.Space.sm)
-        .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
+        .headerBackdrop(visibility: scroll.backdropVisibility)
     }
 
     /// A library that lands quickly comes straight in; only a slow one shows the skeleton first.
@@ -95,15 +95,15 @@ struct LibraryScreen: View {
         }
         .scrollIndicators(.never)
         .panelScrollEdge()
-        .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
-            ScrollMetrics(
+        .onScrollGeometryChange(for: ListScroll.self) { geometry in
+            ListScroll(ScrollMetrics(
                 offset: geometry.contentOffset.y + geometry.contentInsets.top,
                 contentHeight: geometry.contentSize.height,
                 visibleHeight: geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
-            )
-        } action: { _, metrics in
-            scrollOffset = metrics.offset
-            scrollTracker.report(remainingBelow: metrics.remainingBelow, for: NavigationModel.library.id)
+            ))
+        } action: { _, scroll in
+            self.scroll = scroll
+            scrollTracker.report(remainingBelow: scroll.remainingBelow, for: NavigationModel.library.id)
         }
     }
 

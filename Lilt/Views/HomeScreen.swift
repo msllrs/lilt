@@ -15,10 +15,11 @@ struct HomeScreen: View {
 
     @State private var phase: Phase = .loading
     @State private var sections: [HomeSection] = []
-    @Binding var scrollOffset: CGFloat
+    /// The search screen's, whose header backdrop Home's scroll fades in.
+    @Binding var scroll: ListScroll
 
-    init(scrollOffset: Binding<CGFloat>) {
-        _scrollOffset = scrollOffset
+    init(scroll: Binding<ListScroll>) {
+        _scroll = scroll
         // Render cached shelves immediately; the task refreshes if the cache is stale.
         if let cached = MainActor.assumeIsolated({ AppDelegate.shared?.music.cachedHome }) {
             _sections = State(initialValue: cached)
@@ -74,15 +75,15 @@ struct HomeScreen: View {
         }
         .scrollIndicators(.never)
         .panelScrollEdge()
-        .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
-            ScrollMetrics(
+        .onScrollGeometryChange(for: ListScroll.self) { geometry in
+            ListScroll(ScrollMetrics(
                 offset: geometry.contentOffset.y + geometry.contentInsets.top,
                 contentHeight: geometry.contentSize.height,
                 visibleHeight: geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
-            )
-        } action: { _, metrics in
-            scrollOffset = metrics.offset
-            scrollTracker.report(remainingBelow: metrics.remainingBelow, for: ScrollTracker.searchKey)
+            ))
+        } action: { _, scroll in
+            self.scroll = scroll
+            scrollTracker.report(remainingBelow: scroll.remainingBelow, for: ScrollTracker.searchKey)
         }
     }
 

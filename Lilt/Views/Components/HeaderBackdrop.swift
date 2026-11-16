@@ -97,7 +97,17 @@ extension View {
     }
 
     /// Maps a scroll offset to backdrop visibility: fully in after `distance` points of scroll.
-    static func backdropVisibility(forScrollOffset offset: CGFloat, distance: CGFloat = 24) -> CGFloat {
+    static func backdropVisibility(forScrollOffset offset: CGFloat, distance: CGFloat = HeaderBackdrop.fadeDistance) -> CGFloat {
+        HeaderBackdrop.visibility(forScrollOffset: offset, distance: distance)
+    }
+}
+
+extension HeaderBackdrop {
+    /// How far a list scrolls under the header before its backdrop is fully in.
+    nonisolated static let fadeDistance: CGFloat = 24
+
+    /// Backdrop visibility for a scroll offset: fully in after `distance` points of scroll.
+    nonisolated static func visibility(forScrollOffset offset: CGFloat, distance: CGFloat = fadeDistance) -> CGFloat {
         min(max(offset / distance, 0), 1)
     }
 }

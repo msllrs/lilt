@@ -56,7 +56,7 @@ struct LibraryShelfScreen: View {
     @Environment(ScrollTracker.self) private var scrollTracker
     @State private var content: LibraryContent
     @State private var filter = ""
-    @State private var scrollOffset: CGFloat = 0
+    @State private var scroll = ListScroll()
     @State private var isFiltering = false
     @Namespace private var glass
 
@@ -121,7 +121,7 @@ struct LibraryShelfScreen: View {
         .padding(.top, Theme.Space.panelInset)
         .padding(.horizontal, Theme.Space.panelInset)
         .padding(.bottom, Theme.Space.sm)
-        .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
+        .headerBackdrop(visibility: scroll.backdropVisibility)
     }
 
     private static let filterGlass = "filter"
@@ -153,15 +153,15 @@ struct LibraryShelfScreen: View {
         }
         .scrollIndicators(.never)
         .panelScrollEdge()
-        .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
-            ScrollMetrics(
+        .onScrollGeometryChange(for: ListScroll.self) { geometry in
+            ListScroll(ScrollMetrics(
                 offset: geometry.contentOffset.y + geometry.contentInsets.top,
                 contentHeight: geometry.contentSize.height,
                 visibleHeight: geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
-            )
-        } action: { _, metrics in
-            scrollOffset = metrics.offset
-            scrollTracker.report(remainingBelow: metrics.remainingBelow, for: shelf.page.id)
+            ))
+        } action: { _, scroll in
+            self.scroll = scroll
+            scrollTracker.report(remainingBelow: scroll.remainingBelow, for: shelf.page.id)
         }
     }
 }

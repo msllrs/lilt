@@ -15,7 +15,7 @@ struct SearchScreen: View {
 
     @State private var phase: Phase = .idle
     @State private var results = SearchResults()
-    @State private var scrollOffset: CGFloat = 0
+    @State private var scroll = ListScroll()
     /// Bumped by Try Again, to run the same search once more.
     @State private var attempt = 0
 
@@ -41,7 +41,7 @@ struct SearchScreen: View {
                     .padding(.top, Theme.Space.panelInset)
                     .padding(.horizontal, Theme.Space.panelInset)
                     .padding(.bottom, Theme.Space.sm)
-                    .headerBackdrop(visibility: Self.backdropVisibility(forScrollOffset: scrollOffset))
+                    .headerBackdrop(visibility: scroll.backdropVisibility)
                 }
             }
             .task(id: SearchRequest(query: navigation.query, attempt: attempt)) { await search() }
@@ -57,7 +57,7 @@ struct SearchScreen: View {
             DelayedPlaceholder(isLoading: phase == .loading) {
                 switch phase {
                 case .idle:
-                    HomeScreen(scrollOffset: $scrollOffset)
+                    HomeScreen(scroll: $scroll)
                 case .loading:
                     EmptyView()
                 case .failed(let message):
@@ -96,15 +96,15 @@ struct SearchScreen: View {
         }
         .scrollIndicators(.never)
         .panelScrollEdge()
-        .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
-            ScrollMetrics(
+        .onScrollGeometryChange(for: ListScroll.self) { geometry in
+            ListScroll(ScrollMetrics(
                 offset: geometry.contentOffset.y + geometry.contentInsets.top,
                 contentHeight: geometry.contentSize.height,
                 visibleHeight: geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
-            )
-        } action: { _, metrics in
-            scrollOffset = metrics.offset
-            scrollTracker.report(remainingBelow: metrics.contentHeight - metrics.visibleHeight - metrics.offset, for: ScrollTracker.searchKey)
+            ))
+        } action: { _, scroll in
+            self.scroll = scroll
+            scrollTracker.report(remainingBelow: scroll.remainingBelow, for: ScrollTracker.searchKey)
         }
     }
 
