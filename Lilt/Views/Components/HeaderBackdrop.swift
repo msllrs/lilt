@@ -59,8 +59,12 @@ struct HeaderBackdrop: ViewModifier {
                     // Only the glass surface has a rim to restore; the sidebar's hairline sits
                     // above the blur already.
                     if useBackdrop, ArtworkStyle.shared.panel.effective(reduceTransparency: reduceTransparency).surface == .glass {
+                        // The outline's bottom is a dark line, so it never ends above the fade's
+                        // end: no shorter than it always was, which keeps the lit top's gradient
+                        // as it was under Library's and Search's headers, but as tall as the
+                        // region under a taller one, like a library shelf's.
                         Color.clear
-                            .frame(height: Theme.Radius.window * 4)
+                            .frame(height: max(Theme.Radius.window * 4, geometry.size.height + reach))
                             .glassEdge(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous).inset(by: 0.5), opacity: blur.rimOpacity)
                             .frame(height: geometry.size.height + reach, alignment: .top)
                             // Fades out with the blur, so it hands back to the real rim below.
