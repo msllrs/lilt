@@ -19,7 +19,7 @@ struct TrackRows: View {
 
     var body: some View {
         let tracks = shown
-        ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
+        ForEach(Array(tracks.enumerated()), id: \.element.rowId) { index, track in
             if only == nil || only?.id == track.id {
                 TrackRow(
                     track: track,

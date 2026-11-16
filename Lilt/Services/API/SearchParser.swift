@@ -48,6 +48,7 @@ enum SearchParser {
             albumId: albumRun.flatMap(browseId(of:)),
             isLiked: likeState(of: item),
             playlistEntry: playlistEntry(of: item),
+            entryId: JSON.string(JSON.value(at: ["playlistItemData", "playlistSetVideoId"], in: item)),
             isExplicit: hasExplicitBadge(item["badges"]) ? true : nil,
             isUnavailable: JSON.string(item["musicItemRendererDisplayPolicy"]) == "MUSIC_ITEM_RENDERER_DISPLAY_POLICY_GREY_OUT" ? true : nil
         )
@@ -179,11 +180,12 @@ enum SearchParser {
     /// A list's rows as songs, after the songs the page has already. Rows leave out what the page
     /// says once for all of them (the artist, the cover, the album), so each is filled in from
     /// the page, the continuation's rows the same as the first page's.
+    /// A song listed twice is two rows, each with its own entry id; the same entry twice is one.
     static func appendTracks(in response: [String: Any], to page: inout BrowsePage) {
-        var seen = Set(page.tracks.map(\.id))
+        var seen = Set(page.tracks.map(\.rowId))
         let item = page.item
         for raw in JSON.findAll(key: "musicResponsiveListItemRenderer", in: response) {
-            guard var track = track(from: raw), seen.insert(track.id).inserted else { continue }
+            guard var track = track(from: raw), seen.insert(track.rowId).inserted else { continue }
             if track.artist.isEmpty {
                 track.artist = item.kind == .artist ? item.title : item.subtitle
             }
