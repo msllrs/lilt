@@ -480,10 +480,12 @@ struct BrowseScreen: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { heroHeight = $0 }
     }
 
-    /// Fetches the page every time it opens, since it may have changed elsewhere. A cached copy
-    /// already on screen stays put while it does: no skeleton, the scroll position kept, and a
-    /// changed page eases in. If the fetch fails, the cached copy stays rather than an error.
-    /// `announce`: a refresh you asked for, which says how it went in a notice.
+    /// Asks for the page as `YTMusicClient.revisitedPage(for:)` judges it due: nothing if it was
+    /// fetched in the last five minutes, else its first page, and the whole list only if that
+    /// first page has changed. A cached copy already on screen stays put while it does: no
+    /// skeleton, the scroll position kept, and a changed page eases in. If the fetch fails, the
+    /// cached copy stays rather than an error. `announce`: a refresh you asked for, which
+    /// gathers the whole page afresh and says how it went in a notice.
     ///
     /// A long list comes a hundred songs at a time: the first page shows at once and the rest
     /// join it as they come in, while the page is open. A cached copy longer than the first page
@@ -494,12 +496,8 @@ struct BrowseScreen: View {
         if case .failed = phase { phase = .loading }
         var list: BrowsePage
         do {
-            list = try await music.page(for: item)
+            list = try await music.revisitedPage(for: item, forceRefresh: announce)
             guard !Task.isCancelled else { return }
-            if showingCached, let before, before.tracks.count > list.tracks.count, list.continuation != nil {
-                list = try await music.wholeList(from: list)
-                guard !Task.isCancelled else { return }
-            }
             var loaded = list
             // Fill short album pages out with the artist's other releases and related artists
             // rather than leaving dead space under the tracks. The artist's page rarely changes,

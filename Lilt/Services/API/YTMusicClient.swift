@@ -22,6 +22,9 @@ final class YTMusicClient {
     /// song's mix). Read-only; tests stand in here.
     @ObservationIgnored private let fetchWatch: @MainActor (_ playlistId: String, _ videoId: String?) async throws -> JSONObject
     @ObservationIgnored private var pageCache: [String: BrowsePage] = [:]
+    /// When each kept page was last known to match the server, read against `now()`. A page
+    /// without one (never fetched whole, or Liked Music after a like) is due.
+    @ObservationIgnored private var pageFetched: [String: Date] = [:]
     @ObservationIgnored private var homeCache: (sections: [HomeSection], fetched: Date)?
     @ObservationIgnored private var libraryCache: (content: LibraryContent, fetched: Date)?
     /// The library fetch on its way, which another ask for the library joins.
@@ -67,6 +70,8 @@ final class YTMusicClient {
         cachedAccount = saved.account
     }
     private static let homeTTL: TimeInterval = 5 * 60
+    /// How long a page opened again is shown as kept, with nothing asked for.
+    private static let pageTTL: TimeInterval = homeTTL
 
     init(
         auth: AuthService,
@@ -191,6 +196,7 @@ final class YTMusicClient {
     func switchAccount(pageId: String?) {
         client.pageId = pageId
         pageCache = [:]
+        pageFetched = [:]
         // A page on its way is the old account's; a new ask mustn't join it.
         pageFetches = [:]
         homeCache = nil
@@ -448,7 +454,13 @@ final class YTMusicClient {
             likeChanges[track.id] = before
             throw error
         }
+        // The song now leads Liked Music, which the kept copy doesn't show, so the next visit
+        // asks again. An unlike needs nothing: `isLiked` already hides the row.
+        if liked { for id in Self.likedMusicIds { pageFetched[id] = nil } }
     }
+
+    /// Liked Music's browse id and its playlist id.
+    private static let likedMusicIds = ["VLLM", "LM"]
 
     /// Records a like made another way (the playing track's own heart), so rows agree.
     func noteLiked(_ liked: Bool, track: Track) { likeChanges[track.id] = liked }
@@ -558,24 +570,48 @@ final class YTMusicClient {
     /// The clock the kept pages' ages are read against; tests set their own.
     @ObservationIgnored var now: () -> Date = { .now }
 
-    /// A page opened again. For now, as the page screen has done: the first page afresh, and a
-    /// kept list longer than it gathered whole again.
+    /// A page opened again. One fetched in the last five minutes is the kept copy, with nothing
+    /// asked for. After that only its first page is asked for, and a first page whose songs are
+    /// as they were keeps the rest of the kept list, under the first page's header (Liked Music
+    /// is newest first, so a song liked on the phone shows there). A changed
+    /// first page with a longer list kept gathers the whole list again before it's returned, so
+    /// a list on screen never shrinks to regrow; with nothing longer kept, the first page is
+    /// returned and the screen gathers the rest as it shows it. `forceRefresh`, a refresh you
+    /// asked for, always gathers the whole list afresh.
     func revisitedPage(for item: BrowseItem, forceRefresh: Bool = false) async throws -> BrowsePage {
-        let before = pageCache[item.id]
-        let first = try await page(for: item)
-        if let before, before.tracks.count > first.tracks.count, first.continuation != nil {
-            return try await wholeList(from: first)
+        if !forceRefresh, let kept = pageCache[item.id], let fetched = pageFetched[item.id],
+           now().timeIntervalSince(fetched) < Self.pageTTL {
+            return kept
         }
-        return first
+        let first = try await page(for: item)
+        guard first.continuation != nil else { return first }
+        let kept = pageCache[item.id]
+        let keptIsLonger = (kept?.tracks.count ?? 0) > first.tracks.count
+        if !forceRefresh, let kept, keptIsLonger,
+           kept.tracks.prefix(first.tracks.count).map(\.rowId) == first.tracks.map(\.rowId) {
+            var renewed = first
+            renewed.tracks = kept.tracks
+            renewed.continuation = kept.continuation
+            pageCache[item.id] = renewed
+            pageFetched[item.id] = now()
+            return renewed
+        }
+        guard forceRefresh || keptIsLonger else { return first }
+        let whole = try await wholeList(from: first)
+        pageFetched[item.id] = now()
+        return whole
     }
 
     /// Browse pages on their way, by id, which another ask for the same page joins.
     @ObservationIgnored private var pageFetches: [String: Task<BrowsePage, Error>] = [:]
 
-    /// Always asks the server: a playlist can change elsewhere (a song liked on the phone), and
-    /// the cached copy is only for `cachedPage(for:)` to draw a first frame from. An ask for a
-    /// page already on its way (a hover warming it, then the page opening) joins that request
-    /// rather than making another; a failed one isn't kept, so the next ask tries again.
+    /// The first page from the server, for a page warmed ahead of opening, an artist's releases
+    /// beside an album, or `revisitedPage(for:)` to judge a kept list by. It's kept for
+    /// `cachedPage(for:)` to draw a first frame from, unless a longer list is kept and the first
+    /// page still has more to come: page one alone never replaces the rest, which
+    /// `revisitedPage(for:)` keeps or gathers again. An ask for a page already on its way (a hover
+    /// warming it, then the page opening) joins that request rather than making another; a
+    /// failed one isn't kept, so the next ask tries again.
     func page(for item: BrowseItem) async throws -> BrowsePage {
         if let inFlight = pageFetches[item.id] { return try await inFlight.value }
         let generation = accountGeneration
@@ -583,7 +619,13 @@ final class YTMusicClient {
             defer { if generation == accountGeneration { pageFetches[item.id] = nil } }
             let response = try await fetchPage(item.id)
             let page = SearchParser.browsePage(from: response.value, for: item)
-            if generation == accountGeneration { pageCache[item.id] = page }
+            if generation == accountGeneration {
+                let keptIsLonger = (pageCache[item.id]?.tracks.count ?? 0) > page.tracks.count
+                if !keptIsLonger || page.continuation == nil {
+                    pageCache[item.id] = page
+                    pageFetched[item.id] = now()
+                }
+            }
             ImageCache.shared.prefetch(
                 [page.item.artworkURL] + page.tracks.prefix(20).map(\.artworkURL)
                     + page.sections.flatMap { $0.items.prefix(8).map(\.artworkURL) }
