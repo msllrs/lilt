@@ -118,6 +118,7 @@ struct BrowseScreen: View {
             coverLoads += 1
         }
         .onDisappear {
+            trace("left, \(phase == .loaded ? "showing \(page?.tracks.count ?? 0) songs" : "still loading"), skeleton \(loadingGate.showsPlaceholder ? "up" : "down")")
             if navigation.path.last?.id == item.id || navigation.path.isEmpty { navigation.leadingCastAmount = 0 }
             if navigation.path.isEmpty { navigation.leadingTintAccent = nil }
         }
@@ -492,12 +493,13 @@ struct BrowseScreen: View {
     /// waits for the whole list instead, so a list on screen never shrinks to regrow.
     private func load(announce: Bool = false) async {
         let showingCached = phase == .loaded
+        trace("loading" + (showingCached ? ", showing \(page?.tracks.count ?? 0) kept songs" : ", nothing kept"))
         let before = page
         if case .failed = phase { phase = .loading }
         var list: BrowsePage
         do {
             list = try await music.revisitedPage(for: item, forceRefresh: announce)
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else { trace("load cancelled with \(list.tracks.count) songs in hand"); return }
             var loaded = list
             // Fill short album pages out with the artist's other releases and related artists
             // rather than leaving dead space under the tracks. The artist's page rarely changes,
@@ -532,7 +534,10 @@ struct BrowseScreen: View {
         var list = list
         var pages = 0
         while list.continuation != nil, pages < YTMusicClient.pageLimit {
-            guard let next = try? await music.nextPage(of: list), !Task.isCancelled, var shown = page else { return }
+            guard let next = try? await music.nextPage(of: list), !Task.isCancelled, var shown = page else {
+                trace("rest stopped at \(list.tracks.count) songs (cancelled \(Task.isCancelled), page \(page == nil ? "none" : "shown"))")
+                return
+            }
             list = next
             pages += 1
             shown.tracks = list.tracks
@@ -541,8 +546,15 @@ struct BrowseScreen: View {
         }
     }
 
+    /// A line in the diagnostics log about this page's loading, to see where a page that stays
+    /// a skeleton stops.
+    private func trace(_ message: String) {
+        Diagnostics.shared.record(.screen, "page \(item.id): " + message)
+    }
+
     private func show(_ loaded: BrowsePage, animated: Bool) {
         guard loaded != page || phase != .loaded else { return }
+        trace("shows \(loaded.tracks.count) songs (was \(phase == .loaded ? "showing \(page?.tracks.count ?? 0)" : "loading"), skeleton \(loadingGate.showsPlaceholder ? "up" : "down"))")
         if animated {
             withAnimation(Theme.Motion.standard) { page = loaded; phase = .loaded }
         } else {
