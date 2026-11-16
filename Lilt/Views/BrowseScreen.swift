@@ -554,16 +554,17 @@ struct BrowseScreen: View {
     }
 
     /// Albums, singles and similar artists from an artist page, renamed for an album context and
-    /// without repeating the album being viewed or sections the page already has.
-    private static func relatedSections(from artistPage: BrowsePage, excluding album: BrowsePage) -> [BrowseSection] {
+    /// without repeating the album being viewed or sections the page already has. A section is
+    /// known by what it holds, since its title is in the account's language: only albums (the
+    /// albums, the singles and EPs) or only artists (the ones fans also like).
+    static func relatedSections(from artistPage: BrowsePage, excluding album: BrowsePage) -> [BrowseSection] {
         let existing = Set(album.sections.map(\.title))
         var result: [BrowseSection] = []
-        for section in artistPage.sections {
-            let lower = section.title.lowercased()
+        for section in artistPage.sections where !section.items.isEmpty {
             let title: String
-            if lower.contains("album") || lower.contains("single") {
+            if section.items.allSatisfy({ $0.kind == .album }) {
                 title = "More from \(artistPage.item.title)"
-            } else if lower.contains("fans") || lower.contains("similar") || lower.contains("related") {
+            } else if section.items.allSatisfy({ $0.kind == .artist }) {
                 title = "Related artists"
             } else {
                 continue
