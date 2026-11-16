@@ -131,7 +131,12 @@ enum SearchParser {
     }
 
     static func browseItem(from item: [String: Any]) -> BrowseItem? {
-        guard let id = browseId(of: item), let kind = kind(forPageType: pageType(of: item)) else { return nil }
+        guard var id = browseId(of: item) else { return nil }
+        let pageType = pageType(of: item)
+        // The library's artists of saved songs: the channel id with MPLA before it, which opens
+        // the artist's own page once that's taken off.
+        if pageType == "MUSIC_PAGE_TYPE_LIBRARY_ARTIST", id.hasPrefix("MPLA") { id = String(id.dropFirst(4)) }
+        guard let kind = pageType == "MUSIC_PAGE_TYPE_LIBRARY_ARTIST" ? .artist : kind(forPageType: pageType) else { return nil }
         let titleRuns = flexRuns(item, 0)
         guard let title = JSON.string(titleRuns.first?["text"]) else { return nil }
         return browseItem(id: id, kind: kind, title: title, subtitleRuns: flexRuns(item, 1), artwork: thumbnail(in: item, size: 240))
