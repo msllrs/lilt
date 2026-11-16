@@ -3,8 +3,9 @@ import SwiftUI
 import Testing
 @testable import Lilt
 
-/// How song rows show YouTube Music's marks: an explicit badge before the artist, unless
-/// Settings ▸ Appearance ▸ Show explicit badges is off.
+/// How song rows show YouTube Music's marks: an explicit badge before the artist (unless
+/// Settings turns badges off), and a greyed-out song dimmed, or left out of the list when
+/// Settings ▸ Appearance ▸ Hide unavailable songs is on.
 @MainActor
 struct SongFlagRowTests {
     private static let width: CGFloat = 320
@@ -59,5 +60,18 @@ struct SongFlagRowTests {
         let off = await inkAtTheBylineStart(explicit, badges: false)
         #expect(with > without + 20, "the badge draws before the artist (\(with) vs \(without))")
         #expect(off == without, "with badges off, the row is as an unmarked one (\(off) vs \(without))")
+    }
+
+    @Test func hidingUnavailableSongsLeavesThemOut() async {
+        let list = [Track(id: "a", title: "A", artist: "Tool"), Track(id: "gone", title: "Gone", artist: "Tool", isUnavailable: true), Track(id: "b", title: "B", artist: "Tool")]
+        func height(hiding: Bool) async -> CGFloat {
+            let (window, hosting) = host(VStack(spacing: 0) { TrackRows(tracks: list) }.environment(\.hidesUnavailableSongs, hiding))
+            defer { window.close() }
+            await settle()
+            return hosting.fittingSize.height
+        }
+        let shown = await height(hiding: false)
+        let hidden = await height(hiding: true)
+        #expect(hidden < shown * 0.8, "two rows instead of three (\(hidden) vs \(shown))")
     }
 }

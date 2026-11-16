@@ -79,6 +79,7 @@ private struct AppearanceSection: View {
     @AppStorage(PanelRest.enabledKey) private var fadesWhenNotInUse = PanelRest.enabledByDefault
     @AppStorage(TrackRow.alwaysShowsLengthsKey) private var alwaysShowsLengths = false
     @AppStorage(TrackRow.showsExplicitBadgesKey) private var showsExplicitBadges = true
+    @AppStorage(TrackRows.hidesUnavailableKey) private var hidesUnavailableSongs = false
     @Bindable private var style = ArtworkStyle.shared
     @Environment(PlayerService.self) private var player
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -135,6 +136,10 @@ private struct AppearanceSection: View {
                 Text("Otherwise lengths show only while the pointer is over the panel.")
             }
             Toggle("Show explicit badges", isOn: $showsExplicitBadges)
+            Toggle(isOn: $hidesUnavailableSongs) {
+                Text("Hide unavailable songs")
+                Text("Songs YouTube Music can't play here are left out of lists, instead of shown dimmed.")
+            }
             Toggle(isOn: $fadesWhenNotInUse) {
                 Text("Fade when not in use")
                 Text("A few seconds after the pointer leaves, the list dims so the panel sits quietly on the edge. The player stays as it is.")

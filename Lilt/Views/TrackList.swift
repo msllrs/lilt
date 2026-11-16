@@ -2,7 +2,11 @@ import SwiftUI
 
 /// Rows for a list of tracks; tapping one plays it with the list as the queue.
 struct TrackRows: View {
+    /// Settings ▸ Appearance ▸ Hide unavailable songs.
+    static let hidesUnavailableKey = "hidesUnavailableSongs"
+
     @Environment(PlayerService.self) private var player
+    @Environment(\.hidesUnavailableSongs) private var hidesUnavailable
     let tracks: [Track]
     /// When set, render just this one track (still queued with the whole list). Lets a mixed
     /// list interleave track rows with other rows while keeping the shelf as the queue.
@@ -10,7 +14,11 @@ struct TrackRows: View {
     /// The page these tracks belong to, when they are its contents.
     var source: BrowseItem? = nil
 
+    /// The rows shown, which are also the queue a click plays.
+    private var shown: [Track] { hidesUnavailable ? tracks.filter { $0.isUnavailable != true } : tracks }
+
     var body: some View {
+        let tracks = shown
         ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
             if only == nil || only?.id == track.id {
                 TrackRow(

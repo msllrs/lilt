@@ -21,6 +21,7 @@ struct TrackRow: View {
     @Environment(PanelRest.self) private var rest: PanelRest?
     @Environment(\.alwaysShowsLengths) private var alwaysShowsLengths
     @Environment(\.showsExplicitBadges) private var showsExplicitBadges
+    private var isUnavailable: Bool { track.isUnavailable == true }
     private var showsLength: Bool { alwaysShowsLengths || (rest?.isPointerInside ?? true) }
     /// An album page's cover palette, for the text and the playing row's pill.
     @Environment(\.coverPalette) private var coverPalette
@@ -108,9 +109,14 @@ struct TrackRow: View {
                         .padding(.leading, Theme.Space.sm)
                 }
             }
+            // Greyed out as YouTube Music has it: listed, but it can't be played here, so
+            // there's nothing to queue and a click plays nothing.
+            .opacity(isUnavailable ? Theme.Emphasis.unavailable : 1)
             .padding(.horizontal, Self.horizontalPadding)
             .padding(.vertical, Self.verticalPadding)
-            .overlay(alignment: .trailing) { queueButton.padding(.trailing, Self.horizontalPadding) }
+            .overlay(alignment: .trailing) {
+                if !isUnavailable { queueButton.padding(.trailing, Self.horizontalPadding) }
+            }
             .contentShape(rowShape)
             .background {
                 rowShape

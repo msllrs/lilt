@@ -16,6 +16,7 @@ struct RootView: View {
     @AppStorage(SpinningArtwork.spinsKey) private var spinsPlayingCover = true
     @AppStorage(TrackRow.alwaysShowsLengthsKey) private var alwaysShowsLengths = false
     @AppStorage(TrackRow.showsExplicitBadgesKey) private var showsExplicitBadges = true
+    @AppStorage(TrackRows.hidesUnavailableKey) private var hidesUnavailableSongs = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -111,6 +112,7 @@ struct RootView: View {
         .environment(\.discsHoldStill, !spinsPlayingCover || reduceMotion || Theme.Motion.reducesMotion)
         .environment(\.alwaysShowsLengths, alwaysShowsLengths)
         .environment(\.showsExplicitBadges, showsExplicitBadges)
+        .environment(\.hidesUnavailableSongs, hidesUnavailableSongs)
     }
 }
 
@@ -346,4 +348,7 @@ extension EnvironmentValues {
     /// Settings ▸ Appearance ▸ Show explicit badges: an E before the artist of a song YouTube
     /// Music marks explicit.
     @Entry var showsExplicitBadges: Bool = true
+    /// Settings ▸ Appearance ▸ Hide unavailable songs: lists leave out the songs YouTube Music
+    /// greys out, rather than showing them dimmed.
+    @Entry var hidesUnavailableSongs: Bool = false
 }

@@ -69,6 +69,12 @@ enum Theme {
         static let selectionRing: CGFloat = 2
     }
 
+    /// How strongly something reads against the rest.
+    enum Emphasis {
+        /// A song YouTube Music greys out: listed, but it can't be played here.
+        static let unavailable: Double = 0.4
+    }
+
     /// Every duration here is the designed one stretched to the current `MotionPace`, so the
     /// tweak panel's Animation speed slows them all alike; at 1× each token is exactly its
     /// designed curve.
