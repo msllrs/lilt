@@ -43,7 +43,7 @@ struct SearchField: View {
                 .focused($isFocused)
                 // An ask made before the field is in a window is dropped; ask again once it's in
                 // one. Behind the text itself, so the probe also tells which text field is this one.
-                .background(WindowReader(host: host) { DispatchQueue.main.async { claimIfDropped("in a window") } })
+                .background(WindowReader(host: host) { DispatchQueue.main.async { claimIfDropped() } })
                 // As in any search field on the Mac: Escape lets the search go, and the field
                 // keeps the caret for the next one.
                 .onKeyPress(.escape) {
@@ -86,7 +86,6 @@ struct SearchField: View {
             // search root beneath it, and the filter opened without the caret; let it go, and
             // the filter's next look finds it free and asks again.
             if focused, !isOnTop {
-                Diagnostics.shared.record(.screen, "\(screenId ?? "search"): field gives up the caret it took while parked")
                 giveUpTheCaret()
                 return
             }
@@ -97,7 +96,6 @@ struct SearchField: View {
                 // On top rather than taking the caret by itself: a click asks for it too.
                 if !focused, isOnTop { isFocused = true; return }
             }
-            Diagnostics.shared.record(.screen, "\(screenId ?? "search"): field focus state \(focused)")
             onFocusChange?(focused)
         }
         // The panel often isn't key when this first appears; re-claim focus when it becomes key
@@ -117,19 +115,16 @@ struct SearchField: View {
     private func claimTheCaret() {
         guard takesTheCaret else { return }
         ask()
-        DispatchQueue.main.async { claimIfDropped("next turn") }
+        DispatchQueue.main.async { claimIfDropped() }
         // A field revealed in a transition (a shelf's filter flowing out of its button's glass)
         // may only be in the window once the transition ends; look again then.
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.afterTransition) { claimIfDropped("after the transition") }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.afterTransition) { claimIfDropped() }
     }
 
     /// Just past `Theme.Motion.standard`, the transition a revealed field arrives in.
     private static let afterTransition: TimeInterval = 0.4
 
-    private func claimIfDropped(_ when: String) {
-        do {
-            Diagnostics.shared.record(.screen, "\(screenId ?? "search"): field checks its caret (\(when)): on top \(isOnTop), takes it \(takesTheCaret), editing \(isEditing), focus state \(isFocused), window \(host.window.map { "\(type(of: $0)), first responder \(String(describing: $0.firstResponder.map { type(of: $0) }))" } ?? "none")")
-        }
+    private func claimIfDropped() {
         guard takesTheCaret, !isEditing else { return }
         ask()
     }
@@ -144,10 +139,6 @@ struct SearchField: View {
     /// Asks for the caret. If the focus state already reads true the ask was dropped, and
     /// setting true again would change nothing, so it goes false first and back (above).
     private func ask() {
-        do {
-            let window = host.window
-            Diagnostics.shared.record(.screen, "\(screenId ?? "search"): field asks for the caret (\(window.map { "in \(String(describing: type(of: $0)))\($0.isKeyWindow ? ", key" : ", not key")" } ?? "not in a window yet"), \(isFocused ? "asked before" : "first ask"))")
-        }
         if isFocused {
             isReasking = true
             isFocused = false

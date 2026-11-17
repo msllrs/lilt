@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 /// One of the library's shelves. Library shows the first few of each and a See All row; the
@@ -86,7 +85,6 @@ struct LibraryShelfScreen: View {
                 Color.clear.frame(width: Theme.Size.headerRow, height: Theme.Size.headerRow)
                 if isFiltering {
                     SearchField(text: $filter, prompt: "Filter \(shelf.title)", screenId: shelf.page.id) { focused in
-                        trace("filter field \(focused ? "has" : "lost") the caret")
                         if !focused { foldFilterIfEmpty() }
                     }
                     // The field lets an Escape through once it's empty.
@@ -128,22 +126,13 @@ struct LibraryShelfScreen: View {
 
     private static let filterGlass = "filter"
 
-    /// The diagnostics log follows the filter's focus, whose caret didn't arrive live.
-    private func trace(_ message: String) {
-        let window = NSApp.keyWindow
-        let responder = window?.firstResponder.map { String(describing: type(of: $0)) } ?? "none"
-        Diagnostics.shared.record(.screen, "\(shelf.page.id): \(message) (key window \(window.map { String(describing: type(of: $0)) } ?? "none"), first responder \(responder))")
-    }
-
     private func openFilter() {
-        trace("filter opened")
         withAnimation(Theme.Motion.standard) { isFiltering = true }
     }
 
     /// A filter typed in keeps the field: folding it away would hide why the list is short.
     private func foldFilterIfEmpty() {
         guard filter.isEmpty else { return }
-        trace("filter folded")
         withAnimation(Theme.Motion.standard) { isFiltering = false }
     }
 
