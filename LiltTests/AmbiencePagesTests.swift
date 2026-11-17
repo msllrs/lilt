@@ -6,13 +6,10 @@ import Testing
 /// goes on and let go when it goes off, so several can play at once and none costs anything idle.
 @MainActor
 struct AmbiencePagesTests {
-    /// An ambience service on fake pages. The app's saved levels are put back after: setting the
-    /// level saves it.
+    /// An ambience service on fake pages, with defaults of its own.
     private func withAmbience(_ body: (AmbienceService, () -> [FakeBridge]) throws -> Void) rethrows {
-        let saved = UserDefaults.standard.data(forKey: "ambience")
-        defer { if let saved { UserDefaults.standard.set(saved, forKey: "ambience") } else { UserDefaults.standard.removeObject(forKey: "ambience") } }
         var made: [FakeBridge] = []
-        let ambience = AmbienceService()
+        let ambience = AmbienceService(defaults: isolatedDefaults("AmbiencePagesTests"))
         ambience.makePlayer = { let page = FakeBridge(); made.append(page); return page }
         try body(ambience, { made })
     }

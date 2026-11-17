@@ -8,12 +8,10 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct AmbienceLevelRingTests {
-    /// An ambience service on fake pages, with the app's saved levels put back after.
+    /// An ambience service on fake pages, with defaults of its own.
     private func withAmbience(_ body: @MainActor (AmbienceService, @MainActor () -> [FakeBridge]) async throws -> Void) async rethrows {
-        let saved = UserDefaults.standard.data(forKey: "ambience")
-        defer { if let saved { UserDefaults.standard.set(saved, forKey: "ambience") } else { UserDefaults.standard.removeObject(forKey: "ambience") } }
         var made: [FakeBridge] = []
-        let ambience = AmbienceService()
+        let ambience = AmbienceService(defaults: isolatedDefaults("AmbienceLevelRingTests"))
         ambience.volume = 0.5
         ambience.makePlayer = { let page = FakeBridge(); made.append(page); return page }
         try await body(ambience, { made })
@@ -37,11 +35,11 @@ struct AmbienceLevelRingTests {
         }
     }
 
-    @Test func levelsAreRemembered() async throws {
-        try await withAmbience { ambience, _ in
-            ambience.setLevel(0.25, for: .ocean)
-            #expect(AmbienceService().level(of: .ocean) == 0.25)
-        }
+    @Test func levelsAreRemembered() {
+        let defaults = isolatedDefaults("AmbienceLevelRingTests")
+        let ambience = AmbienceService(defaults: defaults)
+        ambience.setLevel(0.25, for: .ocean)
+        #expect(AmbienceService(defaults: defaults).level(of: .ocean) == 0.25)
     }
 
     /// The drawer with its sounds, in an off-screen window, and the hit area over each button.

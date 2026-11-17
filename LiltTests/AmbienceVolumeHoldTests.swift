@@ -10,11 +10,9 @@ import WebKit
 struct AmbienceVolumeHoldTests {
     @Test func aSoundStartsAtItsLevel() async throws {
         let delegate = try #require(AppDelegate.shared)
-        let saved = UserDefaults.standard.data(forKey: "ambience")
-        defer { if let saved { UserDefaults.standard.set(saved, forKey: "ambience") } else { UserDefaults.standard.removeObject(forKey: "ambience") } }
 
         var pages: [any PlayerBridging] = []
-        let ambience = AmbienceService()
+        let ambience = AmbienceService(defaults: isolatedDefaults("AmbienceVolumeHoldTests"))
         ambience.hostWebView = delegate.ambience.hostWebView
         let make = try #require(delegate.ambience.makePlayer)
         ambience.makePlayer = { let page = make(); pages.append(page); return page }

@@ -27,7 +27,7 @@ struct AmbienceColorTests {
         let view = AmbiencePanel(accent: Self.accent)
             .frame(width: size.width, height: size.height)
             .environment(\.colorScheme, scheme)
-            .environment(AmbienceService())
+            .environment(AmbienceService(defaults: isolatedDefaults("AmbienceColorTests")))
         let hosting = NSHostingView(rootView: view)
         hosting.frame = CGRect(origin: .zero, size: size)
         let window = NSWindow(contentRect: CGRect(origin: CGPoint(x: -10_000, y: -10_000), size: size), styleMask: [.borderless], backing: .buffered, defer: false)
