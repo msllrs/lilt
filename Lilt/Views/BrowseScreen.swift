@@ -124,14 +124,25 @@ struct BrowseScreen: View {
         }
     }
 
+    /// The cover's colours for the back button, worked out as the page or its cover arrives
+    /// rather than each frame of the hand-off, which only moves the amount.
     private func publishLeadingCast() {
         guard navigation.path.last?.id == item.id else { return }
         let current = page ?? BrowsePage(item: item)
-        navigation.leadingCast = current.item.artworkURL.flatMap { ImageCache.shared.tint(for: $0, saturationBoost: ArtworkStyle.shared.leadingCast.saturation) }
-        navigation.leadingCastAmount = Double(scroll.collapse)
+        let cast = current.item.artworkURL.flatMap { ImageCache.shared.tint(for: $0, saturationBoost: ArtworkStyle.shared.leadingCast.saturation) }
+        if cast != navigation.leadingCast { navigation.leadingCast = cast }
+        publishLeadingCastAmount()
         // The back button's glyph wears the album's colour like the page's own controls; any
         // other page on top hands it back to plain.
-        navigation.leadingTintAccent = pageAccent
+        let accent = pageAccent
+        if accent != navigation.leadingTintAccent { navigation.leadingTintAccent = accent }
+    }
+
+    /// How far the compact header has come in, for the light on the back button beside it.
+    private func publishLeadingCastAmount() {
+        guard navigation.path.last?.id == item.id else { return }
+        let amount = Double(scroll.collapse)
+        if amount != navigation.leadingCastAmount { navigation.leadingCastAmount = amount }
     }
 
     private var playCast: PlayCastStyle { ArtworkStyle.shared.playCast }
@@ -351,7 +362,7 @@ struct BrowseScreen: View {
             let collapse = Self.smoothstep(min(max((travel - 0.45) / 0.55, 0), 1))
             if collapse != scroll.collapse {
                 scroll.collapse = collapse
-                publishLeadingCast()
+                publishLeadingCastAmount()
             }
         }
     }

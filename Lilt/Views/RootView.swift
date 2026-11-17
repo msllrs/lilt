@@ -287,27 +287,13 @@ struct LeadingButton: View {
             .animation(Theme.Motion.symbol, value: symbol)
             .headerControl()
             // Beside the compact now-playing header, the artwork's colour reaches the edge that
-            // faces it: a lit rim on the trailing side and a faint wash just inside it. As the
-            // header rises into place the light climbs the edge with it, bottom to top, and is
-            // fully drawn once the header is stuck.
+            // faces it. Only while a browse page is on top: the library page (or any page without
+            // a now-playing header) gets a clean button, even though the amount a page beneath
+            // published is kept for when you return to it.
             .overlay {
-                let amount = navigation.leadingCastAmount
-                InterpolatedColor(navigation.leadingCast) { sampled in
-                    // The cast is the palette's accent container: on dark glass, which has no
-                    // tonal range for a dim colour to sit on, lifted towards white and added as
-                    // light rather than laid over.
-                    GlassCast(
-                        shape: Circle(),
-                        palette: CoverPalette(accent: nil, cast: sampled, colorScheme: colorScheme, surface: .page),
-                        litEdge: .trailing,
-                        reveal: amount
-                    )
-                }
-                // Only while a browse page is on top: the library page (or any page without a
-                // now-playing header) gets a clean button, even though the amount a page beneath
-                // published is kept for when you return to it.
-                .opacity(isBack && navigation.path.last?.kind != .library ? 1 : 0)
-                .allowsHitTesting(false)
+                LeadingCastLight()
+                    .opacity(isBack && navigation.path.last?.kind != .library ? 1 : 0)
+                    .allowsHitTesting(false)
             }
         }
         .buttonStyle(.pressable(scale: 0.88))
@@ -317,6 +303,31 @@ struct LeadingButton: View {
             if hovering, !isBack { Task { _ = try? await music.library() } }
         }
         .help(isBack ? "Back" : "Library")
+    }
+}
+
+/// The compact header's light on the back button: a lit rim on the trailing side and a faint
+/// wash just inside it. As the header rises into place the light climbs the edge with it,
+/// bottom to top, and is fully drawn once the header is stuck. It reads how far the header has
+/// come in a body of its own, so the climb, a step every frame of the scroll, redraws this light
+/// and not the button, its glyph and the glyph's palette.
+private struct LeadingCastLight: View {
+    @Environment(NavigationModel.self) private var navigation
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let amount = navigation.leadingCastAmount
+        InterpolatedColor(navigation.leadingCast) { sampled in
+            // The cast is the palette's accent container: on dark glass, which has no tonal
+            // range for a dim colour to sit on, lifted towards white and added as light rather
+            // than laid over.
+            GlassCast(
+                shape: Circle(),
+                palette: CoverPalette(accent: nil, cast: sampled, colorScheme: colorScheme, surface: .page),
+                litEdge: .trailing,
+                reveal: amount
+            )
+        }
     }
 }
 
