@@ -27,6 +27,9 @@ struct BrowseRow: View {
     private var artworkRadius: CGFloat { item.kind == .artist ? Theme.Size.rowArtwork / 2 : Theme.Radius.rowArtwork }
 
     var body: some View {
+        #if DEBUG
+        let _ = RowBuildCounts.noteItem(item)
+        #endif
         Button {
             if tracksHeroes {
                 HeroFlight.shared.tapped(item, on: screen, frame: coverFrame.frame, radius: artworkRadius, path: navigation.path)

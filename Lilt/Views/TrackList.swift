@@ -96,13 +96,16 @@ struct TrackList: View {
 /// How many times each song's row has been built, and its place in a list gone through, by
 /// video id. Tests read it to check that a change rebuilds only the rows it touches: play/pause
 /// re-running every row on screen, or a shelf going through all its songs for each one, is felt
-/// as a hitch. Keyed by song, so tests running alongside don't count each other's rows.
+/// as a hitch. Keyed by song, so tests running alongside don't count each other's rows. Album,
+/// playlist and artist rows are counted the same way, by browse id.
 @MainActor
 enum RowBuildCounts {
     static var rows: [String: Int] = [:]
     static var slots: [String: Int] = [:]
+    static var items: [String: Int] = [:]
 
     static func noteRow(_ track: Track) { rows[track.id, default: 0] += 1 }
     static func noteSlot(_ track: Track) { slots[track.id, default: 0] += 1 }
+    static func noteItem(_ item: BrowseItem) { items[item.id, default: 0] += 1 }
 }
 #endif

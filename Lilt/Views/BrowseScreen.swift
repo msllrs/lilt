@@ -317,7 +317,10 @@ struct BrowseScreen: View {
     }
 
     private func pageBody(_ page: BrowsePage, palette: CoverPalette) -> some View {
-        ScrollView {
+        #if DEBUG
+        let _ = PageBuildCounts.notePage(item)
+        #endif
+        return ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 header(page, palette: palette)
                 if awaitingContent {
@@ -590,6 +593,18 @@ struct BrowseScreen: View {
         return result
     }
 }
+
+#if DEBUG
+/// How many times each browse page's content has been built, by browse id: the hero, the list
+/// and every row in it are made again each time. Tests read it to check that hovering the
+/// header or the music pausing doesn't rebuild the page around the one control it changes.
+@MainActor
+enum PageBuildCounts {
+    static var pages: [String: Int] = [:]
+
+    static func notePage(_ item: BrowseItem) { pages[item.id, default: 0] += 1 }
+}
+#endif
 
 /// Where a browse page has scrolled, for the things that follow it point by point: the hero's
 /// fade, the compact header, the header's blur and the cover light. Kept out of the page's own
