@@ -67,6 +67,8 @@ enum Theme {
         static let windowStylePreviewScale: CGFloat = 0.2
         /// The ring round the chosen window style, in the system accent colour.
         static let selectionRing: CGFloat = 2
+        /// The ring round an ambience sound's button that shows, and sets, its level.
+        static let levelRing: CGFloat = 2
     }
 
     /// How strongly something reads against the rest.

@@ -30,25 +30,14 @@ struct AmbiencePanel: View {
             Rectangle()
                 .fill(.primary.opacity(0.08))
                 .frame(height: 1)
-            // The bed: each sound a toggle, one level for all of them.
+            // The bed: each sound a toggle with a level of its own round it, and one level for
+            // all of them at the end.
             HStack(spacing: Theme.Space.xs) {
                 ForEach(AmbienceService.Sound.allCases) { sound in
-                    let on = ambience.active.contains(sound)
-                    Button { ambience.toggle(sound) } label: {
-                        Image(systemName: sound.symbol)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(on ? tint : dim)
-                            // Pulses while its page loads, a few seconds, as the stream's does.
-                            .symbolEffect(.pulse, isActive: ambience.loading.contains(sound))
-                            .frame(width: 28, height: 28)
-                            .background(Circle().fill(tint.opacity(on ? 0.14 : 0)))
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.pressable(scale: 0.88))
-                    .help(sound.name)
+                    AmbienceSoundButton(sound: sound, tint: tint, dim: dim)
                 }
                 Spacer(minLength: Theme.Space.sm)
-                level($ambience.volume, help: "Ambience level")
+                level($ambience.volume, help: "Level of all the sounds")
             }
             // The feed: the airplane switches it on and off, under the rain button; the field
             // beside it takes the stream's URL; a level at the end.
@@ -94,5 +83,69 @@ struct AmbiencePanel: View {
         .frame(minWidth: 44, maxWidth: 72)
         .frame(height: 16)
         .help(help)
+    }
+}
+
+/// One sound of the bed: a click switches it on or off, and a drag up or down sets its level,
+/// drawn as a ring round the button while it plays.
+struct AmbienceSoundButton: View {
+    /// A drag this far sets the level from silent to full.
+    static let travel: CGFloat = 64
+    /// Less movement than this between press and release is a click.
+    static let pull: CGFloat = 4
+
+    let sound: AmbienceService.Sound
+    let tint: Color
+    let dim: Color
+
+    @Environment(AmbienceService.self) private var ambience
+    /// The level when the drag began.
+    @State private var dragStart: Float?
+
+    var body: some View {
+        let on = ambience.active.contains(sound)
+        let level = ambience.level(of: sound)
+        Image(systemName: sound.symbol)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(on ? tint : dim)
+            // Pulses while its page loads, a few seconds, as the stream's does.
+            .symbolEffect(.pulse, isActive: ambience.loading.contains(sound))
+            .frame(width: 28, height: 28)
+            .background(Circle().fill(tint.opacity(on ? 0.14 : 0)))
+            .overlay {
+                if on {
+                    Circle()
+                        .inset(by: Theme.Size.levelRing / 2)
+                        .trim(from: 0, to: CGFloat(level))
+                        .stroke(tint, style: StrokeStyle(lineWidth: Theme.Size.levelRing, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .transition(.opacity)
+                }
+            }
+            .animation(Theme.Motion.symbol, value: on)
+            // AppKit takes the press, so a drag sets the level rather than moving the window.
+            .overlay {
+                GrabHandle(
+                    onToggle: { ambience.toggle(sound) },
+                    onDrag: { travel in
+                        guard abs(travel) >= Self.pull else { return }
+                        let start = dragStart ?? level
+                        dragStart = start
+                        ambience.setLevel(start + Float(travel / Self.travel), for: sound)
+                    },
+                    onRelease: { _, _ in dragStart = nil },
+                    pull: Self.pull,
+                    toolTip: on ? "\(sound.name): drag up or down to set its level" : sound.name
+                )
+            }
+            .accessibilityElement()
+            .accessibilityLabel(sound.name)
+            .accessibilityValue(on ? "\(Int(level * 100)) percent" : "Off")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { ambience.toggle(sound) }
+            .accessibilityAdjustableAction { direction in
+                let step: Float = direction == .increment ? 0.1 : -0.1
+                ambience.setLevel(level + step, for: sound)
+            }
     }
 }

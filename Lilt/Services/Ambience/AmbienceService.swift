@@ -55,9 +55,23 @@ final class AmbienceService {
     /// Level of the whole ambience bed under the music.
     var volume: Float = 0.5 {
         didSet {
-            for player in players.values { player.setVolume(Double(volume)) }
+            applyVolumes()
             save()
         }
+    }
+    /// Each sound's own level, under the bed's: the ring round its button. Full until set.
+    private(set) var levels: [Sound: Float] = [:]
+
+    func level(of sound: Sound) -> Float { levels[sound] ?? 1 }
+
+    func setLevel(_ level: Float, for sound: Sound) {
+        levels[sound] = max(0, min(1, level))
+        players[sound]?.setVolume(Double(volume * self.level(of: sound)))
+        save()
+    }
+
+    private func applyVolumes() {
+        for (sound, player) in players { player.setVolume(Double(volume * level(of: sound))) }
     }
     /// Sounds switched on whose page hasn't started to sound yet; their buttons pulse.
     private(set) var loading: Set<Sound> = []
@@ -120,7 +134,7 @@ final class AmbienceService {
         switch event {
         case .playing:
             loading.remove(sound)
-            player.setVolume(Double(volume))
+            player.setVolume(Double(volume * level(of: sound)))
         case .state(let snapshot):
             // Back to the start a moment before the end, so the page never finishes the track
             // and autoplays something else.
@@ -192,10 +206,11 @@ final class AmbienceService {
     // MARK: Remembered settings
 
     private static let key = "ambience"
-    private struct Saved: Codable { var volume: Float; var streamVolume: Float; var streamURL: String? }
+    private struct Saved: Codable { var volume: Float; var streamVolume: Float; var streamURL: String?; var levels: [String: Float]? }
 
     private func save() {
-        UserDefaults.standard.set(try? JSONEncoder().encode(Saved(volume: volume, streamVolume: streamVolume, streamURL: streamURL)), forKey: Self.key)
+        let levels = Dictionary(uniqueKeysWithValues: levels.map { ($0.key.rawValue, $0.value) })
+        UserDefaults.standard.set(try? JSONEncoder().encode(Saved(volume: volume, streamVolume: streamVolume, streamURL: streamURL, levels: levels)), forKey: Self.key)
     }
 
     private func restore() {
@@ -203,5 +218,6 @@ final class AmbienceService {
         volume = saved.volume
         streamVolume = saved.streamVolume
         streamURL = saved.streamURL ?? ""
+        levels = Dictionary(uniqueKeysWithValues: (saved.levels ?? [:]).compactMap { key, value in Sound(rawValue: key).map { ($0, value) } })
     }
 }

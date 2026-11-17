@@ -18,7 +18,9 @@ final class FakeBridge: PlayerBridging {
     func play() { calls.append("play") }
     func pause() { calls.append("pause") }
     func seek(to seconds: Double) { calls.append("seek") }
-    func setVolume(_ volume: Double) {}
+    /// The volume it was last given.
+    private(set) var volume: Double?
+    func setVolume(_ volume: Double) { self.volume = volume }
     func toggleLike() {}
     func unload() { calls.append("unload") }
 
