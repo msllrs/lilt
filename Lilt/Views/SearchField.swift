@@ -28,9 +28,11 @@ struct SearchField: View {
     /// because it was asked for, so always; the search root's only with the setting.
     private var takesTheCaret: Bool { isOnTop && (screenId != nil || focusesAutomatically) }
 
-    /// Whether the caret is really in the field: its window's field editor is editing. The focus
-    /// state can't say, since it reads true after an ask the window never saw.
-    private var isEditing: Bool { host.window?.firstResponder is NSTextView }
+    /// Whether the caret is really in the field: its window's field editor is editing this
+    /// field's text. The focus state can't say, since it reads true after an ask the window never
+    /// saw; nor can a field editor at work alone, since parked screens keep their fields in the
+    /// window, and the one editing may be the search root's under a shelf.
+    private var isEditing: Bool { host.isEditing }
 
     var body: some View {
         HStack(spacing: Theme.Space.sm) {
@@ -39,6 +41,9 @@ struct SearchField: View {
             TextField(prompt, text: $text)
                 .textFieldStyle(.plain)
                 .focused($isFocused)
+                // An ask made before the field is in a window is dropped; ask again once it's in
+                // one. Behind the text itself, so the probe also tells which text field is this one.
+                .background(WindowReader(host: host) { DispatchQueue.main.async { claimIfDropped("in a window") } })
                 // As in any search field on the Mac: Escape lets the search go, and the field
                 // keeps the caret for the next one.
                 .onKeyPress(.escape) {
@@ -71,14 +76,20 @@ struct SearchField: View {
             }
         }
         .modifier(SearchSurface())
-        // An ask made before the field is in a window is dropped; ask again once it's in one.
-        .background(WindowReader(host: host) { DispatchQueue.main.async { claimIfDropped("in a window") } })
         .onAppear { claimTheCaret() }
         // Give focus up when a page opens over the search root, take it back when you return.
         .onChange(of: isOnTop) { _, onTop in
-            if onTop { claimTheCaret() } else { isFocused = false }
+            if onTop { claimTheCaret() } else { giveUpTheCaret() }
         }
         .onChange(of: isFocused) { _, focused in
+            // A parked field never keeps the caret. Live, a shelf filter's ask landed on the
+            // search root beneath it, and the filter opened without the caret; let it go, and
+            // the filter's next look finds it free and asks again.
+            if focused, !isOnTop {
+                Diagnostics.shared.record(.screen, "\(screenId ?? "search"): field gives up the caret it took while parked")
+                giveUpTheCaret()
+                return
+            }
             if isReasking {
                 isReasking = false
                 // The false half of asking again: ask for real now that the stale ask is
@@ -123,6 +134,13 @@ struct SearchField: View {
         ask()
     }
 
+    /// Lets the caret go. The focus state going false alone left the field editor at work in a
+    /// parked field, typing into text nobody could see, so the window lets it go too.
+    private func giveUpTheCaret() {
+        isFocused = false
+        if isEditing { host.window?.makeFirstResponder(nil) }
+    }
+
     /// Asks for the caret. If the focus state already reads true the ask was dropped, and
     /// setting true again would change nothing, so it goes false first and back (above).
     private func ask() {
@@ -139,9 +157,23 @@ struct SearchField: View {
     }
 }
 
-/// The window the field is in, kept without a view update when it changes.
+/// The window the field is in, kept without a view update when it changes, and the probe
+/// behind its text.
 private final class HostWindow {
     weak var window: NSWindow?
+    weak var probe: NSView?
+
+    /// Whether the window's field editor is editing the text field behind the probe. SwiftUI
+    /// keeps the text field and its background in views of their own, so they're matched by
+    /// place: the text field covers the background it was laid out with. A parked screen's
+    /// field sits a page's travel aside, so it never covers this one's.
+    var isEditing: Bool {
+        guard let probe, let window = probe.window,
+              let editor = window.firstResponder as? NSTextView,
+              let field = editor.delegate as? NSTextField, field.window === window
+        else { return false }
+        return field.convert(field.bounds, to: nil).contains(probe.convert(probe.bounds, to: nil))
+    }
 }
 
 private struct WindowReader: NSViewRepresentable {
@@ -159,6 +191,7 @@ private struct WindowReader: NSViewRepresentable {
             self.host = host
             self.arrived = arrived
             super.init(frame: .zero)
+            host.probe = self
         }
 
         @available(*, unavailable)
