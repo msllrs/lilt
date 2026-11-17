@@ -42,6 +42,10 @@ final class SpinningPictureView: NSView {
     private var resting: Double = 0
 
     static let spinKey = "spin"
+    /// The turn's frame rate. At 45° a second a 30 Hz frame moves the disc under a degree and a
+    /// half, which reads as smooth as 120; left uncapped, a ProMotion display recomposites the
+    /// whole panel, its header blur and the platter's glass, at its full rate while music plays.
+    static let spinFrameRate = CAFrameRateRange(minimum: 15, maximum: 30, preferred: 30)
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -119,6 +123,7 @@ final class SpinningPictureView: NSView {
             turn.duration = 360 / spin.degreesPerSecond
             turn.repeatCount = .infinity
             turn.isRemovedOnCompletion = false
+            turn.preferredFrameRateRange = Self.spinFrameRate
             turn.beginTime = picture.convertTime(CACurrentMediaTime(), from: nil)
             picture.add(turn, forKey: Self.spinKey)
         } else if let shown {
