@@ -44,12 +44,14 @@ struct CoverFilesTests {
         }
     }
 
+    /// The test host's colours go to a file of their own, away from the app's.
     @Test func aCoversColoursAreRemembered() async throws {
-        try await Self.preserving("artwork-colours.json") {
+        #expect(ImageCache.coloursFile.lastPathComponent != "artwork-colours.json", "the tests' made-up covers stay out of the app's file")
+        try await Self.preserving(ImageCache.coloursFile.lastPathComponent) {
             let url = URL(string: "https://lh3.googleusercontent.com/test-colours-\(UUID().uuidString)=w240-h240")!
             ImageCache.shared.store(Self.cover(80), for: url)
             ImageCache.shared.flushToDisk()
-            let data = try Data(contentsOf: Self.caches.appendingPathComponent("artwork-colours.json"))
+            let data = try Data(contentsOf: ImageCache.coloursFile)
             let saved = try JSONDecoder().decode([String: [String: Double]].self, from: data)
             let record = saved[ImageCache.baseKey(url)]
             #expect(record != nil, "the cover's colours were written")

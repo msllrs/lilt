@@ -339,7 +339,12 @@ final class ImageCache {
         }
     }
 
-    private static let coloursFile = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("artwork-colours.json")
+    /// The test host is a whole Lilt sharing the app's container, and its tests store hundreds
+    /// of made-up covers; their colours go to a file of their own, where they had pushed every
+    /// real cover's out of the app's.
+    static let coloursFile = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent(
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil ? "artwork-colours.json" : "artwork-colours (Tests).json"
+    )
     private static let rememberedLimit = 600
     /// Keyed by the size-stripped URL; insertion order is kept so the oldest can be dropped.
     private lazy var remembered: [String: ColourRecord] = Self.loadRemembered()
