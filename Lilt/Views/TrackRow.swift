@@ -107,7 +107,14 @@ struct TrackRow: View {
             .padding(.horizontal, Self.horizontalPadding)
             .padding(.vertical, Self.verticalPadding)
             .overlay(alignment: .trailing) {
-                if !isUnavailable { queueButton.padding(.trailing, Self.horizontalPadding) }
+                // Built only while the pointer is over the row: a list's rows each have one, and
+                // only the hovered row shows it. The tick's state is the row's, so a pointer
+                // back within the tick's moment finds it still showing.
+                ZStack {
+                    if isHovering && !isUnavailable { queueButton.padding(.trailing, Self.horizontalPadding) }
+                }
+                // In and out at once, whatever animation the hover came with.
+                .transaction { $0.animation = nil }
             }
             .contentShape(rowShape)
             .background {
@@ -222,37 +229,32 @@ struct TrackRow: View {
         #if DEBUG
         let _ = RowBuildCounts.notePart("queueButton")
         #endif
-        Group {
-            Button {
-                enqueue()
-                // A tick to confirm, then back to the queue glyph so it can be added again.
-                justQueued?.cancel()
-                justQueued = Task {
-                    try? await Task.sleep(for: .seconds(1.2))
-                    guard !Task.isCancelled else { return }
-                    showsTick = false
-                }
-                showsTick = true
-            } label: {
-                let symbol = showsTick ? "checkmark" : "text.line.last.and.arrowtriangle.forward"
-                ZStack {
-                    // Glyph swap: scale, blur and fade in place, like the platter's buttons.
-                    Image(systemName: symbol)
-                        .font(.system(size: 11, weight: .semibold))
-                        .id(symbol)
-                        .transition(.blurScale)
-                }
-                .animation(Theme.Motion.symbol, value: symbol)
-                .foregroundStyle(coverPalette.style(\.secondary, or: .secondary))
-                .frame(width: Self.queueButtonSize, height: Self.queueButtonSize)
-                .contentShape(Circle())
+        Button {
+            enqueue()
+            // A tick to confirm, then back to the queue glyph so it can be added again.
+            justQueued?.cancel()
+            justQueued = Task {
+                try? await Task.sleep(for: .seconds(1.2))
+                guard !Task.isCancelled else { return }
+                showsTick = false
             }
-            .buttonStyle(.pressable(scale: 0.85))
-            .opacity(isHovering ? 1 : 0)
-            .transaction { $0.animation = nil }
-            .allowsHitTesting(isHovering)
-            .help("Add to queue")
+            showsTick = true
+        } label: {
+            let symbol = showsTick ? "checkmark" : "text.line.last.and.arrowtriangle.forward"
+            ZStack {
+                // Glyph swap: scale, blur and fade in place, like the platter's buttons.
+                Image(systemName: symbol)
+                    .font(.system(size: 11, weight: .semibold))
+                    .id(symbol)
+                    .transition(.blurScale)
+            }
+            .animation(Theme.Motion.symbol, value: symbol)
+            .foregroundStyle(coverPalette.style(\.secondary, or: .secondary))
+            .frame(width: Self.queueButtonSize, height: Self.queueButtonSize)
+            .contentShape(Circle())
         }
+        .buttonStyle(.pressable(scale: 0.85))
+        .help("Add to queue")
     }
 }
 
