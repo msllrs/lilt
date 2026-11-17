@@ -39,8 +39,6 @@ struct BrowseScreen: View {
     /// read only by the views that move with it.
     @State private var scroll = PageScroll()
     @State private var heroHeight: CGFloat = 280
-    /// Extra bottom padding that guarantees enough scroll range for the hero to hand off fully.
-    @State private var extraBottom: CGFloat = 0
     /// Whether the pointer is over the header, read only by the title whose marquee it runs.
     @State private var headerHover = HeaderHover()
     /// Bumped once the cover has loaded, so an accent measured from it is read again (the image
@@ -326,7 +324,8 @@ struct BrowseScreen: View {
             }
             .coordinateSpace(.named(Self.contentSpace))
             .padding(.horizontal, Theme.Space.rowInset)
-            .padding(.bottom, Theme.Space.sm + extraBottom)
+            .padding(.bottom, Theme.Space.sm)
+            .modifier(ScrollRunway(scroll: scroll))
         }
         .scrollIndicators(.never)
         .panelScrollEdge()
@@ -348,11 +347,13 @@ struct BrowseScreen: View {
 
             // How far the list could scroll on its own, before our padding (negative when the
             // content is shorter than the view).
-            let naturalRange = metrics.contentHeight - extraBottom - metrics.visibleHeight
+            let naturalRange = metrics.contentHeight - scroll.runway - metrics.visibleHeight
             // Guarantee a full hero's worth of travel whatever the window height, so even a short
             // page can scroll the hero away and the hand-off can never stall halfway. A page that
-            // falls short of the view gets the shortfall as well.
-            extraBottom = max(0, heroHeight - naturalRange)
+            // falls short of the view gets the shortfall as well. In whole points, so the lazy
+            // stack's estimate of its height settling by fractions doesn't move it every step.
+            let runway = max(0, heroHeight - naturalRange).rounded(.up)
+            if runway != scroll.runway { scroll.runway = runway }
 
             // The hero fades across its own height, so it is gone exactly when it has scrolled
             // under the header and never leaves a blank gap above the tracks.
@@ -585,6 +586,19 @@ enum PageBuildCounts {
     var heroFade: CGFloat = 0
     /// Compact header visibility, 0 to 1. Comes in over the second half of the hero's travel.
     var collapse: CGFloat = 0
+    /// Extra bottom padding that guarantees enough scroll range for the hero to hand off fully.
+    /// It follows the list's height, which on a short album settles as the lazy stack measures
+    /// its rows mid-scroll; kept here it pads the list without rebuilding the page.
+    var runway: CGFloat = 0
+}
+
+/// The padding under a short page's list that lets its hero scroll away.
+private struct ScrollRunway: ViewModifier {
+    let scroll: PageScroll
+
+    func body(content: Content) -> some View {
+        content.padding(.bottom, scroll.runway)
+    }
 }
 
 /// Whether the pointer is over a browse page's header. Kept out of the page's own state so
