@@ -77,6 +77,73 @@ struct ShelfFilterCaretTests {
         }
     }
 
+    /// The search root's field parked as the column parks it, slid a page's travel aside and
+    /// unseen, with a shelf's filter on top once a page is open. Or, `plain`, some other text
+    /// field parked there, which knows nothing of giving the caret up.
+    private struct ParkedAndFilter: View {
+        @Bindable var navigation: NavigationModel
+        var plain = false
+        @State private var filter = ""
+        var body: some View {
+            let parked = !navigation.path.isEmpty
+            ZStack(alignment: .top) {
+                Group {
+                    if plain {
+                        TextField("Search", text: $navigation.query).textFieldStyle(.plain)
+                    } else {
+                        SearchField(text: $navigation.query)
+                    }
+                }
+                .offset(x: parked ? -Theme.Motion.pageTravel : 0)
+                .opacity(parked ? 0 : 1)
+                .allowsHitTesting(!parked)
+                if let page = navigation.path.last {
+                    SearchField(text: $filter, prompt: "Filter Albums", screenId: page.id)
+                }
+            }
+            .environment(navigation)
+            .padding()
+        }
+    }
+
+    /// Live, the filter's ask landed on the parked search field, and the filter took that
+    /// field's editing for its own. Here the caret is put in the parked field just as the filter
+    /// arrives, as it was live; the filter's later looks must find it isn't theirs and ask again.
+    @Test func theFilterTakesTheCaretBackFromTheParkedSearch() async throws {
+        try await caretLandsBeneath(plain: false)
+    }
+
+    /// The filter knows the caret is its own by the text field being edited, not by a field
+    /// editor being at work somewhere in the panel: with another field beneath holding the caret
+    /// and never letting it go, the filter still asks again.
+    @Test func theFilterTakesTheCaretFromAnyFieldBeneath() async throws {
+        try await caretLandsBeneath(plain: true)
+    }
+
+    private func caretLandsBeneath(plain: Bool) async throws {
+        try await saved {
+            let navigation = NavigationModel()
+            navigation.path = []
+            let panel = PanelWindow(contentRect: NSRect(x: -10_000, y: -10_000, width: 320, height: 80))
+            panel.contentView = NSHostingView(rootView: ParkedAndFilter(navigation: navigation, plain: plain))
+            panel.makeKeyAndOrderFront(nil)
+            defer { panel.orderOut(nil); panel.close() }
+            try await Task.sleep(for: .milliseconds(200))
+            let content = panel.contentView!
+            let search = try #require(Self.field(prompt: "Search", in: content))
+
+            navigation.path = [NavigationModel.library, LibraryShelf.albums.page]
+            for _ in 0..<25 where Self.field(prompt: "Filter Albums", in: content) == nil { try await Task.sleep(for: .milliseconds(10)) }
+            let filter = try #require(Self.field(prompt: "Filter Albums", in: content), "the shelf's page opens its filter")
+            panel.makeFirstResponder(search)
+            try #require(Self.isEditing(search, in: panel), "the caret lands in the parked search, as it did live")
+
+            for _ in 0..<50 where !Self.isEditing(filter, in: panel) { try await Task.sleep(for: .milliseconds(20)) }
+            let editing = (panel.firstResponder as? NSTextView)?.delegate as? NSTextField
+            #expect(Self.isEditing(filter, in: panel), "the caret is in \(editing?.placeholderString ?? "nothing"), not the filter")
+        }
+    }
+
     /// The search root's field, alone in a key panel.
     private struct Field: View {
         @Bindable var navigation: NavigationModel
