@@ -41,8 +41,8 @@ struct BrowseScreen: View {
     @State private var heroHeight: CGFloat = 280
     /// Extra bottom padding that guarantees enough scroll range for the hero to hand off fully.
     @State private var extraBottom: CGFloat = 0
-    @State private var isHoveringCompactArtwork = false
-    @State private var isHoveringHeader = false
+    /// Whether the pointer is over the header, read only by the title whose marquee it runs.
+    @State private var headerHover = HeaderHover()
     /// Bumped once the cover has loaded, so an accent measured from it is read again (the image
     /// cache isn't observable).
     @State private var coverLoads = 0
@@ -84,9 +84,9 @@ struct BrowseScreen: View {
 
             if let page = page ?? Optional(BrowsePage(item: item)) {
                 HStack(spacing: Theme.Space.sm) {
-                    compactArtwork(page)
+                    CompactArtwork(page: page)
                     VStack(alignment: .leading, spacing: 0) {
-                        MarqueeText(text: page.item.title, isActive: isHoveringHeader, font: .callout.weight(.medium), color: palette.style(\.primary, or: .primary))
+                        HeaderTitle(text: page.item.title, hover: headerHover, color: palette.style(\.primary, or: .primary))
                         if !page.item.subtitle.isEmpty {
                             ArtistLink(name: page.item.subtitle, item: pageArtist(page), font: .caption2)
                         }
@@ -102,7 +102,7 @@ struct BrowseScreen: View {
         .padding(.horizontal, Theme.Space.panelInset)
         .padding(.bottom, Theme.Space.sm)
         .modifier(ScrolledHeaderBackdrop(scroll: scroll))
-        .onHover { isHoveringHeader = $0 }
+        .onHover { headerHover.isHovering = $0 }
         // The back button sits beside this header; let it catch the artwork's colour as the
         // header arrives (the scroll publishes as it moves). Only the page on top speaks for it,
         // and it lets go when it leaves.
@@ -168,11 +168,6 @@ struct BrowseScreen: View {
     /// Liked Music is YouTube's automatic playlist: always in the library, never saved or removed.
     nonisolated static func isLikedMusic(_ item: BrowseItem) -> Bool { item.id == "VLLM" || item.id == "LM" }
 
-    /// A song unliked or removed in Lilt leaves the list at once, without waiting for a refetch.
-    private func shownTracks(_ page: BrowsePage) -> [Track] {
-        let likedMusic = Self.isLikedMusic(page.item)
-        return page.tracks.filter { !music.isRemoved($0) && (!likedMusic || music.isLiked($0) != false) }
-    }
 
     /// Play, save and shuffle all share this height so the row reads as one set of controls.
     static let heroControlHeight: CGFloat = 38
@@ -262,54 +257,6 @@ struct BrowseScreen: View {
         return BrowseItem(id: artistId, kind: .artist, title: page.item.subtitle, subtitle: "Artist", artworkURL: nil)
     }
 
-    /// True when the track playing right now came from this page.
-    /// Only when the queue was started from this page: a track that merely appears in this
-    /// playlist, played from elsewhere, doesn't make the playlist "playing".
-    private func isPlayingFromPage(_ page: BrowsePage) -> Bool {
-        player.current != nil && player.sourceId == page.item.id
-    }
-
-    /// The compact artwork doubles as a play button once the hero's own Play has scrolled away,
-    /// and becomes a spinning record while this page is the one playing.
-    private func compactArtwork(_ page: BrowsePage) -> some View {
-        // The same size as the controls beside it (see Theme.Size.headerArtwork).
-        let size = Theme.Size.headerArtwork
-        let isArtist = page.item.kind == .artist
-        let radius: CGFloat = isArtist ? size / 2 : Theme.Radius.artwork(size)
-        let playingHere = isPlayingFromPage(page)
-        return Button {
-            if playingHere { player.togglePlayPause() } else { player.play(page.tracks, startingAt: 0, source: page.item) }
-        } label: {
-            SpinningArtwork(
-                url: page.item.artworkURL,
-                size: size,
-                restRadius: radius,
-                context: .header,
-                isDisc: playingHere && !isArtist,
-                isSpinning: playingHere && player.isPlaying
-            )
-            .playOverlay(
-                isVisible: isHoveringCompactArtwork,
-                symbol: playingHere && player.isPlaying ? "pause.fill" : "play.fill",
-                radius: playingHere && !isArtist ? size / 2 : radius,
-                size: size
-            )
-            // The same notes a playing row's disc gives off, scaled to this smaller disc.
-            .overlay {
-                if playingHere && !isArtist {
-                    let scale = size / Theme.Size.rowArtwork
-                    NoteEmitterView(isPlaying: player.isPlaying, center: CGPoint(x: 60 * scale, y: 60 * scale), artworkURL: page.item.artworkURL, scale: scale)
-                        .frame(width: 120 * scale, height: 120 * scale)
-                        .allowsHitTesting(false)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .disabled(page.tracks.isEmpty)
-        .onHover { isHoveringCompactArtwork = $0 }
-        .help("Play")
-    }
-
     /// The header renders straight away from what the tapped row already knew; only the body
     /// waits for the network.
     private func content(_ palette: CoverPalette) -> some View {
@@ -342,7 +289,7 @@ struct BrowseScreen: View {
                     if !page.tracks.isEmpty {
                         SectionHeader(page.item.kind == .artist ? "Top songs" : "Tracks")
                             .entrance(.row(0))
-                        TrackRows(tracks: shownTracks(page), source: page.item)
+                        PageTrackRows(page: page)
                         if let allSongsId = page.allSongsId {
                             BrowseRow(item: BrowseItem(
                                 id: allSongsId, kind: .playlist, title: "All songs",
@@ -625,6 +572,92 @@ enum PageBuildCounts {
     var heroFade: CGFloat = 0
     /// Compact header visibility, 0 to 1. Comes in over the second half of the hero's travel.
     var collapse: CGFloat = 0
+}
+
+/// Whether the pointer is over a browse page's header. Kept out of the page's own state so
+/// moving into the header starts the title's marquee without rebuilding the page, its hero and
+/// every song row with it.
+@MainActor @Observable private final class HeaderHover {
+    var isHovering = false
+}
+
+/// The compact header's title, running as a marquee while the pointer is over the header.
+private struct HeaderTitle: View {
+    let text: String
+    let hover: HeaderHover
+    let color: AnyShapeStyle
+
+    var body: some View {
+        MarqueeText(text: text, isActive: hover.isHovering, font: .callout.weight(.medium), color: color)
+    }
+}
+
+/// The page's songs, as many as are left: a song unliked or removed in Lilt leaves the list at
+/// once, without waiting for a refetch. Gone through here, in a body of its own, so the list is
+/// only filtered again when the page's songs or what's been removed change, not each time the
+/// page is built; Liked Music runs to thousands of songs.
+private struct PageTrackRows: View {
+    let page: BrowsePage
+
+    @Environment(YTMusicClient.self) private var music
+
+    var body: some View {
+        let likedMusic = BrowseScreen.isLikedMusic(page.item)
+        TrackRows(tracks: page.tracks.filter { !music.isRemoved($0) && (!likedMusic || music.isLiked($0) != false) }, source: page.item)
+    }
+}
+
+/// The compact header's artwork doubles as a play button once the hero's own Play has scrolled
+/// away, and becomes a spinning record while this page is the one playing. It reads the player
+/// itself, so a song change or a pause redraws this disc and not the page.
+private struct CompactArtwork: View {
+    let page: BrowsePage
+
+    @Environment(PlayerService.self) private var player
+    @State private var isHovering = false
+
+    /// Only when the queue was started from this page: a track that merely appears in this
+    /// playlist, played from elsewhere, doesn't make the playlist "playing".
+    private var isPlayingFromPage: Bool { player.current != nil && player.sourceId == page.item.id }
+
+    var body: some View {
+        // The same size as the controls beside it (see Theme.Size.headerArtwork).
+        let size = Theme.Size.headerArtwork
+        let isArtist = page.item.kind == .artist
+        let radius: CGFloat = isArtist ? size / 2 : Theme.Radius.artwork(size)
+        let playingHere = isPlayingFromPage
+        Button {
+            if playingHere { player.togglePlayPause() } else { player.play(page.tracks, startingAt: 0, source: page.item) }
+        } label: {
+            SpinningArtwork(
+                url: page.item.artworkURL,
+                size: size,
+                restRadius: radius,
+                context: .header,
+                isDisc: playingHere && !isArtist,
+                isSpinning: playingHere && player.isPlaying
+            )
+            .playOverlay(
+                isVisible: isHovering,
+                symbol: playingHere && player.isPlaying ? "pause.fill" : "play.fill",
+                radius: playingHere && !isArtist ? size / 2 : radius,
+                size: size
+            )
+            // The same notes a playing row's disc gives off, scaled to this smaller disc.
+            .overlay {
+                if playingHere && !isArtist {
+                    let scale = size / Theme.Size.rowArtwork
+                    NoteEmitterView(isPlaying: player.isPlaying, center: CGPoint(x: 60 * scale, y: 60 * scale), artworkURL: page.item.artworkURL, scale: scale)
+                        .frame(width: 120 * scale, height: 120 * scale)
+                        .allowsHitTesting(false)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(page.tracks.isEmpty)
+        .onHover { isHovering = $0 }
+        .help("Play")
+    }
 }
 
 /// The hero fades and shrinks as it scrolls away, which sells the hand-off.
