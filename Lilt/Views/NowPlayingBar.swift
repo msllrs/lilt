@@ -51,8 +51,6 @@ struct NowPlayingBar: View {
         return ImageCache.shared.accent(for: url, saturationBoost: ArtworkStyle.shared.palette.accentSaturation)
     }
 
-    @State private var isScrubbing = false
-    @State private var scrubValue: Double = 0
     @State private var isHoveringPlatter = false
     @State private var titleWidth: CGFloat = 0
     /// True from a mini change until the transition has settled (see `holdGlass`). Starts true,
@@ -498,38 +496,68 @@ struct NowPlayingBar: View {
         InterpolatedColor(accent) { accent in
             #if DEBUG
             let _ = PlatterBuildCounts.notePalette(player)
-            let _ = PlatterBuildCounts.notePlayhead(player)
             #endif
             let palette = coverPalette(accent)
-            let line = platter.scrubberLikeControls ? palette.control : accent.map { palette.mono.mix(with: $0, by: platter.scrubberTint) }
-            let times = palette[keyPath: Self.timeRole]
-            HStack(spacing: Theme.Space.xs + 2) {
-                Text(timeString(isScrubbing ? scrubValue : player.currentTime))
-                    .fixedSize()
-                Scrubber(
-                    value: .constant(isScrubbing ? scrubValue : player.currentTime),
-                    range: 0...max(player.duration, 1),
-                    onEditing: { value, ended in
-                        scrubValue = value
-                        if ended {
-                            player.seek(to: value)
-                            isScrubbing = false
-                        } else {
-                            isScrubbing = true
-                        }
-                    },
-                    tint: line.map { NSColor($0) }
-                )
-                .frame(height: 12)
-                Text(timeString(player.duration))
-                    .fixedSize()
-            }
-            .font(.caption2.monospacedDigit())
-            .foregroundStyle(times.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.tertiary))
+            PlatterPlayhead(
+                line: platter.scrubberLikeControls ? palette.control : accent.map { palette.mono.mix(with: $0, by: platter.scrubberTint) },
+                times: palette[keyPath: Self.timeRole]
+            )
         }
     }
+}
 
-    private func timeString(_ seconds: Double) -> String {
+/// The platter's playhead: the elapsed time, the line and the length. It is the only part of the
+/// platter that follows the clock, so it reads the clock in a body of its own and a tick rebuilds
+/// this alone; out of sight it holds the time it last showed and doesn't follow at all.
+private struct PlatterPlayhead: View {
+    let line: Color?
+    let times: Color?
+    @Environment(PlayerService.self) private var player
+    @Environment(\.screenIsParked) private var parked
+    @State private var isScrubbing = false
+    @State private var scrubValue: Double = 0
+    /// The time last shown, kept out of SwiftUI's sight: it's only written while the clock is read.
+    @State private var shown = Shown()
+    private final class Shown { var time: Double = 0 }
+
+    /// The clock, read only while the panel can be seen; out of sight, the time it last showed.
+    private var clock: Double {
+        guard !parked else { return shown.time }
+        #if DEBUG
+        PlatterBuildCounts.notePlayhead(player)
+        #endif
+        shown.time = player.currentTime
+        return shown.time
+    }
+
+    var body: some View {
+        let time = isScrubbing ? scrubValue : clock
+        HStack(spacing: Theme.Space.xs + 2) {
+            Text(Self.timeString(time))
+                .fixedSize()
+            Scrubber(
+                value: .constant(time),
+                range: 0...max(player.duration, 1),
+                onEditing: { value, ended in
+                    scrubValue = value
+                    if ended {
+                        player.seek(to: value)
+                        isScrubbing = false
+                    } else {
+                        isScrubbing = true
+                    }
+                },
+                tint: line.map { NSColor($0) }
+            )
+            .frame(height: 12)
+            Text(Self.timeString(player.duration))
+                .fixedSize()
+        }
+        .font(.caption2.monospacedDigit())
+        .foregroundStyle(times.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.tertiary))
+    }
+
+    private static func timeString(_ seconds: Double) -> String {
         let total = Int(seconds.rounded(.down))
         let (h, m, s) = (total / 3600, total % 3600 / 60, total % 60)
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
