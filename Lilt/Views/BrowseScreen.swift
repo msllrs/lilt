@@ -340,6 +340,9 @@ struct BrowseScreen: View {
                 visibleHeight: geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
             )
         } action: { _, metrics in
+            #if DEBUG
+            PageBuildCounts.noteScroll(item, visibleHeight: metrics.visibleHeight)
+            #endif
             if metrics.offset != scroll.offset { scroll.offset = metrics.offset }
             let range = max(metrics.contentHeight - metrics.visibleHeight, 0)
             if range != scroll.range { scroll.range = range }
@@ -557,11 +560,20 @@ struct BrowseScreen: View {
 /// How many times each browse page's content has been built, by browse id: the hero, the list
 /// and every row in it are made again each time. Tests read it to check that hovering the
 /// header, the music pausing or a scroll doesn't rebuild the page around the one control it
-/// changes. Also the back button's builds, which a scroll through the hero's hand-off reaches.
+/// changes. Also the back button's builds, which a scroll through the hero's hand-off reaches,
+/// and each page's reports of its scroll changing and the height its list shows, which a page
+/// parked beneath another needn't make as the platter grows.
 @MainActor
 enum PageBuildCounts {
     static var pages: [String: Int] = [:]
     static var leadingButtons = 0
+    static var scrollReports: [String: Int] = [:]
+    static var visibleHeights: [String: CGFloat] = [:]
+
+    static func noteScroll(_ item: BrowseItem, visibleHeight: CGFloat) {
+        scrollReports[item.id, default: 0] += 1
+        visibleHeights[item.id] = visibleHeight
+    }
 
     static func notePage(_ item: BrowseItem) { pages[item.id, default: 0] += 1 }
 }
