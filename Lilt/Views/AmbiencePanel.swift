@@ -67,7 +67,7 @@ struct AmbiencePanel: View {
                             let state = ambience.streamState
                             Image(systemName: "airplane")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(state == .failed ? Color.red : tint)
+                                .foregroundStyle(state == .failed ? Color.red : ambience.isStreaming ? tint : dim)
                                 .symbolEffect(.pulse, isActive: state == .connecting)
                                 .frame(width: 28, height: 28)
                                 .background(Circle().fill(tint.opacity(ambience.isStreaming ? 0.14 : 0)))
@@ -87,7 +87,7 @@ struct AmbiencePanel: View {
                                         .font(.system(size: 9, weight: .semibold))
                                 }
                                 .font(.caption)
-                                .foregroundStyle(tint)
+                                .foregroundStyle(ambience.isStreaming ? tint : dim)
                                 .frame(height: 28)
                                 .contentShape(Rectangle())
                             }
@@ -100,7 +100,7 @@ struct AmbiencePanel: View {
                             Menu { feedItems } label: {
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.system(size: 9, weight: .semibold))
-                                    .foregroundStyle(tint)
+                                    .foregroundStyle(ambience.isStreaming ? tint : dim)
                                     .frame(width: Self.feedMenuWidth, height: 28)
                                     .contentShape(Rectangle())
                             }
@@ -112,7 +112,7 @@ struct AmbiencePanel: View {
                             TextField("Stream URL", text: $ambience.streamURL)
                                 .textFieldStyle(.plain)
                                 .font(.caption)
-                                .foregroundStyle(tint)
+                                .foregroundStyle(ambience.isStreaming ? tint : dim)
                                 .focused($isEditingURL)
                                 .frame(width: Self.stationWidth - Self.feedMenuWidth - Theme.Space.xs, height: 28)
                                 .help("An audio stream you're entitled to listen to here")
