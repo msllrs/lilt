@@ -7,14 +7,11 @@ struct TrackRows: View {
 
     @Environment(\.hidesUnavailableSongs) private var hidesUnavailable
     let tracks: [Track]
-    /// When set, render just this one track (still queued with the whole list). Lets a mixed
-    /// list interleave track rows with other rows while keeping the shelf as the queue.
-    var only: Track? = nil
     /// The page these tracks belong to, when they are its contents.
     var source: BrowseItem? = nil
 
     /// The rows shown, which are also the queue a click plays.
-    private var shown: [Track] { hidesUnavailable ? tracks.filter { $0.isUnavailable != true } : tracks }
+    private var shown: [Track] { SongShelf.shown(tracks, hidingUnavailable: hidesUnavailable) }
 
     var body: some View {
         let tracks = shown
@@ -22,9 +19,7 @@ struct TrackRows: View {
             #if DEBUG
             let _ = RowBuildCounts.noteSlot(track)
             #endif
-            if only == nil || only?.id == track.id {
-                QueuedTrackRow(queue: tracks, index: index, source: source)
-            }
+            QueuedTrackRow(queue: tracks, index: index, source: source)
         }
     }
 }
@@ -48,6 +43,36 @@ struct QueuedTrackRow: View {
         }
         // Under a page's section header (row 0) when the page staggers its rows in.
         .entrance(.row(index + 1))
+    }
+}
+
+/// The songs of a shelf that mixes them with other rows (Home, Search), worked out once for the
+/// shelf: which show, and where each sits among them, which is where playing it starts the
+/// shelf from. Each song used to go through the whole shelf to find itself, a shelf of twenty
+/// building four hundred rows' worth of list to show twenty.
+struct SongShelf {
+    /// The songs shown, which are also the queue a click plays.
+    let shown: [Track]
+    private let places: [String: Int]
+
+    init(_ tracks: [Track], hidingUnavailable: Bool) {
+        shown = Self.shown(tracks, hidingUnavailable: hidingUnavailable)
+        places = Dictionary(shown.enumerated().map { ($1.rowId, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    static func shown(_ tracks: [Track], hidingUnavailable: Bool) -> [Track] {
+        hidingUnavailable ? tracks.filter { $0.isUnavailable != true } : tracks
+    }
+
+    /// The song's row, queued with the rest of the shelf; nothing when the shelf leaves it out.
+    @MainActor @ViewBuilder
+    func row(for track: Track) -> some View {
+        #if DEBUG
+        let _ = RowBuildCounts.noteSlot(track)
+        #endif
+        if let index = places[track.rowId] {
+            QueuedTrackRow(queue: shown, index: index)
+        }
     }
 }
 

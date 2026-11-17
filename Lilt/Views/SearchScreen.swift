@@ -5,6 +5,7 @@ struct SearchScreen: View {
     @Environment(YTMusicClient.self) private var music
     @Environment(NavigationModel.self) private var navigation
     @Environment(ScrollTracker.self) private var scrollTracker
+    @Environment(\.hidesUnavailableSongs) private var hidesUnavailable
 
     private enum Phase: Equatable {
         case idle
@@ -76,7 +77,8 @@ struct SearchScreen: View {
     }
 
     private var resultsList: some View {
-        ScrollView {
+        let songs = SongShelf(results.songs, hidingUnavailable: hidesUnavailable)
+        return ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 // Section by section, as the root comes back under a staggering transition.
                 if let top = results.top {
@@ -84,7 +86,7 @@ struct SearchScreen: View {
                         .entrance(.row(0))
                 }
                 if !results.songs.isEmpty {
-                    CollapsibleSection(title: "Songs", scope: "search", items: results.songs) { TrackRows(tracks: results.songs, only: $0) }
+                    CollapsibleSection(title: "Songs", scope: "search", items: results.songs) { songs.row(for: $0) }
                         .entrance(.row(1))
                 }
                 browseSection("Artists", results.artists).entrance(.row(2))

@@ -6,6 +6,7 @@ struct HomeScreen: View {
     @Environment(ScrollTracker.self) private var scrollTracker
     @Environment(NavigationModel.self) private var navigation
     @Environment(NoticeCenter.self) private var notices: NoticeCenter?
+    @Environment(\.hidesUnavailableSongs) private var hidesUnavailable
 
     private enum Phase: Equatable {
         case loading
@@ -58,10 +59,11 @@ struct HomeScreen: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+                    let songs = SongShelf(section.tracks, hidingUnavailable: hidesUnavailable)
                     CollapsibleSection(title: section.title, scope: "home", items: section.items) { item in
                         switch item {
                         case .track(let track):
-                            TrackRows(tracks: section.tracks, only: track)
+                            songs.row(for: track)
                         case .browse(let browse):
                             BrowseRow(item: browse)
                         }
