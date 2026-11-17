@@ -4,10 +4,10 @@ import SwiftUI
 /// when `isActive` (typically on hover), scrolls continuously with both edges faded, snapping
 /// back when the hover ends. Text that fits is left alone.
 ///
-/// The scroll is driven by a clock rather than a repeating animation: the offset is a pure
-/// function of elapsed time, so there is no animation state to cancel or go stale. The clock
-/// sits as deep as it can, around the offset alone: a tick moves the line and touches nothing
-/// else, where a clock around the whole view re-ran its layout sixty times a second.
+/// Until it is first active it is only a line of text, faded at its end when it runs past it:
+/// a long list builds one or two of these a row as each row comes in, almost all of them never
+/// hovered, and the marquee's clock, measurements and state cost several times the text. Once
+/// active it stays a marquee, so a hover that ends runs down as it always did.
 struct MarqueeText: View {
     let text: String
     var isActive: Bool
@@ -19,6 +19,60 @@ struct MarqueeText: View {
     var gap: CGFloat = 28
     /// Pause before moving, so a quick hover doesn't jitter the text.
     var delay: TimeInterval = 0.6
+
+    /// Set the first time it is active, and kept.
+    @State private var isMarquee = false
+
+    var body: some View {
+        // The line hands over to the marquee in place, under whatever animation the hover came
+        // with: the two draw the same at rest, and a crossfade between them would show.
+        lineOrMarquee.animation(nil, value: isActive || isMarquee)
+    }
+
+    @ViewBuilder
+    private var lineOrMarquee: some View {
+        if isActive || isMarquee {
+            Marquee(text: text, isActive: isActive, font: font, color: color, speed: speed, gap: gap, delay: delay)
+                .onAppear { isMarquee = true }
+        } else {
+            MarqueeRestingLine(text: text, font: font, color: color)
+        }
+    }
+}
+
+/// A marquee's text at rest: the line itself where it fits, and where it doesn't, clipped (no
+/// ellipsis) under the right-hand fade. Draws as the marquee does before it moves.
+private struct MarqueeRestingLine: View {
+    let text: String
+    let font: Font
+    let color: AnyShapeStyle
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            Text(text).font(font).lineLimit(1)
+            // As wide as it's offered, the text at its own width from the leading edge; the
+            // fade's bounds clip it.
+            Text(text).font(font).fixedSize()
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                .mask { Marquee.restingFade }
+        }
+        .foregroundStyle(color)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// The scroll is driven by a clock rather than a repeating animation: the offset is a pure
+/// function of elapsed time, so there is no animation state to cancel or go stale. The clock
+/// sits as deep as it can, around the offset alone: a tick moves the line and touches nothing
+/// else, where a clock around the whole view re-ran its layout sixty times a second.
+private struct Marquee: View {
+    let text: String
+    let isActive: Bool
+    let font: Font
+    let color: AnyShapeStyle
+    let speed: CGFloat
+    let gap: CGFloat
+    let delay: TimeInterval
 
     @State private var textWidth: CGFloat = 0
     @State private var textHeight: CGFloat = 0
@@ -37,35 +91,8 @@ struct MarqueeText: View {
         #if DEBUG
         let _ = RowBuildCounts.notePart("marquee")
         #endif
-        // Built here, outside the clock; a tick only moves it.
-        let line = HStack(spacing: gap) {
-            Text(text).font(font).fixedSize()
-            if scrolling { Text(text).font(font).fixedSize() }
-        }
-        // Laid out as a plain one-line box that takes whatever width it is offered; the text is
-        // drawn over it at its natural width and clipped to it. The box never widens its row,
-        // and a change of width (the platter growing or shrinking) can't scroll or shift the
-        // text the way a scroll view's content offset did.
-        Color.clear
-            .overlay(alignment: .leading) {
-                TimelineView(.animation(minimumInterval: 1 / 60, paused: !scrolling)) { context in
-                    line.offset(x: offset(at: context.date))
-                }
-                // Clipped to the measured width only: never vertically (a transient height
-                // mismatch mid-animation showed as the title cut to a sliver), and not at all
-                // before the first measurement.
-                .frame(width: availableWidth > 0 ? availableWidth : nil, alignment: .leading)
-                .clipShape(Rectangle().size(width: availableWidth > 0 ? availableWidth : 10_000, height: 1_000).offset(y: -500))
-            }
-            // The leading fade arrives with the motion, after the delay, not the moment the
-            // hover begins.
-            .mask { edgeFade(moving: isMoving) }
-            .foregroundStyle(color)
-            // Exactly one line tall.
-            .frame(height: textHeight > 0 ? textHeight : nil)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            // The edge fade's bounds and the text move together through a size change.
-            .geometryGroup()
+        boxOnceMeasured
+            .animation(nil, value: isMeasured)
             .background {
                 // Measures the natural size without taking part in layout.
                 Text(text).font(font).fixedSize().hidden()
@@ -80,6 +107,46 @@ struct MarqueeText: View {
                 scrollStart = shouldScroll ? .now : nil
                 scheduleMoving()
             }
+    }
+
+    private var isMeasured: Bool { availableWidth > 0 && textHeight > 0 }
+
+    /// Until the first measurement lands the box can't be sized or clipped, so the line stands
+    /// in for it, as it looked at rest.
+    @ViewBuilder
+    private var boxOnceMeasured: some View {
+        if isMeasured { box } else { MarqueeRestingLine(text: text, font: font, color: color) }
+    }
+
+    private var box: some View {
+        // Built here, outside the clock; a tick only moves it.
+        let line = HStack(spacing: gap) {
+            Text(text).font(font).fixedSize()
+            if scrolling { Text(text).font(font).fixedSize() }
+        }
+        // Laid out as a plain one-line box that takes whatever width it is offered; the text is
+        // drawn over it at its natural width and clipped to it. The box never widens its row,
+        // and a change of width (the platter growing or shrinking) can't scroll or shift the
+        // text the way a scroll view's content offset did.
+        return Color.clear
+            .overlay(alignment: .leading) {
+                TimelineView(.animation(minimumInterval: 1 / 60, paused: !scrolling)) { context in
+                    line.offset(x: offset(at: context.date))
+                }
+                // Clipped to the measured width only, never vertically: a transient height
+                // mismatch mid-animation showed as the title cut to a sliver.
+                .frame(width: availableWidth, alignment: .leading)
+                .clipShape(Rectangle().size(width: availableWidth, height: 1_000).offset(y: -500))
+            }
+            // The leading fade arrives with the motion, after the delay, not the moment the
+            // hover begins.
+            .mask { edgeFade(moving: isMoving) }
+            .foregroundStyle(color)
+            // Exactly one line tall.
+            .frame(height: textHeight)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // The edge fade's bounds and the text move together through a size change.
+            .geometryGroup()
     }
 
     /// Flags the text as moving once the delay has passed, so the fade follows without the
@@ -117,13 +184,18 @@ struct MarqueeText: View {
                 endPoint: .trailing
             )
         } else if overflows {
-            LinearGradient(
-                stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.88), .init(color: .clear, location: 1)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
+            Self.restingFade
         } else {
             Color.black
         }
+    }
+
+    /// The right-hand fade over text that runs past its end, at rest.
+    static var restingFade: LinearGradient {
+        LinearGradient(
+            stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.88), .init(color: .clear, location: 1)],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
     }
 }
