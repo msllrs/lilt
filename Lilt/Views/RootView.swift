@@ -52,12 +52,8 @@ struct RootView: View {
                         .frame(height: heldHeight <= 0 ? nil : heldHeight)
                 }
                 .allowsHitTesting(false)
-            NavigationColumn()
-                .safeAreaBar(edge: .bottom, spacing: 0) {
-                    if player.current != nil {
-                        Color.clear.frame(height: navigation.platterHeight + Theme.Space.panelInset)
-                    }
-                }
+            // Each screen leaves room under its list for the platter itself (see PlatterClearance).
+            NavigationColumn(hasPlatter: player.current != nil)
                 // Keeps the column solid to hit-testing (its glass pixels are transparent).
                 // Inset by a point so its antialiased edge never shows beyond the glass.
                 .background {
@@ -90,7 +86,7 @@ struct RootView: View {
             if !mini {
                 NoticeHost()
                     .padding(.horizontal, inset)
-                    .padding(.bottom, inset + (player.current != nil ? navigation.platterHeight + Theme.Space.sm : 0))
+                    .modifier(AbovePlatter(hasPlatter: player.current != nil))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
@@ -120,6 +116,9 @@ struct RootView: View {
 /// on macOS; here the search root stays alive underneath and pages ease in from the right by a
 /// few points, fading, and back out the same way.
 private struct NavigationColumn: View {
+    /// A song is loaded, so the platter is up and each screen leaves room for it.
+    let hasPlatter: Bool
+
     @Environment(NavigationModel.self) private var navigation
     @Environment(ScrollTracker.self) private var scrollTracker
     @Environment(AuthService.self) private var auth
@@ -197,12 +196,14 @@ private struct NavigationColumn: View {
     private func currentStack(_ path: [BrowseItem], outOfSight: Bool) -> some View {
         ZStack {
             SearchScreen()
+                .modifier(PlatterClearance(isTop: path.isEmpty, hasPlatter: hasPlatter))
                 .parked(path.isEmpty ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path, outOfSight: outOfSight)
             ForEach(Array(path.enumerated()), id: \.element.id) { index, item in
                 let isTop = index == path.count - 1
                 Group {
                     screen(for: item)
                 }
+                .modifier(PlatterClearance(isTop: isTop, hasPlatter: hasPlatter))
                 .parked(isTop ? nil : .leading, travel: Self.travel, blur: Self.blur, animation: Self.exit, value: path, outOfSight: outOfSight)
                 .transition(.offset(x: Self.travel).combined(with: .opacity).animation(Self.enter))
             }
@@ -226,8 +227,10 @@ private struct NavigationColumn: View {
             entrance(for: key, choreography: choreography)
         } root: {
             SearchScreen()
+                .modifier(PlatterClearance(isTop: path.isEmpty, hasPlatter: hasPlatter))
         } page: { item in
             screen(for: item)
+                .modifier(PlatterClearance(isTop: item.id == path.last?.id, hasPlatter: hasPlatter))
         }
         .environment(\.heroTracking, tracksHeroes)
         // The hero morph's ghost, above every page and beneath the header's back button.
@@ -303,6 +306,44 @@ struct LeadingButton: View {
             if hovering, !isBack { Task { _ = try? await music.library() } }
         }
         .help(isBack ? "Back" : "Library")
+    }
+}
+
+/// The room a screen leaves under its list for the platter, so the last rows can scroll out
+/// from under it. The platter grows a step every frame as Up Next opens or is dragged, and only
+/// the screen on top follows it: one parked beneath keeps the room it had, and catches up when
+/// it comes back on top, rather than having its list laid out again every frame of a queue it
+/// can't be seen under.
+private struct PlatterClearance: ViewModifier {
+    let isTop: Bool
+    let hasPlatter: Bool
+
+    @Environment(NavigationModel.self) private var navigation
+    /// The platter's height as the screen was parked; nil on top.
+    @State private var held: CGFloat?
+
+    func body(content: Content) -> some View {
+        let height = isTop ? navigation.platterHeight : (held ?? navigation.platterHeight)
+        content
+            .safeAreaBar(edge: .bottom, spacing: 0) {
+                if hasPlatter {
+                    Color.clear.frame(height: height + Theme.Space.panelInset)
+                }
+            }
+            .onAppear { if !isTop { held = navigation.platterHeight } }
+            .onChange(of: isTop) { _, top in held = top ? nil : navigation.platterHeight }
+    }
+}
+
+/// Notices float just above the platter, following it as it grows, or at the foot of the column
+/// with nothing playing. Read here so the platter growing moves the notices and nothing else.
+private struct AbovePlatter: ViewModifier {
+    let hasPlatter: Bool
+
+    @Environment(NavigationModel.self) private var navigation
+
+    func body(content: Content) -> some View {
+        content.padding(.bottom, Theme.Space.panelInset + (hasPlatter ? navigation.platterHeight + Theme.Space.sm : 0))
     }
 }
 
