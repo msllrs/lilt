@@ -81,14 +81,27 @@ final class PlayerBridge: NSObject, PlayerBridging {
     /// loading or the page's reload fallback.
     private var cueVideoId: String?
 
+    /// An ambience page waits for its content rules, so its first load already goes without
+    /// images and stats; the song asked for meanwhile.
+    private var rulesReady = true
+    private var loadAfterRules: String?
+
     private static let handlerName = "lilt"
     private static let world: WKContentWorld = .page
 
-    init(dataStore: WKWebsiteDataStore) {
+    /// `ambient`: a page that plays a sound under the music (the ambience drawer). It keeps out
+    /// of Now Playing and the media keys, loads no images, and sends YouTube no playback stats,
+    /// so the rain doesn't land in the listener's history or shape their recommendations.
+    init(dataStore: WKWebsiteDataStore, ambient: Bool = false) {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = dataStore
         config.mediaTypesRequiringUserActionForPlayback = []
-        config.allowsAirPlayForMediaPlayback = true
+        config.allowsAirPlayForMediaPlayback = !ambient
+        if ambient {
+            config.userContentController.addUserScript(
+                WKUserScript(source: Self.inertMediaSession, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: Self.world)
+            )
+        }
         config.userContentController.addUserScript(
             WKUserScript(
                 source: PlayerObserverScript.source,
@@ -105,6 +118,56 @@ final class PlayerBridge: NSObject, PlayerBridging {
         super.init()
         view.navigationDelegate = self
         config.userContentController.add(MessageProxy(bridge: self), contentWorld: Self.world, name: Self.handlerName)
+        if ambient {
+            rulesReady = false
+            Task { [weak self] in
+                let rules = await Self.ambientRules()
+                guard let self else { return }
+                if let rules { config.userContentController.add(rules) }
+                self.rulesReady = true
+                if let videoId = self.loadAfterRules {
+                    self.loadAfterRules = nil
+                    self.load(videoId: videoId)
+                }
+            }
+        }
+    }
+
+    /// Put in place of the page's Media Session before YouTube Music's own scripts run: the page
+    /// sets its metadata and actions on this instead, so macOS never hears of it.
+    private static let inertMediaSession = """
+    (() => {
+      const inert = { metadata: null, playbackState: 'none', setActionHandler() {}, setPositionState() {}, setCameraActive() {}, setMicrophoneActive() {} };
+      try { Object.defineProperty(navigator, 'mediaSession', { value: inert, configurable: true }); } catch (e) {}
+    })();
+    """
+
+    /// No images (an ambience page is never seen) and none of YouTube's playback stats, which
+    /// are what put a song in the history.
+    private static let ambientRuleSource = """
+    [
+      { "trigger": { "url-filter": ".*", "resource-type": ["image"] }, "action": { "type": "block" } },
+      { "trigger": { "url-filter": "/api/stats/" }, "action": { "type": "block" } }
+    ]
+    """
+
+    private static var ambientRulesTask: Task<WKContentRuleList?, Never>?
+
+    /// Compiled once and shared by every ambience page; nil if WebKit refuses them, and the page
+    /// plays without.
+    private static func ambientRules() async -> WKContentRuleList? {
+        if let task = ambientRulesTask { return await task.value }
+        let task = Task { @MainActor in
+            await withCheckedContinuation { (done: CheckedContinuation<WKContentRuleList?, Never>) in
+                guard let store = WKContentRuleListStore.default() else { return done.resume(returning: nil) }
+                store.compileContentRuleList(forIdentifier: "lilt-ambient", encodedContentRuleList: ambientRuleSource) { list, error in
+                    if let error { Diagnostics.shared.record(.player, "ambience content rules failed: \(error.localizedDescription)") }
+                    done.resume(returning: list)
+                }
+            }
+        }
+        ambientRulesTask = task
+        return await task.value
     }
 
     /// Loads the YouTube Music shell ahead of time so the first track change is an in-app
@@ -116,6 +179,10 @@ final class PlayerBridge: NSObject, PlayerBridging {
 
     func load(videoId: String) {
         cueVideoId = nil
+        guard rulesReady else {
+            loadAfterRules = videoId
+            return
+        }
         if isShellLoaded && isReady {
             call("window.__lilt && window.__lilt.navigate(\(Self.quote(videoId)))")
         } else if isShellLoaded {
@@ -155,6 +222,7 @@ final class PlayerBridge: NSObject, PlayerBridging {
     func unload() {
         cueVideoId = nil
         pendingVideoId = nil
+        loadAfterRules = nil
         view.load(URLRequest(url: URL(string: "about:blank")!))
     }
 
