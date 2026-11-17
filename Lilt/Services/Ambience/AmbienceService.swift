@@ -118,6 +118,8 @@ final class AmbienceService {
         loading.insert(sound)
         player.onEvent = { [weak self] event in self?.handle(event, of: sound) }
         if let view = player.webView { hostWebView?(view) }
+        // Given before it loads, so the page starts at this level rather than YouTube's.
+        player.setVolume(Double(volume * level(of: sound)))
         player.load(videoId: sound.videoId)
     }
 
@@ -134,7 +136,6 @@ final class AmbienceService {
         switch event {
         case .playing:
             loading.remove(sound)
-            player.setVolume(Double(volume * level(of: sound)))
         case .state(let snapshot):
             // Back to the start a moment before the end, so the page never finishes the track
             // and autoplays something else.

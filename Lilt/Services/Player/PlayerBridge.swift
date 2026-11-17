@@ -58,6 +58,7 @@ protocol PlayerBridging: AnyObject {
     func play()
     func pause()
     func seek(to seconds: Double)
+    /// Sets the page's volume and holds it there, through YouTube's own and across reloads.
     func setVolume(_ volume: Double)
     func toggleLike()
     func unload()
@@ -80,6 +81,9 @@ final class PlayerBridge: NSObject, PlayerBridging {
     /// The song being cued, until it's ready. Sent again on READY, so a cue survives the shell
     /// loading or the page's reload fallback.
     private var cueVideoId: String?
+    /// The volume it was given, if any; sent again on READY, so it's in place before a newly
+    /// loaded page starts to sound.
+    private var volume: Double?
 
     /// An ambience page waits for its content rules, so its first load already goes without
     /// images and stats; the song asked for meanwhile.
@@ -217,7 +221,10 @@ final class PlayerBridge: NSObject, PlayerBridging {
     func play() { call("window.__lilt && window.__lilt.play()") }
     func pause() { call("window.__lilt && window.__lilt.pause()") }
     func seek(to seconds: Double) { call("window.__lilt && window.__lilt.seek(\(seconds))") }
-    func setVolume(_ volume: Double) { call("window.__lilt && window.__lilt.setVolume(\(volume))") }
+    func setVolume(_ volume: Double) {
+        self.volume = volume
+        call("window.__lilt && window.__lilt.setVolume(\(volume))")
+    }
     func toggleLike() { call("window.__lilt && window.__lilt.toggleLike()") }
     func unload() {
         cueVideoId = nil
@@ -240,6 +247,7 @@ final class PlayerBridge: NSObject, PlayerBridging {
         switch body["type"] as? String {
         case "READY":
             isReady = true
+            if let volume { setVolume(volume) }
             if let videoId = pendingVideoId {
                 pendingVideoId = nil
                 load(videoId: videoId)

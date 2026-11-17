@@ -10,7 +10,7 @@ enum PlayerObserverScript {
       const post = (type, payload) => {
         try { window.webkit.messageHandlers.lilt.postMessage(Object.assign({ type }, payload || {})); } catch (e) {}
       };
-      const state = { video: null, lastTimeUpdate: 0, lastReport: 0, pendingNav: null, hold: false, cueing: null, ytVolume: null, probed: false, errorPlayer: null, errorScreenFor: null };
+      const state = { video: null, lastTimeUpdate: 0, lastReport: 0, pendingNav: null, hold: false, cueing: null, ytVolume: null, volume: null, probed: false, errorPlayer: null, errorScreenFor: null };
       // A standby page (gapless playback) is held silent and still. The flag outlives a reload
       // through sessionStorage, which belongs to this web view alone.
       const holdKey = '__liltHold';
@@ -64,6 +64,15 @@ enum PlayerObserverScript {
         quiet(v);
         if (!v.paused) { v.pause(); }
       };
+      // A volume Lilt gives the page (an ambience sound's level) is held at the element: YouTube's
+      // player puts its own back as a track loads and starts, and now and then as it plays. The
+      // listeners sit on the document, capturing, so they're there before the <video> is found.
+      const keepVolume = (e) => {
+        const v = e.target;
+        if (state.volume == null || state.hold || !(v instanceof HTMLMediaElement)) { return; }
+        if (Math.abs(v.volume - state.volume) > 0.0001) { v.volume = state.volume; }
+      };
+      ['loadstart', 'play', 'playing', 'volumechange'].forEach((e) => document.addEventListener(e, keepVolume, true));
       const bufferedAhead = (v) => {
         const t = v.currentTime || 0;
         for (let i = 0; i < v.buffered.length; i++) {
@@ -321,7 +330,11 @@ enum PlayerObserverScript {
           if (p && typeof p.seekTo === 'function') { p.seekTo(t, true); return; }
           if (state.video) { state.video.currentTime = t; }
         },
-        setVolume: (x) => { if (state.video) { state.video.volume = Math.max(0, Math.min(1, x)); } },
+        setVolume: (x) => {
+          state.volume = Math.max(0, Math.min(1, x));
+          const v = state.video || document.querySelector('video');
+          if (v && !state.hold) { v.volume = state.volume; }
+        },
         // Clicks the page's own like button, so YouTube Music records it and the status above
         // reflects it on the next update.
         toggleLike: () => {
