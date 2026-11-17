@@ -107,5 +107,14 @@ enum RowBuildCounts {
     static func noteRow(_ track: Track) { rows[track.id, default: 0] += 1 }
     static func noteSlot(_ track: Track) { slots[track.id, default: 0] += 1 }
     static func noteItem(_ item: BrowseItem) { items[item.id, default: 0] += 1 }
+
+    /// The parts of a row that only a hovered, playing or shining row shows, by name, built
+    /// while `countsParts` is on. A row coming into a list for the first time builds every part
+    /// it holds, shown or not, so each one a resting row holds for nothing is paid for row by row
+    /// on a long list's first scroll. Counted only while a test asks, since no row says whose
+    /// part it is.
+    static var parts: [String: Int] = [:]
+    static var countsParts = false
+    static func notePart(_ name: String) { if countsParts { parts[name, default: 0] += 1 } }
 }
 #endif

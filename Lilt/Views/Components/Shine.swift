@@ -43,6 +43,9 @@ private struct ShineModifier<S: Shape>: ViewModifier {
     @State private var sweep: Int?
 
     func body(content: Content) -> some View {
+        #if DEBUG
+        let _ = RowBuildCounts.notePart("shine")
+        #endif
         content
             .overlay {
                 if let sweep {

@@ -130,6 +130,9 @@ private struct HeroSourceSlot: ViewModifier {
     func body(content: Content) -> some View {
         let hidden = tracking && HeroFlight.shared.hidesSource(item, on: screen)
         let measuring = tracking && isHovering
+        #if DEBUG
+        let _ = RowBuildCounts.notePart("heroReader")
+        #endif
         content
             .opacity(hidden ? 0 : 1)
             .onGeometryChange(for: CGRect.self) { measuring ? $0.frame(in: .named(PageSpace.name)) : .zero } action: { frame in

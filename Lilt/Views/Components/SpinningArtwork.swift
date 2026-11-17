@@ -108,6 +108,9 @@ struct SpinningArtwork: View {
     /// edge lines and a catch of light at the top left.
     private var hub: some View {
         let ringWidth = (hubSize - holeSize) / 2
+        #if DEBUG
+        let _ = RowBuildCounts.notePart("discHub")
+        #endif
         return ZStack {
             Circle()
                 .strokeBorder(.white.opacity(0.42), lineWidth: ringWidth)

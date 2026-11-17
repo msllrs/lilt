@@ -8,6 +8,9 @@ struct PlayOverlay: ViewModifier {
     let size: CGFloat
 
     func body(content: Content) -> some View {
+        #if DEBUG
+        let _ = RowBuildCounts.notePart("playOverlay")
+        #endif
         content.overlay {
             RoundedRectangle(cornerRadius: radius, style: .continuous)
                 .fill(.black.opacity(0.45))

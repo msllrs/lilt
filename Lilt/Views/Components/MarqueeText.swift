@@ -34,6 +34,9 @@ struct MarqueeText: View {
     private var scrolling: Bool { scrollStart != nil }
 
     var body: some View {
+        #if DEBUG
+        let _ = RowBuildCounts.notePart("marquee")
+        #endif
         // Built here, outside the clock; a tick only moves it.
         let line = HStack(spacing: gap) {
             Text(text).font(font).fixedSize()
