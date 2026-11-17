@@ -160,25 +160,35 @@ struct ArtistLinkHitTests {
         #expect(hit != nil, "clicking the artist name in a browse row should open the artist")
     }
 
-    @Test func artistNameInThePlatterOpensTheArtist() async {
-        let (window, navigation) = await host(
-            NowPlayingBar(), size: CGSize(width: 320, height: 170), player: Self.playerShowing(Self.track)
-        )
-        defer { window.close() }
-        let textLeft = Theme.Space.barPadding + Theme.Size.barArtwork + Theme.Space.md
-        let region = CGRect(x: textLeft, y: 20, width: 40, height: 48)
-        let hit = await pointOpening("UC-tool", within: region, in: window, navigation: navigation)
-        #expect(hit != nil, "clicking the artist name in the platter should open the artist")
+    /// The grid's clicks land a few points and milliseconds apart, so two that miss what they're
+    /// looking for can count as a double-click on the platter, which collapses the test host's
+    /// own panel to the mini player; the panel is put back afterwards.
+    @Test func artistNameInThePlatterOpensTheArtist() async throws {
+        let delegate = try #require(AppDelegate.shared, "a double-click among the clicks goes to the app delegate")
+        try await withPreservedPanel(delegate) {
+            let (window, navigation) = await host(
+                NowPlayingBar(), size: CGSize(width: 320, height: 170), player: Self.playerShowing(Self.track)
+            )
+            defer { window.close() }
+            let textLeft = Theme.Space.barPadding + Theme.Size.barArtwork + Theme.Space.md
+            let region = CGRect(x: textLeft, y: 20, width: 40, height: 48)
+            let hit = await pointOpening("UC-tool", within: region, in: window, navigation: navigation)
+            #expect(hit != nil, "clicking the artist name in the platter should open the artist")
+        }
     }
 
-    @Test func coverInThePlatterOpensTheAlbum() async {
-        let (window, navigation) = await host(
-            NowPlayingBar(), size: CGSize(width: 320, height: 170), player: Self.playerShowing(Self.track)
-        )
-        defer { window.close() }
-        let cover = CGRect(x: Theme.Space.barPadding, y: Theme.Space.barPadding, width: Theme.Size.barArtwork, height: Theme.Size.barArtwork)
-        let hit = await pointOpening("MPREb-lateralus", within: cover.insetBy(dx: 10, dy: 10), step: 8, in: window, navigation: navigation)
-        #expect(hit != nil, "clicking the cover in the platter should open the album")
+    /// Clicks a grid too; see artistNameInThePlatterOpensTheArtist.
+    @Test func coverInThePlatterOpensTheAlbum() async throws {
+        let delegate = try #require(AppDelegate.shared, "a double-click among the clicks goes to the app delegate")
+        try await withPreservedPanel(delegate) {
+            let (window, navigation) = await host(
+                NowPlayingBar(), size: CGSize(width: 320, height: 170), player: Self.playerShowing(Self.track)
+            )
+            defer { window.close() }
+            let cover = CGRect(x: Theme.Space.barPadding, y: Theme.Space.barPadding, width: Theme.Size.barArtwork, height: Theme.Size.barArtwork)
+            let hit = await pointOpening("MPREb-lateralus", within: cover.insetBy(dx: 10, dy: 10), step: 8, in: window, navigation: navigation)
+            #expect(hit != nil, "clicking the cover in the platter should open the album")
+        }
     }
 
     /// The tests run inside the app, so the platter's double-click reaches the real delegate and
