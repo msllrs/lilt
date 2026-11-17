@@ -34,6 +34,9 @@ final class YTMusicClient {
     /// Fetches a home feed: the selected account's for nil, else the channel with that page id
     /// (`.some(nil)` the primary account). Tests stand in here.
     @ObservationIgnored private let fetchHome: @MainActor (_ pageId: String??) async throws -> JSONObject
+    /// Runs a search: the query, and the filter it's narrowed by (nil for every kind). Tests
+    /// stand in here.
+    @ObservationIgnored private let fetchSearch: @MainActor (_ query: String, _ params: String?) async throws -> JSONObject
     /// Whether the caches come from and go to disk. Tests keep everything in memory.
     @ObservationIgnored private let persists: Bool
 
@@ -83,10 +86,16 @@ final class YTMusicClient {
         persists: Bool = true,
         library: LibraryContent? = nil,
         fetchAccount: (@MainActor () async throws -> AccountInfo?)? = nil,
-        fetchHome: (@MainActor (_ pageId: String??) async throws -> JSONObject)? = nil
+        fetchHome: (@MainActor (_ pageId: String??) async throws -> JSONObject)? = nil,
+        fetchSearch: (@MainActor (_ query: String, _ params: String?) async throws -> JSONObject)? = nil
     ) {
         let client = InnerTubeClient(auth: auth)
         self.client = client
+        self.fetchSearch = fetchSearch ?? { query, params in
+            var body: [String: Any] = ["query": query]
+            if let params { body["params"] = params }
+            return try await client.post("search", body: body)
+        }
         self.fetchHome = fetchHome ?? { pageId in
             try await client.post("browse", body: ["browseId": "FEmusic_home"], pageIdOverride: pageId)
         }
@@ -113,8 +122,8 @@ final class YTMusicClient {
     }
 
     func search(_ query: String) async throws -> SearchResults {
-        async let songsResponse = client.post("search", body: ["query": query, "params": Self.songsFilter])
-        async let mixedResponse = client.post("search", body: ["query": query])
+        async let songsResponse = fetchSearch(query, Self.songsFilter)
+        async let mixedResponse = fetchSearch(query, nil)
         var results = SearchParser.browseItems(from: try await mixedResponse.value)
         results.songs = SearchParser.tracks(from: try await songsResponse.value)
         ImageCache.shared.prefetch(

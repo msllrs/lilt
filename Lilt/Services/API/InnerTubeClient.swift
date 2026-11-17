@@ -94,11 +94,17 @@ final class InnerTubeClient {
             throw InnerTubeError.http(status)
         }
         guard (200..<300).contains(status) else { throw InnerTubeError.http(status) }
-        guard let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] else {
+        guard let json = try await Self.decode(responseData) else {
             Diagnostics.shared.record(.network, "\(asked): the response wasn't a JSON object")
             throw InnerTubeError.badResponse
         }
         Diagnostics.shared.recordResponse(responseData, endpoint: endpoint, body: body)
+        return json
+    }
+
+    /// A response's JSON object, or nil when it is something else.
+    static func decode(_ data: Data) async throws -> JSONObject? {
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         return JSONObject(value: json)
     }
 
