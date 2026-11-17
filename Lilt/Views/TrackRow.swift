@@ -217,7 +217,11 @@ struct TrackRow: View {
 
     /// The add-to-queue button, over the trailing end of the row on hover, where the duration
     /// was (a tick for a moment after a click). The playing track can be queued again too.
+    @ViewBuilder
     private var queueButton: some View {
+        #if DEBUG
+        let _ = RowBuildCounts.notePart("queueButton")
+        #endif
         Group {
             Button {
                 enqueue()

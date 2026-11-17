@@ -10,7 +10,8 @@ import Testing
 /// part a hovered, playing or shining row shows: a marquee for its title and byline, the cover's
 /// play button, the record's hub, the sweep of light, the reader that follows the cover for the
 /// hero morph. Counted by the DEBUG-only tally of those parts as a shelf of rows is scrolled
-/// through for the first time, under no pointer, with nothing playing from it.
+/// through for the first time, under no pointer, with nothing playing from it. A playlist's
+/// songs are scrolled the same way: each song row held an add-to-queue button, hidden.
 @MainActor
 struct ShelfFirstScrollTests {
     private static let width: CGFloat = 320
@@ -48,10 +49,42 @@ struct ShelfFirstScrollTests {
         var milliseconds = 0.0
     }
 
+    /// A long playlist's songs, as its page lists them: some without a length, as YouTube Music
+    /// leaves some, and some explicit.
+    private static func songs(_ run: String) -> [Track] {
+        (0..<count).map { i in
+            Track(
+                id: "song-first-scroll-\(run)-\(i)", title: "A song whose title runs well past the end of the row \(i)",
+                artist: "Someone with a long name", durationText: i % 4 == 0 ? nil : "3:\(10 + i % 50)",
+                isExplicit: i % 5 == 0
+            )
+        }
+    }
+
     /// Hosts a shelf page's list of `items`, as `LibraryShelfScreen` lays it out, and scrolls
-    /// through it top to bottom a step at a time, laying out and drawing each step, all on the
-    /// main thread without a break, so no other test's rows are tallied with these.
+    /// through it.
     private func scrollThrough(_ items: [BrowseItem]) throws -> Scrolled {
+        for item in items { RowBuildCounts.items[item.id] = nil }
+        defer { for item in items { RowBuildCounts.items[item.id] = nil } }
+        return try scrollThrough(ForEach(items) { BrowseRow(item: $0) }) {
+            items.filter { (RowBuildCounts.items[$0.id] ?? 0) > 0 }.count
+        }
+    }
+
+    /// Hosts a playlist page's songs, as its page lists them, and scrolls through them.
+    private func scrollThrough(_ songs: [Track]) throws -> Scrolled {
+        for song in songs { RowBuildCounts.rows[song.id] = nil; RowBuildCounts.slots[song.id] = nil }
+        defer { for song in songs { RowBuildCounts.rows[song.id] = nil; RowBuildCounts.slots[song.id] = nil } }
+        let playlist = BrowseItem(id: "VL-first-scroll-songs", kind: .playlist, title: "Playlist", subtitle: "Playlist • Someone • 300 songs")
+        return try scrollThrough(TrackRows(tracks: songs, source: playlist)) {
+            songs.filter { (RowBuildCounts.rows[$0.id] ?? 0) > 0 }.count
+        }
+    }
+
+    /// Hosts `rows` in a page's lazy list and scrolls through it top to bottom a step at a time,
+    /// laying out and drawing each step, all on the main thread without a break, so no other
+    /// test's rows are tallied with these. `built` counts the rows that came in.
+    private func scrollThrough(_ rows: some View, built: () -> Int) throws -> Scrolled {
         let keys = ["playbackState", PlayerService.playheadKey, PlayerService.gaplessKey, PlayerService.legacyGaplessModeKey, "navigationState"]
         let saved = keys.map { UserDefaults.standard.object(forKey: $0) }
         defer {
@@ -63,7 +96,7 @@ struct ShelfFirstScrollTests {
         let root = AnyView(
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(items) { BrowseRow(item: $0) }
+                    rows
                 }
                 .padding(.horizontal, Theme.Space.rowInset)
                 .padding(.bottom, Theme.Space.sm)
@@ -77,13 +110,11 @@ struct ShelfFirstScrollTests {
             .environment(NavigationModel())
             .frame(width: Self.width, height: Self.height)
         )
-        for item in items { RowBuildCounts.items[item.id] = nil }
         RowBuildCounts.parts = [:]
         RowBuildCounts.countsParts = true
         defer {
             RowBuildCounts.countsParts = false
             RowBuildCounts.parts = [:]
-            for item in items { RowBuildCounts.items[item.id] = nil }
         }
 
         let clock = ContinuousClock()
@@ -110,7 +141,7 @@ struct ShelfFirstScrollTests {
         }
         let took = clock.now - started
         return Scrolled(
-            rows: items.filter { (RowBuildCounts.items[$0.id] ?? 0) > 0 }.count,
+            rows: built(),
             parts: RowBuildCounts.parts,
             milliseconds: Double(took.components.seconds) * 1_000 + Double(took.components.attoseconds) / 1e15
         )
@@ -128,5 +159,16 @@ struct ShelfFirstScrollTests {
         print(String(format: "ShelfFirstScroll: %d rows came in, %d hover-only parts built (%@), %.0f ms to scroll through", scrolled.rows, total, parts, scrolled.milliseconds))
         #expect(scrolled.rows == Self.count, "the scroll brought every row in (\(scrolled.rows) of \(Self.count))")
         #expect(total == 0, "\(scrolled.rows) resting rows built \(total) parts that only a hovered, playing or shining row shows: \(parts)")
+    }
+
+    /// A playlist's songs at rest build no add-to-queue buttons: the hovered row builds its own.
+    @Test func restingSongRowsBuildNoQueueButtons() throws {
+        _ = try scrollThrough(Self.songs("warm"))
+        let scrolled = try scrollThrough(Self.songs("measured"))
+        let total = scrolled.parts.values.reduce(0, +)
+        let parts = scrolled.parts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        print(String(format: "SongFirstScroll: %d rows came in, %d hover-only parts built (%@), %.0f ms to scroll through", scrolled.rows, total, parts, scrolled.milliseconds))
+        #expect(scrolled.rows == Self.count, "the scroll brought every song in (\(scrolled.rows) of \(Self.count))")
+        #expect(total == 0, "\(scrolled.rows) resting song rows built \(total) parts that only a hovered, playing or shining row shows: \(parts)")
     }
 }
