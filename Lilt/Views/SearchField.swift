@@ -61,6 +61,10 @@ struct SearchField: View {
         .font(.body)
         .padding(.horizontal, Theme.Space.md)
         .frame(height: Theme.Size.headerRow)
+        // As in any search field on the Mac, the whole of it takes the caret: the glass and the
+        // padding around the text, not only the text. The clear button keeps its own click.
+        .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous))
+        .onTapGesture { if !isEditing { ask() } }
         .background {
             if ArtworkStyle.shared.headerControls.mode == .flat || !ArtworkStyle.shared.headerControls.appliesToSearch {
                 RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous).fill(.fill.quaternary)
@@ -79,7 +83,8 @@ struct SearchField: View {
                 isReasking = false
                 // The false half of asking again: ask for real now that the stale ask is
                 // cleared, without telling anyone the caret left (a shelf folds its filter then).
-                if !focused, takesTheCaret { isFocused = true; return }
+                // On top rather than taking the caret by itself: a click asks for it too.
+                if !focused, isOnTop { isFocused = true; return }
             }
             Diagnostics.shared.record(.screen, "\(screenId ?? "search"): field focus state \(focused)")
             onFocusChange?(focused)
