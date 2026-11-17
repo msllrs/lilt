@@ -14,9 +14,13 @@ struct AmbiencePanel: View {
 
     @Environment(AmbienceService.self) private var ambience
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    /// The platter's palette: active sounds wear its control colour, idle ones its dim one.
-    private var palette: CoverPalette { CoverPalette(accent: accent, colorScheme: colorScheme, surface: .platter) }
+    /// The platter's palette, for the window style on screen as the platter builds it: active
+    /// sounds wear its control colour, idle ones its dim one.
+    private var palette: CoverPalette {
+        CoverPalette(accent: accent, colorScheme: colorScheme, surface: .platter, windowStyle: ArtworkStyle.shared.shownWindowStyle(reduceTransparency: reduceTransparency))
+    }
     private var tint: Color { palette.control ?? palette.mono }
     private var dim: Color { palette.dimControl ?? .secondary }
 
@@ -77,13 +81,13 @@ struct AmbiencePanel: View {
         .clipped()
     }
 
-    /// The scrubber's own line slider, at a small width.
+    /// The scrubber's own line slider, at a small width, in the playhead's line colour above it.
     private func level(_ value: Binding<Float>, help: String) -> some View {
         Scrubber(
             value: Binding(get: { Double(value.wrappedValue) }, set: { value.wrappedValue = Float($0) }),
             range: 0...1,
             onEditing: { v, _ in value.wrappedValue = Float(v) },
-            tint: accent.map { NSColor($0) }
+            tint: NowPlayingBar.lineColor(palette, accent: accent).map { NSColor($0) }
         )
         .frame(minWidth: 44, maxWidth: 72)
         .frame(height: 16)

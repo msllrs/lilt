@@ -488,6 +488,13 @@ struct NowPlayingBar: View {
     /// follow its ladder up off a light backdrop with the rest.
     static let timeRole: KeyPath<CoverPalette, Color?> = \.tertiary
 
+    /// The playhead's line colour: the controls' (or, with the platter's own override, its own
+    /// share of the accent). The ambience drawer's levels beneath it wear the same.
+    static func lineColor(_ palette: CoverPalette, accent: Color?) -> Color? {
+        let platter = ArtworkStyle.shared.platter
+        return platter.scrubberLikeControls ? palette.control : accent.map { palette.mono.mix(with: $0, by: platter.scrubberTint) }
+    }
+
     /// Elapsed on the left, the line in the middle, total on the right.
     private var scrubber: some View {
         // The line is coloured like the controls (or, with the platter's own override, its own
@@ -499,7 +506,7 @@ struct NowPlayingBar: View {
             #endif
             let palette = coverPalette(accent)
             PlatterPlayhead(
-                line: platter.scrubberLikeControls ? palette.control : accent.map { palette.mono.mix(with: $0, by: platter.scrubberTint) },
+                line: Self.lineColor(palette, accent: accent),
                 times: palette[keyPath: Self.timeRole]
             )
         }
