@@ -102,8 +102,10 @@ final class InnerTubeClient {
         return json
     }
 
-    /// A response's JSON object, or nil when it is something else.
-    static func decode(_ data: Data) async throws -> JSONObject? {
+    /// A response's JSON object, or nil when it is something else, decoded off the main actor:
+    /// a page of Liked Music is over a megabyte, and turning it into a tree held the main
+    /// thread for every response that came in.
+    @concurrent nonisolated static func decode(_ data: Data) async throws -> JSONObject? {
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         return JSONObject(value: json)
     }

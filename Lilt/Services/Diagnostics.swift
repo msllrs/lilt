@@ -62,13 +62,16 @@ final class Diagnostics: @unchecked Sendable {
             ?? (request["continuation"] != nil ? "continuation" : request["query"] != nil ? "query" : "request")
         let stamp = Date.now.formatted(Self.stamp)
         let name = "\(endpoint)-\(asked.prefix(60))"
-        let wrapped: Data? = {
+        // Read again and written out sorted on the queue, not the caller's thread: a response
+        // is up to a megabyte, and the caller is the main actor.
+        let asking = JSONObject(value: request)
+        queue.async {
             guard let response = try? JSONSerialization.jsonObject(with: data),
-                  JSONSerialization.isValidJSONObject(request) else { return nil }
-            return try? JSONSerialization.data(withJSONObject: ["request": request, "response": response], options: [.sortedKeys])
-        }()
-        guard let wrapped else { return }
-        queue.async { self.write(wrapped, stamp: stamp, named: name) }
+                  JSONSerialization.isValidJSONObject(asking.value),
+                  let wrapped = try? JSONSerialization.data(withJSONObject: ["request": asking.value, "response": response], options: [.sortedKeys])
+            else { return }
+            self.write(wrapped, stamp: stamp, named: name)
+        }
     }
 
     /// The kept responses, oldest first.
