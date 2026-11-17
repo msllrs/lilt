@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -43,9 +44,12 @@ final class YTMusicClient {
     @ObservationIgnored private let persistedURL: URL
     /// How many times the caches have been written to disk, for tests.
     @ObservationIgnored private(set) var savesToDisk = 0
+    /// The save waiting out `saveDelay`, which a later change replaces.
+    @ObservationIgnored private var pendingSave: Task<Void, Never>?
+    @ObservationIgnored nonisolated(unsafe) private var quitObserver: NSObjectProtocol?
 
     // Disk persistence so a relaunch starts warm: stale-while-revalidate.
-    private struct Persisted: Codable {
+    private struct Persisted: Codable, Sendable {
         var home: [HomeSection]?
         var homeFetched: Date?
         var library: LibraryContent?
@@ -58,19 +62,46 @@ final class YTMusicClient {
         return dir.appendingPathComponent("feeds.json")
     }()
 
+    /// Saves are written in the order they were made, off the main actor.
+    private static let diskQueue = DispatchQueue(label: "com.msllrs.Lilt.feeds", qos: .utility)
+    /// How long a save waits for the next change: opening Library brings the library and the
+    /// account a moment apart, and each wrote the whole file.
+    private static let saveDelay: Duration = .milliseconds(500)
+
+    /// Saves the caches once they've settled for `saveDelay`.
     private func persist() {
         guard persists else { return }
+        pendingSave?.cancel()
+        pendingSave = Task { [weak self] in
+            try? await Task.sleep(for: Self.saveDelay)
+            guard !Task.isCancelled else { return }
+            self?.save(waiting: false)
+        }
+    }
+
+    /// Writes what's cached now: taken here, encoded and written on the disk queue, where the
+    /// encode of a whole library held the main thread.
+    private func save(waiting: Bool) {
+        pendingSave?.cancel()
+        pendingSave = nil
         let data = Persisted(
             home: homeCache?.sections, homeFetched: homeCache?.fetched,
             library: libraryCache?.content, libraryFetched: libraryCache?.fetched,
             account: cachedAccount
         )
         savesToDisk += 1
-        try? JSONEncoder().encode(data).write(to: persistedURL, options: .atomic)
+        let url = persistedURL
+        let write: @Sendable () -> Void = {
+            try? JSONEncoder().encode(data).write(to: url, options: .atomic)
+        }
+        if waiting { Self.diskQueue.sync(execute: write) } else { Self.diskQueue.async(execute: write) }
     }
 
-    /// Waits until what's cached is on disk, as Lilt quits.
-    func flushToDisk() {}
+    /// Waits until what's cached is on disk, a save still waiting written now, as Lilt quits.
+    func flushToDisk() {
+        guard persists else { return }
+        if pendingSave != nil { save(waiting: true) } else { Self.diskQueue.sync {} }
+    }
 
     private func restore() {
         guard let data = try? Data(contentsOf: persistedURL),
@@ -127,8 +158,18 @@ final class YTMusicClient {
         self.persists = persists
         self.persistedURL = persistedURL ?? Self.defaultPersistedURL
         self.fetchAccount = fetchAccount
-        if persists { restore() }
+        if persists {
+            restore()
+            // A save still waiting when Lilt quits is written before it goes.
+            quitObserver = NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.flushToDisk() }
+            }
+        }
         if let library { libraryCache = (library, .now) }
+    }
+
+    deinit {
+        if let quitObserver { NotificationCenter.default.removeObserver(quitObserver) }
     }
 
     func search(_ query: String) async throws -> SearchResults {
@@ -195,7 +236,8 @@ final class YTMusicClient {
     /// separate accounts list.
     func account() async throws -> AccountInfo? {
         let info = if let fetchAccount { try await fetchAccount() } else { try await fetchAccountFromAPI() }
-        if let info {
+        // The screen looks at the account each time it loads; the same account isn't news.
+        if let info, info != cachedAccount {
             cachedAccount = info
             persist()
         }
@@ -244,7 +286,13 @@ final class YTMusicClient {
         ownPlaylistsTask = nil
         ownPlaylistsFetched = nil
         addedTo = [:]
-        if persists { try? FileManager.default.removeItem(at: persistedURL) }
+        if persists {
+            // After any save already on its way, and instead of the one waiting.
+            pendingSave?.cancel()
+            pendingSave = nil
+            let url = persistedURL
+            Self.diskQueue.async { try? FileManager.default.removeItem(at: url) }
+        }
         accountGeneration += 1
     }
 
