@@ -105,6 +105,33 @@ struct RowInvalidationTests {
         #expect(rebuilt <= 1, "only a menu shows likes, and none is open (\(rebuilt) rebuilt)")
     }
 
+    /// The menu reads the likes in a body of its own, and still follows them: a like made
+    /// elsewhere offers Remove from Liked Music the next time the row is right-clicked.
+    @Test func theMenuStillFollowsALikeMadeElsewhere() async throws {
+        let song = Track(id: "menu-like", title: "Schism", artist: "Tool", durationText: "6:47", isLiked: false)
+        try await withFakePlayer([], gapless: false) { player, _ in
+            let music = YTMusicClient(auth: AuthService(), persists: false)
+            let hosted = host(TrackRow(track: song, isCurrent: false, isPlaying: false) {}, player: player, music: music, height: 56)
+            defer { hosted.window.close() }
+            await settle(hosted)
+            @MainActor func titles() -> [String] {
+                let point = NSPoint(x: Self.width / 2, y: 28)
+                let event = NSEvent.mouseEvent(
+                    with: .rightMouseDown, location: point, modifierFlags: [], timestamp: 0,
+                    windowNumber: hosted.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1
+                )!
+                guard let menu = (hosted.hosting.hitTest(point) ?? hosted.hosting).menu(for: event) else { return [] }
+                menu.delegate?.menuNeedsUpdate?(menu)
+                return menu.items.map(\.title)
+            }
+            #expect(titles().contains("Like"))
+            music.noteLiked(true, track: song)
+            await settle(hosted)
+            let liked = titles()
+            #expect(liked.contains("Remove from Liked Music") && !liked.contains("Like"), "the menu shows the like (\(liked))")
+        }
+    }
+
     @Test func thePointerLeavingRebuildsNoRows() async throws {
         let songs = Self.songs("pointer")
         let rebuilt = try await rowsRebuilt(by: { _, _, _, rest in

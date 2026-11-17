@@ -57,15 +57,9 @@ struct BrowseRow: View {
             .shine(trigger: shine, in: Self.highlight)
         }
         .buttonStyle(.plain)
-        .contextMenu {
-            RowMenuItems(
-                groups: RowMenu.item(item),
-                playlists: music.ownPlaylists,
-                addedTo: music.addedTo[item.id] ?? [],
-                perform: perform,
-                add: { playlist in RowMenu.add(item, to: playlist, music: music, notices: notices) }
-            )
-        }
+        // The menu reads your playlists in a body of its own, so a change to them redraws the
+        // menu, not every row on screen.
+        .contextMenu { ItemMenu(item: item, perform: perform) }
         .onHover { hovering in
             isHovering = hovering
             // A fresh one each time the pointer arrives, so it warms the row's item as it is now.
@@ -168,5 +162,25 @@ struct BrowseRow: View {
         } else {
             MarqueeText(text: item.subtitle, isActive: isHovering, font: .caption, color: AnyShapeStyle(.secondary))
         }
+    }
+}
+
+/// An artist, album or playlist row's right-click menu, with the playlists its songs could go in,
+/// ticked where they already are.
+private struct ItemMenu: View {
+    let item: BrowseItem
+    let perform: (RowAction) -> Void
+
+    @Environment(YTMusicClient.self) private var music
+    @Environment(NoticeCenter.self) private var notices: NoticeCenter?
+
+    var body: some View {
+        RowMenuItems(
+            groups: RowMenu.item(item),
+            playlists: music.ownPlaylists,
+            addedTo: music.addedTo[item.id] ?? [],
+            perform: perform,
+            add: { playlist in RowMenu.add(item, to: playlist, music: music, notices: notices) }
+        )
     }
 }

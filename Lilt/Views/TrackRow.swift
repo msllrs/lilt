@@ -137,15 +137,9 @@ struct TrackRow: View {
             .shine(trigger: shine, in: rowShape)
         }
         .buttonStyle(.plain)
-        .contextMenu {
-            RowMenuItems(
-                groups: RowMenu.track(music.withLinks(track), in: source, isLiked: music.isLiked(track)),
-                playlists: music.ownPlaylists,
-                addedTo: music.addedTo[track.id] ?? [],
-                perform: perform,
-                add: { playlist in RowMenu.add(track, to: playlist, music: music, notices: notices) }
-            )
-        }
+        // The menu reads the links, likes and playlists in a body of its own, so a change to
+        // them redraws the menu, not every row on screen.
+        .contextMenu { TrackMenu(track: track, source: source, perform: perform) }
         .onHover { hovering in
             isHovering = hovering
             if hovering { music.warmOwnPlaylists(videoId: track.id) }
@@ -261,5 +255,26 @@ struct TrackRow: View {
             .allowsHitTesting(isHovering)
             .help("Add to queue")
         }
+    }
+}
+
+/// A song row's right-click menu: Go to Artist and Go to Album once the links are known, Like or
+/// Unlike as the song is now, and the playlists it could go in, ticked where it already is.
+private struct TrackMenu: View {
+    let track: Track
+    let source: BrowseItem?
+    let perform: (RowAction) -> Void
+
+    @Environment(YTMusicClient.self) private var music
+    @Environment(NoticeCenter.self) private var notices: NoticeCenter?
+
+    var body: some View {
+        RowMenuItems(
+            groups: RowMenu.track(music.withLinks(track), in: source, isLiked: music.isLiked(track)),
+            playlists: music.ownPlaylists,
+            addedTo: music.addedTo[track.id] ?? [],
+            perform: perform,
+            add: { playlist in RowMenu.add(track, to: playlist, music: music, notices: notices) }
+        )
     }
 }
