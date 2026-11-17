@@ -93,7 +93,9 @@ struct TrackRow: View {
                 // there's no duration to show. On hover the add-to-queue button sits over the
                 // end of the text, which fades out beneath it, instead of keeping a slot free.
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .mask { textFade }
+                // Switches with the button, instantly: the eased hover fade is for the row
+                // highlight only.
+                .mask { textFade.transaction { $0.animation = nil } }
                 if let duration = track.durationText {
                     Length(text: duration, isHovering: isHovering)
                         .padding(.leading, Theme.Space.sm)
@@ -189,23 +191,28 @@ struct TrackRow: View {
     private static let queueButtonSize: CGFloat = 22
 
     /// Fades the text out under the hover button; full width otherwise. When a duration is
-    /// shown, the text already stops short of the button's spot, so no fade is needed.
+    /// shown, the text already stops short of the button's spot, so no fade is needed. Without
+    /// the fade the mask is a plain fill, which SwiftUI draws as no mask at all: a clear fade
+    /// left in place was still composited off screen, row by row, on every frame of a scroll.
+    /// Only the mask's own content switches, so the title and byline under it keep their state.
+    @ViewBuilder
     private var textFade: some View {
-        // Fully clear across the button, with the fade run-up before it. Switches with the
-        // button, instantly: the eased hover fade is for the row highlight only.
-        ZStack(alignment: .trailing) {
-            Color.black
-            HStack(spacing: 0) {
-                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
-                    .frame(width: Theme.Space.xl)
+        if isHovering && track.durationText == nil {
+            // Fully clear across the button, with the fade run-up before it.
+            ZStack(alignment: .trailing) {
                 Color.black
-                    .frame(width: Self.queueButtonSize + Theme.Space.xs)
+                HStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                        .frame(width: Theme.Space.xl)
+                    Color.black
+                        .frame(width: Self.queueButtonSize + Theme.Space.xs)
+                }
+                .blendMode(.destinationOut)
             }
-            .blendMode(.destinationOut)
-            .opacity(isHovering && track.durationText == nil ? 1 : 0)
-            .transaction { $0.animation = nil }
+            .compositingGroup()
+        } else {
+            Color.black
         }
-        .compositingGroup()
     }
 
     /// The add-to-queue button, over the trailing end of the row on hover, where the duration

@@ -13,7 +13,7 @@ import Testing
 struct RowMaskTests {
     private static let width: CGFloat = 320
 
-    private func masks(in view: some View, height: CGFloat) async -> Int {
+    private func masks(in view: some View, height: CGFloat, hoveringAt hover: NSPoint? = nil) async -> Int {
         let auth = AuthService()
         let root = AnyView(view
             .environment(auth)
@@ -31,6 +31,21 @@ struct RowMaskTests {
         for _ in 0..<15 {
             try? await Task.sleep(for: .milliseconds(20))
             hosting.layoutSubtreeIfNeeded()
+        }
+        // The pointer arrives over the row: each of SwiftUI's tracking areas hears it come in,
+        // as the window would tell it.
+        if let hover {
+            for area in hosting.trackingAreas {
+                let entered = NSEvent.enterExitEvent(
+                    with: .mouseEntered, location: hover, modifierFlags: [], timestamp: 0,
+                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, trackingNumber: area.hash, userData: nil
+                )!
+                (area.owner as? NSResponder)?.mouseEntered(with: entered)
+            }
+            for _ in 0..<10 {
+                try? await Task.sleep(for: .milliseconds(20))
+                hosting.layoutSubtreeIfNeeded()
+            }
         }
         var count = 0
         func walk(_ layer: CALayer) {
@@ -54,6 +69,15 @@ struct RowMaskTests {
         let songs = (0..<5).map { Track(id: "mask-nolength-\($0)", title: "Song \($0)", artist: "Tool") }
         let count = await masks(in: VStack(spacing: 0) { ForEach(songs) { TrackRow(track: $0, isCurrent: false, isPlaying: false) {} } }, height: 300)
         #expect(count == 0, "five resting rows, no masks (\(count))")
+    }
+
+    /// Under the pointer, a row without a length fades its title out beneath the queue button,
+    /// and a row with one doesn't need to: its title already stops short of the button.
+    @Test func aHoveredRowWithoutALengthFadesItsTitle() async {
+        let point = NSPoint(x: Self.width / 2, y: 28)
+        let without = await masks(in: TrackRow(track: Track(id: "mask-hover", title: "Schism", artist: "Tool"), isCurrent: false, isPlaying: false) {}, height: 56, hoveringAt: point)
+        let with = await masks(in: TrackRow(track: Track(id: "mask-hover-length", title: "Schism", artist: "Tool", durationText: "6:47"), isCurrent: false, isPlaying: false) {}, height: 56, hoveringAt: point)
+        #expect(without == with + 1, "the title's fade is the one mask between them (\(without) vs \(with))")
     }
 
     @Test func thePlayingDiscKeepsItsHole() async {
