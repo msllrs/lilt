@@ -148,7 +148,9 @@ struct LibraryShelfScreen: View {
     }
 
     private var list: some View {
-        ScrollView {
+        // Filtered once a build: each keystroke runs the filter over the whole shelf.
+        let shown = shown
+        return ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(shown) { BrowseRow(item: $0) }
                 if shown.isEmpty {
