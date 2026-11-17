@@ -52,6 +52,18 @@ final class ImageCache {
         session = URLSession(configuration: config)
     }
 
+    /// The cover decoded with at least `pixels` on its longer side, or nil.
+    func cached(_ url: URL, pixels: Int) -> NSImage? { cached(url) }
+
+    /// The URLs kept for the cover's other sizes, for tests.
+    func variants(of url: URL) -> [URL] { variants[Self.baseKey(url)] ?? [] }
+
+    /// What anything draws a cover at without saying: the hero at 140pt on a 2x display.
+    nonisolated static let defaultPixels = 288
+
+    /// The side, in pixels, a cover drawn at `points` is decoded at.
+    nonisolated static func pixels(forPoints points: CGFloat) -> Int { defaultPixels }
+
     func cached(_ url: URL) -> NSImage? {
         let key = url.absoluteString
         guard let entry = images[key] else {
@@ -202,7 +214,7 @@ final class ImageCache {
     /// 2x display by default; the Dock tile asks for more. The server's rendition can be far
     /// bigger (576px playlist art, 1280px video thumbnails), and decoded at that size a cover
     /// cost up to 3.7MB, so a couple of hundred of them overran any sensible budget.
-    func load(_ url: URL, maxPixels: Int = 288) async -> NSImage? {
+    func load(_ url: URL, maxPixels: Int = defaultPixels) async -> NSImage? {
         if let hit = cached(url) { return hit }
         if let task = inflight[url] { return await task.value?.image }
         let task = Task<DecodedArtwork?, Never>.detached(priority: .utility) { [session] in

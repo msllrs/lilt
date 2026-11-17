@@ -153,7 +153,7 @@ struct ArtworkView: View {
             // dropping to the placeholder while the real one loads.
             isStandIn = true
         }
-        guard let loaded = await ImageCache.shared.load(url), !Task.isCancelled else { return }
+        guard let loaded = await ImageCache.shared.load(url, maxPixels: ImageCache.pixels(forPoints: size)), !Task.isCancelled else { return }
         withAnimation(Theme.Motion.quick) {
             image = loaded
             isStandIn = false

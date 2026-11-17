@@ -502,7 +502,12 @@ final class YTMusicClient {
     /// The library changes rarely and is bounded, so every cover is fetched and decoded ahead
     /// of the scroll, not the first dozen: a fast scroll then finds them all in memory.
     private static func prefetchArtwork(of content: LibraryContent) {
-        ImageCache.shared.prefetch((content.playlists + content.albums + content.artists).map(\.artworkURL))
+        ImageCache.shared.prefetch(coversAhead(of: content))
+    }
+
+    /// The library's covers fetched ahead of the scroll.
+    static func coversAhead(of content: LibraryContent) -> [URL?] {
+        (content.playlists + content.albums + content.artists).map(\.artworkURL)
     }
 
     /// Whether an album or playlist is in the library, as far as the cached library knows.
