@@ -3,12 +3,13 @@ import SwiftUI
 import Testing
 @testable import Lilt
 
-/// Song rows at rest draw without masks. A mask is drawn off screen and composited every frame
-/// the row moves, so a screenful of them, one per title fade, cover and line of text, was paid
-/// for on every frame of a scroll while none of them changed a pixel: the fade under the queue
-/// button is only for a hovered row without a length, the spindle hole is only for the playing
-/// song's disc, and the edge fade only for text that runs past its edge. Counted in the layers
-/// the rows are drawn into.
+/// Song rows at rest draw only the mask their cover needs. A mask is drawn off screen and
+/// composited every frame the row moves, so a screenful of title fades that changed no pixel,
+/// one per row, was paid for on every frame of a scroll: the fade under the queue button is only
+/// for a hovered row without a length. The cover's mask stays: besides the playing disc's
+/// spindle hole, it draws the sleeve's light, keyline and shadow as one picture, and without it
+/// the edges of every cover and the whole of a greyed-out one draw differently. Counted in the
+/// layers the rows are drawn into.
 @MainActor
 struct RowMaskTests {
     private static let width: CGFloat = 320
@@ -59,16 +60,16 @@ struct RowMaskTests {
         return count
     }
 
-    @Test func rowsAtRestDrawWithoutMasks() async {
+    @Test func rowsAtRestDrawOnlyTheirCoversMasks() async {
         let songs = (0..<5).map { Track(id: "mask-\($0)", title: "Song \($0)", artist: "Tool", durationText: "3:0\($0)") }
         let count = await masks(in: VStack(spacing: 0) { ForEach(songs) { TrackRow(track: $0, isCurrent: false, isPlaying: false) {} } }, height: 300)
-        #expect(count == 0, "five resting rows, no masks (\(count))")
+        #expect(count == songs.count, "five resting rows, five covers' masks and no title fades (\(count))")
     }
 
-    @Test func rowsWithoutLengthsAtRestDrawWithoutMasks() async {
+    @Test func rowsWithoutLengthsAtRestDrawOnlyTheirCoversMasks() async {
         let songs = (0..<5).map { Track(id: "mask-nolength-\($0)", title: "Song \($0)", artist: "Tool") }
         let count = await masks(in: VStack(spacing: 0) { ForEach(songs) { TrackRow(track: $0, isCurrent: false, isPlaying: false) {} } }, height: 300)
-        #expect(count == 0, "five resting rows, no masks (\(count))")
+        #expect(count == songs.count, "five resting rows, five covers' masks and no title fades (\(count))")
     }
 
     /// Under the pointer, a row without a length fades its title out beneath the queue button,
