@@ -14,9 +14,6 @@ import Testing
 /// caret live.
 @MainActor
 struct SearchAutoFocusTests {
-    /// `SearchField.autoFocusKey`, spelled out until the setting exists.
-    static let autoFocusKey = "searchFocusesAutomatically"
-
     private struct Field: View {
         @Bindable var navigation: NavigationModel
         var body: some View {
@@ -29,12 +26,12 @@ struct SearchAutoFocusTests {
     /// Whether the root field takes the caret by itself once it's on screen in a key panel.
     private func takesTheCaret(autoFocus: Bool?) async throws -> Bool {
         let savedNavigation = UserDefaults.standard.data(forKey: "navigationState")
-        let savedSetting = UserDefaults.standard.object(forKey: Self.autoFocusKey)
+        let savedSetting = UserDefaults.standard.object(forKey: SearchField.autoFocusKey)
         defer {
             if let savedNavigation { UserDefaults.standard.set(savedNavigation, forKey: "navigationState") } else { UserDefaults.standard.removeObject(forKey: "navigationState") }
-            UserDefaults.standard.set(savedSetting, forKey: Self.autoFocusKey)
+            UserDefaults.standard.set(savedSetting, forKey: SearchField.autoFocusKey)
         }
-        if let autoFocus { UserDefaults.standard.set(autoFocus, forKey: Self.autoFocusKey) } else { UserDefaults.standard.removeObject(forKey: Self.autoFocusKey) }
+        if let autoFocus { UserDefaults.standard.set(autoFocus, forKey: SearchField.autoFocusKey) } else { UserDefaults.standard.removeObject(forKey: SearchField.autoFocusKey) }
         let navigation = NavigationModel()
         navigation.path = []
         let panel = PanelWindow(contentRect: NSRect(x: -10_000, y: -10_000, width: 320, height: 80))

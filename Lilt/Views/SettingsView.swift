@@ -290,10 +290,16 @@ private final class UpdaterState {
 private struct GeneralSection: View {
     @State private var status = SMAppService.mainApp.status
     @State private var failure: String?
+    /// Off by default: the panel's keys stay shortcuts until you click into Search.
+    @AppStorage(SearchField.autoFocusKey) private var focusesSearch = false
 
     var body: some View {
         Section {
             Toggle("Open at login", isOn: Binding(get: { status == .enabled || status == .requiresApproval }, set: setOpensAtLogin))
+            Toggle(isOn: $focusesSearch) {
+                Text("Focus search automatically")
+                Text("Showing the panel puts the caret in Search, ready to type. Otherwise click the field first.")
+            }
         } header: {
             Text("General")
         } footer: {
