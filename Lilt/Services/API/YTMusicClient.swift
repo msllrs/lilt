@@ -124,8 +124,7 @@ final class YTMusicClient {
     func search(_ query: String) async throws -> SearchResults {
         async let songsResponse = fetchSearch(query, Self.songsFilter)
         async let mixedResponse = fetchSearch(query, nil)
-        var results = SearchParser.browseItems(from: try await mixedResponse.value)
-        results.songs = SearchParser.tracks(from: try await songsResponse.value)
+        let results = await Self.readSearch(mixed: try await mixedResponse, songs: try await songsResponse)
         ImageCache.shared.prefetch(
             [results.top?.artworkURL] + results.songs.prefix(12).map(\.artworkURL)
                 + (results.artists + results.albums + results.playlists).prefix(12).map(\.artworkURL)
@@ -158,7 +157,7 @@ final class YTMusicClient {
         }
         let active: JSONObject
         do { active = try await fetchHome(nil) } catch { others.cancel(); throw error }
-        var sections = SearchParser.home(from: active.value)
+        var sections = await Self.readHome(active)
         sections.append(contentsOf: await others.value)
         homeCache = (sections, .now)
         persist()
@@ -176,7 +175,7 @@ final class YTMusicClient {
     /// Another channel's home shelves, each labelled with its name; none if it couldn't load.
     private func homeSections(of channel: AccountInfo.Alternative) async -> [HomeSection] {
         guard let response = try? await fetchHome(.some(channel.pageId)) else { return [] }
-        return SearchParser.home(from: response.value).map { section in
+        return await Self.readHome(response).map { section in
             HomeSection(title: "\(section.title) · \(channel.name)", items: section.items)
         }
     }
@@ -196,8 +195,25 @@ final class YTMusicClient {
     private func fetchAccountFromAPI() async throws -> AccountInfo? {
         async let menu = client.post("account/account_menu", body: [:])
         async let list = client.post("account/accounts_list", body: [:])
-        guard var info = SearchParser.account(from: try await menu.value) else { return nil }
-        info.alternatives = SearchParser.accountAlternatives(from: try await list.value)
+        return await Self.readAccount(menu: try await menu, list: try await list)
+    }
+
+    // Responses read off the main actor, like a page's (see `read(_:for:)`): a search is two
+    // responses walked whole, and home a dozen shelves of tiles.
+
+    @concurrent private nonisolated static func readSearch(mixed: JSONObject, songs: JSONObject) async -> SearchResults {
+        var results = SearchParser.browseItems(from: mixed.value)
+        results.songs = SearchParser.tracks(from: songs.value)
+        return results
+    }
+
+    @concurrent private nonisolated static func readHome(_ response: JSONObject) async -> [HomeSection] {
+        SearchParser.home(from: response.value)
+    }
+
+    @concurrent private nonisolated static func readAccount(menu: JSONObject, list: JSONObject) async -> AccountInfo? {
+        guard var info = SearchParser.account(from: menu.value) else { return nil }
+        info.alternatives = SearchParser.accountAlternatives(from: list.value)
         return info
     }
 
@@ -250,28 +266,35 @@ final class YTMusicClient {
     private func feed(_ browseId: String) async -> Result<LibraryFeed, Error> {
         let first: JSONObject
         do { first = try await fetchPage(browseId) } catch { return .failure(error) }
-        var feed = LibraryFeed(pages: [first])
-        var token = SearchParser.libraryContinuationToken(in: first.value)
+        var (items, token) = await Self.readLibraryPage(first)
+        var feed = LibraryFeed(pages: [items])
         var asked = Set<String>()
         while let next = token, asked.count < Self.pageLimit, asked.insert(next).inserted {
             guard let page = try? await fetchContinuation(next) else {
                 feed.isComplete = false
                 break
             }
-            feed.pages.append(page)
-            token = SearchParser.libraryContinuationToken(in: page.value)
+            (items, token) = await Self.readLibraryPage(page)
+            feed.pages.append(items)
         }
         return .success(feed)
     }
 
+    /// A library page's items and the token for the page after it, read off the main actor:
+    /// both walk the whole response, and a library opening reads a few dozen of them.
+    @concurrent private nonisolated static func readLibraryPage(_ response: JSONObject) async -> (items: [BrowseItem], token: String?) {
+        (SearchParser.libraryItems(from: response.value), SearchParser.libraryContinuationToken(in: response.value))
+    }
+
     private struct LibraryFeed {
-        var pages: [JSONObject]
+        /// Each page's items, as read.
+        var pages: [[BrowseItem]]
         var isComplete = true
 
         /// The items of every page, each once.
         var items: [BrowseItem] {
             var seen = Set<String>()
-            return pages.flatMap { SearchParser.libraryItems(from: $0.value) }.filter { seen.insert($0.id).inserted }
+            return pages.joined().filter { seen.insert($0.id).inserted }
         }
     }
 
