@@ -20,6 +20,9 @@ struct TrackRows: View {
     var body: some View {
         let tracks = shown
         ForEach(Array(tracks.enumerated()), id: \.element.rowId) { index, track in
+            #if DEBUG
+            let _ = RowBuildCounts.noteSlot(track)
+            #endif
             if only == nil || only?.id == track.id {
                 TrackRow(
                     track: track,
@@ -51,3 +54,18 @@ struct TrackList: View {
         .panelScrollEdge()
     }
 }
+
+#if DEBUG
+/// How many times each song's row has been built, and its place in a list gone through, by
+/// video id. Tests read it to check that a change rebuilds only the rows it touches: play/pause
+/// re-running every row on screen, or a shelf going through all its songs for each one, is felt
+/// as a hitch. Keyed by song, so tests running alongside don't count each other's rows.
+@MainActor
+enum RowBuildCounts {
+    static var rows: [String: Int] = [:]
+    static var slots: [String: Int] = [:]
+
+    static func noteRow(_ track: Track) { rows[track.id, default: 0] += 1 }
+    static func noteSlot(_ track: Track) { slots[track.id, default: 0] += 1 }
+}
+#endif

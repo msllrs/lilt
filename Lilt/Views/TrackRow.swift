@@ -74,6 +74,9 @@ struct TrackRow: View {
     private func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat { a + (b - a) * t }
 
     var body: some View {
+        #if DEBUG
+        let _ = RowBuildCounts.noteRow(track)
+        #endif
         Button(action: action) {
             HStack(spacing: Theme.Space.md) {
                 artwork
