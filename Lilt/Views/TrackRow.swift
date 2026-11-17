@@ -17,12 +17,8 @@ struct TrackRow: View {
     @Environment(NavigationModel.self) private var navigation
     @Environment(YTMusicClient.self) private var music
     @Environment(NoticeCenter.self) private var notices: NoticeCenter?
-    /// Nil where a row is hosted on its own; lengths then always show.
-    @Environment(PanelRest.self) private var rest: PanelRest?
-    @Environment(\.alwaysShowsLengths) private var alwaysShowsLengths
     @Environment(\.showsExplicitBadges) private var showsExplicitBadges
     private var isUnavailable: Bool { track.isUnavailable == true }
-    private var showsLength: Bool { alwaysShowsLengths || (rest?.isPointerInside ?? true) }
     /// An album page's cover palette, for the text and the playing row's pill.
     @Environment(\.coverPalette) private var coverPalette
     @Environment(\.colorScheme) private var colorScheme
@@ -99,16 +95,7 @@ struct TrackRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .mask { textFade }
                 if let duration = track.durationText {
-                    Text(duration)
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(coverPalette.style(\.tertiary, or: .tertiary))
-                        .opacity(isHovering ? 0 : 1)
-                        // Swaps with the button instantly; the eased hover fade is for the row.
-                        .transaction { $0.animation = nil }
-                        // Lengths are for someone using the panel: away from it they fade out,
-                        // and the list reads as titles alone, unless Settings keeps them.
-                        .opacity(showsLength ? 1 : 0)
-                        .animation(Theme.Motion.quick, value: showsLength)
+                    Length(text: duration, isHovering: isHovering)
                         .padding(.leading, Theme.Space.sm)
                 }
             }
@@ -255,6 +242,32 @@ struct TrackRow: View {
             .allowsHitTesting(isHovering)
             .help("Add to queue")
         }
+    }
+}
+
+/// A row's length, which hides under the add-to-queue button on hover. It reads where the
+/// pointer is itself, so the pointer coming and going redraws the lengths, not every row.
+private struct Length: View {
+    let text: String
+    let isHovering: Bool
+
+    /// Nil where a row is hosted on its own; lengths then always show.
+    @Environment(PanelRest.self) private var rest: PanelRest?
+    @Environment(\.alwaysShowsLengths) private var alwaysShowsLengths
+    @Environment(\.coverPalette) private var coverPalette
+    private var showsLength: Bool { alwaysShowsLengths || (rest?.isPointerInside ?? true) }
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(coverPalette.style(\.tertiary, or: .tertiary))
+            .opacity(isHovering ? 0 : 1)
+            // Swaps with the button instantly; the eased hover fade is for the row.
+            .transaction { $0.animation = nil }
+            // Lengths are for someone using the panel: away from it they fade out, and the
+            // list reads as titles alone, unless Settings keeps them.
+            .opacity(showsLength ? 1 : 0)
+            .animation(Theme.Motion.quick, value: showsLength)
     }
 }
 
