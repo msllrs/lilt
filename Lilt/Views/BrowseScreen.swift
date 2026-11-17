@@ -544,10 +544,12 @@ struct BrowseScreen: View {
 #if DEBUG
 /// How many times each browse page's content has been built, by browse id: the hero, the list
 /// and every row in it are made again each time. Tests read it to check that hovering the
-/// header or the music pausing doesn't rebuild the page around the one control it changes.
+/// header, the music pausing or a scroll doesn't rebuild the page around the one control it
+/// changes. Also the back button's builds, which a scroll through the hero's hand-off reaches.
 @MainActor
 enum PageBuildCounts {
     static var pages: [String: Int] = [:]
+    static var leadingButtons = 0
 
     static func notePage(_ item: BrowseItem) { pages[item.id, default: 0] += 1 }
 }

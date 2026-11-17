@@ -251,7 +251,7 @@ private struct NavigationColumn: View {
     }
 }
 
-private struct LeadingButton: View {
+struct LeadingButton: View {
     @Environment(NavigationModel.self) private var navigation
     @Environment(YTMusicClient.self) private var music
     @Environment(\.colorScheme) private var colorScheme
@@ -267,6 +267,9 @@ private struct LeadingButton: View {
     }
 
     var body: some View {
+        #if DEBUG
+        let _ = PageBuildCounts.leadingButtons += 1
+        #endif
         Button {
             if isBack { navigation.pop() } else { navigation.open(NavigationModel.library) }
         } label: {
