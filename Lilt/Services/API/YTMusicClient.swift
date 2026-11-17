@@ -39,6 +39,10 @@ final class YTMusicClient {
     @ObservationIgnored private let fetchSearch: @MainActor (_ query: String, _ params: String?) async throws -> JSONObject
     /// Whether the caches come from and go to disk. Tests keep everything in memory.
     @ObservationIgnored private let persists: Bool
+    /// Where they're kept: `feeds.json` in Application Support, or a file a test names.
+    @ObservationIgnored private let persistedURL: URL
+    /// How many times the caches have been written to disk, for tests.
+    @ObservationIgnored private(set) var savesToDisk = 0
 
     // Disk persistence so a relaunch starts warm: stale-while-revalidate.
     private struct Persisted: Codable {
@@ -48,7 +52,7 @@ final class YTMusicClient {
         var libraryFetched: Date?
         var account: AccountInfo?
     }
-    private static let persistedURL: URL = {
+    private static let defaultPersistedURL: URL = {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("feeds.json")
@@ -61,11 +65,15 @@ final class YTMusicClient {
             library: libraryCache?.content, libraryFetched: libraryCache?.fetched,
             account: cachedAccount
         )
-        try? JSONEncoder().encode(data).write(to: Self.persistedURL, options: .atomic)
+        savesToDisk += 1
+        try? JSONEncoder().encode(data).write(to: persistedURL, options: .atomic)
     }
 
+    /// Waits until what's cached is on disk, as Lilt quits.
+    func flushToDisk() {}
+
     private func restore() {
-        guard let data = try? Data(contentsOf: Self.persistedURL),
+        guard let data = try? Data(contentsOf: persistedURL),
               let saved = try? JSONDecoder().decode(Persisted.self, from: data) else { return }
         // Restored content is shown immediately but treated as stale so it refreshes behind.
         if let home = saved.home { homeCache = (home, saved.homeFetched ?? .distantPast) }
@@ -87,7 +95,8 @@ final class YTMusicClient {
         library: LibraryContent? = nil,
         fetchAccount: (@MainActor () async throws -> AccountInfo?)? = nil,
         fetchHome: (@MainActor (_ pageId: String??) async throws -> JSONObject)? = nil,
-        fetchSearch: (@MainActor (_ query: String, _ params: String?) async throws -> JSONObject)? = nil
+        fetchSearch: (@MainActor (_ query: String, _ params: String?) async throws -> JSONObject)? = nil,
+        persistedURL: URL? = nil
     ) {
         let client = InnerTubeClient(auth: auth)
         self.client = client
@@ -116,6 +125,7 @@ final class YTMusicClient {
             return try await client.post("next", body: body)
         }
         self.persists = persists
+        self.persistedURL = persistedURL ?? Self.defaultPersistedURL
         self.fetchAccount = fetchAccount
         if persists { restore() }
         if let library { libraryCache = (library, .now) }
@@ -234,7 +244,7 @@ final class YTMusicClient {
         ownPlaylistsTask = nil
         ownPlaylistsFetched = nil
         addedTo = [:]
-        if persists { try? FileManager.default.removeItem(at: Self.persistedURL) }
+        if persists { try? FileManager.default.removeItem(at: persistedURL) }
         accountGeneration += 1
     }
 
