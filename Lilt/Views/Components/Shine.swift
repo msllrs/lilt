@@ -34,7 +34,21 @@ extension View {
     }
 }
 
+/// Nothing but an empty overlay until the row first shines: every row in a list carries one, and
+/// few ever fire it.
 private struct ShineModifier<S: Shape>: ViewModifier {
+    let trigger: Int
+    let shape: S
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            if trigger > 0 { ShineSweeps(trigger: trigger, shape: shape).allowsHitTesting(false) }
+        }
+    }
+}
+
+/// A row's sweeps, from its first: arriving with a trigger already fired, it sweeps for that one.
+private struct ShineSweeps<S: Shape>: View {
     let trigger: Int
     let shape: S
 
@@ -42,11 +56,11 @@ private struct ShineModifier<S: Shape>: ViewModifier {
     /// The sweep under way, by trigger count; nil at rest, when nothing is drawn.
     @State private var sweep: Int?
 
-    func body(content: Content) -> some View {
+    var body: some View {
         #if DEBUG
         let _ = RowBuildCounts.notePart("shine")
         #endif
-        content
+        Color.clear
             .overlay {
                 if let sweep {
                     ShineBand(style: ArtworkStyle.shared.shine) {
@@ -62,7 +76,7 @@ private struct ShineModifier<S: Shape>: ViewModifier {
                     .accessibilityHidden(true)
                 }
             }
-            .onChange(of: trigger) { _, count in
+            .onChange(of: trigger, initial: true) { _, count in
                 guard Theme.Motion.shine(ArtworkStyle.shared.shine) != nil else { return }
                 sweep = count
             }
