@@ -118,8 +118,8 @@ final class HeroFrameBox {
     var frame: CGRect = .zero
 }
 
-/// A row's cover: measured while the pointer is over it (so a scroll costs nothing), and hidden
-/// while its ghost flies.
+/// A row's cover: measured while the pointer is over it (so a scroll costs nothing, and a row
+/// coming in builds no reader), and hidden while its ghost flies.
 private struct HeroSourceSlot: ViewModifier {
     let item: String
     let isHovering: Bool
@@ -129,14 +129,17 @@ private struct HeroSourceSlot: ViewModifier {
 
     func body(content: Content) -> some View {
         let hidden = tracking && HeroFlight.shared.hidesSource(item, on: screen)
-        let measuring = tracking && isHovering
-        #if DEBUG
-        let _ = RowBuildCounts.notePart("heroReader")
-        #endif
         content
             .opacity(hidden ? 0 : 1)
-            .onGeometryChange(for: CGRect.self) { measuring ? $0.frame(in: .named(PageSpace.name)) : .zero } action: { frame in
-                if frame != .zero { box.frame = frame }
+            .background {
+                if tracking && isHovering {
+                    #if DEBUG
+                    let _ = RowBuildCounts.notePart("heroReader")
+                    #endif
+                    Color.clear.onGeometryChange(for: CGRect.self) { $0.frame(in: .named(PageSpace.name)) } action: { frame in
+                        if frame != .zero { box.frame = frame }
+                    }
+                }
             }
     }
 }
