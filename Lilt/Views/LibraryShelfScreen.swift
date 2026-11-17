@@ -168,7 +168,7 @@ struct LibraryShelfScreen: View {
     }
 }
 
-/// Library's last row under a shelf's preview: how many there are, and the way to all of them.
+/// Library's last row under a shelf's preview: the way to all of them.
 struct SeeAllRow: View {
     let shelf: LibraryShelf
     let count: Int
@@ -182,17 +182,14 @@ struct SeeAllRow: View {
         Button {
             navigation.open(shelf.page)
         } label: {
-            HStack(spacing: Theme.Space.md) {
-                Text("See All")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                    .padding(.leading, Theme.Space.sm)
-            }
-            .padding(Theme.Space.rowPadding)
+            // Centred under the covers above it, a step on from the shelf rather than a row.
+            Text("See All")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize()
+                .frame(width: Theme.Size.rowArtwork)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Theme.Space.rowPadding)
             .contentShape(Self.highlight)
             .background {
                 Self.highlight
