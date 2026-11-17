@@ -50,6 +50,19 @@ struct DiscSpinTests {
         #expect(abs((turn.byValue as! Double) + 2 * .pi) < 1e-9)
     }
 
+    /// A turn of 45° a second moves under a degree and a half a frame at 30 Hz, which looks as
+    /// smooth as 120 Hz, and an uncapped animation has the window server recomposite the whole
+    /// panel, its blurs and glass included, at the display's full rate for as long as music plays.
+    @Test func theTurnAsksForThirtyFramesASecond() throws {
+        let view = Self.view()
+        let now = Date.now
+        view.apply(ArtworkSpin(baseAngle: 0, resumedAt: now, degreesPerSecond: Self.dps, paused: false), at: now)
+        let turn = try #require(view.picture.animation(forKey: SpinningPictureView.spinKey) as? CABasicAnimation)
+        #expect(turn.preferredFrameRateRange.maximum == 30)
+        #expect(turn.preferredFrameRateRange.preferred == 30)
+        #expect(turn.preferredFrameRateRange.minimum == 15)
+    }
+
     @Test func pausingHoldsTheAngle() {
         let view = Self.view()
         let start = Date.now
