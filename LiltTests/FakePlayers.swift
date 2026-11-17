@@ -48,13 +48,13 @@ final class FakePlayers {
 
 /// A player resumed on `queue[0]` (seeded through the saved `playbackState`) with fake web
 /// players and gapless set as given, alongside the old picker's mode to migrate from if one is
-/// given. The real app's saved playback and setting are put back afterwards.
+/// given. The real app's saved playback, playhead and setting are put back afterwards.
 @MainActor
 func withFakePlayer(
     _ queue: [Track], gapless: Bool, legacyMode: String? = nil,
     _ body: (PlayerService, FakePlayers) async throws -> Void
 ) async throws {
-    let keys = ["playbackState", PlayerService.gaplessKey, PlayerService.legacyGaplessModeKey]
+    let keys = ["playbackState", "playbackPosition", PlayerService.gaplessKey, PlayerService.legacyGaplessModeKey]
     let saved = keys.map { UserDefaults.standard.object(forKey: $0) }
     defer {
         for (key, value) in zip(keys, saved) {
