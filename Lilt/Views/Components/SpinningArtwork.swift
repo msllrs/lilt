@@ -105,28 +105,32 @@ struct SpinningArtwork: View {
     private var holeSize: CGFloat { size * 0.15 }
 
     /// The clear plastic hub of a CD: a frosted ring between the hole and the label, with thin
-    /// edge lines and a catch of light at the top left.
+    /// edge lines and a catch of light at the top left. Its rings are there only while the cover
+    /// is a record or turning back from one, so a list of plain covers doesn't build a hub for
+    /// each; the stack around them stays, so the fade and scale in run from the first frame.
     private var hub: some View {
         let ringWidth = (hubSize - holeSize) / 2
-        #if DEBUG
-        let _ = RowBuildCounts.notePart("discHub")
-        #endif
         return ZStack {
-            Circle()
-                .strokeBorder(.white.opacity(0.42), lineWidth: ringWidth)
-            Circle()
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [.white.opacity(0.55), .white.opacity(0.05), .black.opacity(0.08)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: ringWidth
-                )
-            // Outer edge of the hub, and the lip of the hole.
-            Circle().stroke(.black.opacity(0.22), lineWidth: 0.5)
-            Circle().stroke(.black.opacity(0.3), lineWidth: 0.5)
-                .frame(width: holeSize, height: holeSize)
+            if turning {
+                #if DEBUG
+                let _ = RowBuildCounts.notePart("discHub")
+                #endif
+                Circle()
+                    .strokeBorder(.white.opacity(0.42), lineWidth: ringWidth)
+                Circle()
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [.white.opacity(0.55), .white.opacity(0.05), .black.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: ringWidth
+                    )
+                // Outer edge of the hub, and the lip of the hole.
+                Circle().stroke(.black.opacity(0.22), lineWidth: 0.5)
+                Circle().stroke(.black.opacity(0.3), lineWidth: 0.5)
+                    .frame(width: holeSize, height: holeSize)
+            }
         }
         .frame(width: hubSize, height: hubSize)
     }
