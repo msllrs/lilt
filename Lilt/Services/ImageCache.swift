@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import OSLog
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// In-memory artwork cache in front of a disk-backed URLSession.
 ///
@@ -120,14 +121,38 @@ final class ImageCache {
     private static let launchArtworkFile = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("launch-artwork.png")
     private static let launchArtworkKey = "launchArtworkURL"
 
+    /// Files the cache keeps (the launch cover, the remembered colours), written in the order
+    /// they were asked for, off the main actor.
+    private static let diskQueue = DispatchQueue(label: "com.msllrs.Lilt.imagecache", qos: .utility)
+
     /// Keeps this cover on disk as a plain file, so a relaunch can draw the platter and its
     /// colours before the first frame. The URL cache would serve it too, but only after the
     /// session has spun up, which on a cold start is longer than the window takes to appear.
+    /// Encoded on the disk queue straight from the decoded bitmap: on the main thread, by way
+    /// of a TIFF and a bitmap rep, it cost every song change a few milliseconds. The URL is
+    /// noted only once the file is written, so the two never disagree.
     func rememberForLaunch(_ image: NSImage, for url: URL) {
-        guard let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
-              let png = rep.representation(using: .png, properties: [:]) else { return }
-        try? png.write(to: Self.launchArtworkFile, options: .atomic)
-        UserDefaults.standard.set(url.absoluteString, forKey: Self.launchArtworkKey)
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        let picture = UncheckedImage(cgImage: cgImage)
+        let file = Self.launchArtworkFile, key = Self.launchArtworkKey, value = url.absoluteString
+        Self.diskQueue.async {
+            let png = NSMutableData()
+            guard let destination = CGImageDestinationCreateWithData(png, UTType.png.identifier as CFString, 1, nil) else { return }
+            CGImageDestinationAddImage(destination, picture.cgImage, nil)
+            guard CGImageDestinationFinalize(destination), (try? (png as Data).write(to: file, options: .atomic)) != nil else { return }
+            UserDefaults.standard.set(value, forKey: key)
+        }
+    }
+
+    /// Waits for the files the cache is writing, a colour save still waiting written now; for
+    /// tests.
+    func flushToDisk() {
+        if saveTask != nil {
+            saveTask?.cancel()
+            saveTask = nil
+            saveRemembered()
+        }
+        Self.diskQueue.sync {}
     }
 
     /// Puts the remembered cover straight into the cache if it is the one asked for.
@@ -300,7 +325,7 @@ final class ImageCache {
     /// What was measured from a cover, kept across launches so a tint can answer before the
     /// image has loaded: the platter, the Play capsule and the page ambient are coloured on
     /// their first frame instead of when the picture lands.
-    private struct ColourRecord: Codable {
+    private struct ColourRecord: Codable, Sendable {
         var r: Double, g: Double, b: Double, edge: Double
         var dr: Double?, dg: Double?, db: Double?
         init(average: (r: CGFloat, g: CGFloat, b: CGFloat), edge: CGFloat, dominant: (r: CGFloat, g: CGFloat, b: CGFloat)?) {
@@ -331,10 +356,21 @@ final class ImageCache {
         remembered[key] = record
         while rememberedOrder.count > Self.rememberedLimit { remembered[rememberedOrder.removeFirst()] = nil }
         saveTask?.cancel()
-        saveTask = Task { @MainActor [remembered] in
+        saveTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1))
-            guard !Task.isCancelled, let data = try? JSONEncoder().encode(remembered) else { return }
-            try? data.write(to: Self.coloursFile, options: .atomic)
+            guard !Task.isCancelled, let self else { return }
+            saveTask = nil
+            saveRemembered()
+        }
+    }
+
+    /// Writes the remembered colours: taken here, encoded and written on the disk queue, where
+    /// encoding six hundred of them held the main thread a second after covers stopped coming.
+    private func saveRemembered() {
+        let snapshot = remembered, file = Self.coloursFile
+        Self.diskQueue.async {
+            guard let data = try? JSONEncoder().encode(snapshot) else { return }
+            try? data.write(to: file, options: .atomic)
         }
     }
 
@@ -432,6 +468,11 @@ final class ImageCache {
     static func baseKey(_ url: URL) -> String {
         url.absoluteString.replacing(/=w\d+-h\d+[^?#]*/, with: "")
     }
+}
+
+/// A decoded bitmap handed to the disk queue. CGImage is immutable, so sharing it is safe.
+private struct UncheckedImage: @unchecked Sendable {
+    let cgImage: CGImage
 }
 
 /// Artwork decoded to a bitmap and measured, off the main thread. The image is built from a
