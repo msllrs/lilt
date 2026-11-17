@@ -81,6 +81,7 @@ struct SearchField: View {
                 // cleared, without telling anyone the caret left (a shelf folds its filter then).
                 if !focused, takesTheCaret { isFocused = true; return }
             }
+            Diagnostics.shared.record(.screen, "\(screenId ?? "search"): field focus state \(focused)")
             onFocusChange?(focused)
         }
         // The panel often isn't key when this first appears; re-claim focus when it becomes key
@@ -110,8 +111,8 @@ struct SearchField: View {
     private static let afterTransition: TimeInterval = 0.4
 
     private func claimIfDropped(_ when: String) {
-        if let screenId {
-            Diagnostics.shared.record(.screen, "\(screenId): filter field checks its caret (\(when)): on top \(isOnTop), takes it \(takesTheCaret), editing \(isEditing), focus state \(isFocused), window \(host.window.map { "\(type(of: $0)), first responder \(String(describing: $0.firstResponder.map { type(of: $0) }))" } ?? "none")")
+        do {
+            Diagnostics.shared.record(.screen, "\(screenId ?? "search"): field checks its caret (\(when)): on top \(isOnTop), takes it \(takesTheCaret), editing \(isEditing), focus state \(isFocused), window \(host.window.map { "\(type(of: $0)), first responder \(String(describing: $0.firstResponder.map { type(of: $0) }))" } ?? "none")")
         }
         guard takesTheCaret, !isEditing else { return }
         ask()
@@ -120,9 +121,9 @@ struct SearchField: View {
     /// Asks for the caret. If the focus state already reads true the ask was dropped, and
     /// setting true again would change nothing, so it goes false first and back (above).
     private func ask() {
-        if let screenId {
+        do {
             let window = host.window
-            Diagnostics.shared.record(.screen, "\(screenId): filter field asks for the caret (\(window.map { "in \(String(describing: type(of: $0)))\($0.isKeyWindow ? ", key" : ", not key")" } ?? "not in a window yet"), \(isFocused ? "asked before" : "first ask"))")
+            Diagnostics.shared.record(.screen, "\(screenId ?? "search"): field asks for the caret (\(window.map { "in \(String(describing: type(of: $0)))\($0.isKeyWindow ? ", key" : ", not key")" } ?? "not in a window yet"), \(isFocused ? "asked before" : "first ask"))")
         }
         if isFocused {
             isReasking = true
