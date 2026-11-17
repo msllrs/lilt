@@ -2,11 +2,12 @@ import AVFoundation
 import Foundation
 import Observation
 import OSLog
+import WebKit
 
-/// Background sound under the music: ambience generated live (rain, wind, fire, ocean, deep
-/// noise, no samples and no licences) and a live stream of the listener's choosing, air traffic
-/// control or otherwise. Its own audio graph, outside the web player, so it can't touch DRM or
-/// the Media Session, and it keeps going when the music pauses.
+/// Background sound under the music: long recordings of rain, wind, fire, ocean and deep noise
+/// from YouTube Music, each on a hidden page of its own while it is on, and a live stream of the
+/// listener's choosing, air traffic control or otherwise. The pages stay out of Now Playing and
+/// the history (see `PlayerBridge`'s ambient mode), and keep going when the music pauses.
 @MainActor
 @Observable
 final class AmbienceService {
@@ -31,6 +32,17 @@ final class AmbienceService {
             case .deep: "waveform"
             }
         }
+        /// The YouTube Music track it plays: an hour or more of one recording, picked from a
+        /// search on 2026-11-17, so it loops rarely.
+        var videoId: String {
+            switch self {
+            case .rain: "xsJNJIAFfnY"   // Indoor Rain Sounds – No Thunder, The Guild of Ambience, 1:00:01
+            case .wind: "witZqY-uH3w"   // Howling Wind Through the Mountain Pass, Masters of the Elements, 1:00:00
+            case .fire: "dIdkB9h2s7M"   // Fireplace Sounds with Crackling & Hissing: One Hour (Loopable), Stardust Vibes
+            case .ocean: "iPTGxlrVOO0"  // 10 Hours of Continuous Ocean Waves to Sleep to, 10 Hour Recordings
+            case .deep: "G3JeHAVCSRI"   // Smoothed Brown Noise, Pt. I, 8-Hour Sound Machines, 4:16:01
+            }
+        }
     }
 
     /// The live feed to play, supplied by the listener: a plain audio stream URL (an Icecast or
@@ -41,7 +53,14 @@ final class AmbienceService {
     /// The sounds playing now. Not remembered: a relaunch shouldn't start raining on its own.
     private(set) var active: Set<Sound> = []
     /// Level of the whole ambience bed under the music.
-    var volume: Float = 0.5 { didSet { engine.mainMixerNode.outputVolume = volume; save() } }
+    var volume: Float = 0.5 {
+        didSet {
+            for player in players.values { player.setVolume(Double(volume)) }
+            save()
+        }
+    }
+    /// Sounds switched on whose page hasn't started to sound yet; their buttons pulse.
+    private(set) var loading: Set<Sound> = []
     private(set) var isStreaming = false
     /// Where the feed is: a live one takes ten seconds or so to buffer, and a dead mount never
     /// arrives, so the switch shows which.
@@ -53,44 +72,66 @@ final class AmbienceService {
     var isOn: Bool { !active.isEmpty || isStreaming }
 
     private static let log = Logger(subsystem: "com.msllrs.Lilt", category: "ambience")
-    private let engine = AVAudioEngine()
-    private var nodes: [Sound: AVAudioSourceNode] = [:]
     private var stream: AVPlayer?
     private var streamObservers: [NSKeyValueObservation] = []
 
+    /// Makes the hidden page a sound plays on, signed in like the music's. Wired by the app; nil
+    /// in tests, where switching a sound on plays nothing.
+    @ObservationIgnored var makePlayer: (@MainActor () -> any PlayerBridging)?
+    /// Puts a page's view in a window, where it has to be to keep playing. Wired by the app.
+    @ObservationIgnored var hostWebView: ((WKWebView) -> Void)?
+    /// A page for each sound that is on, and only while it is: each one is a whole YouTube Music
+    /// page, a few hundred megabytes.
+    @ObservationIgnored private var players: [Sound: any PlayerBridging] = [:]
+
     init() {
         restore()
-        let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
-        for sound in Sound.allCases {
-            let node = Self.makeNode(for: sound, format: format)
-            node.volume = 0
-            engine.attach(node)
-            engine.connect(node, to: engine.mainMixerNode, format: format)
-            nodes[sound] = node
-        }
-        engine.mainMixerNode.outputVolume = volume
-    }
-
-    /// The render block runs on the audio thread. Written inside this main-actor class it would
-    /// inherit the actor and trap the first time it was called, so the node is built here, off
-    /// the actor, with a generator of its own.
-    nonisolated private static func makeNode(for sound: Sound, format: AVAudioFormat) -> AVAudioSourceNode {
-        let generator = AmbienceGenerator(sound)
-        return AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
-            let buffers = UnsafeMutableAudioBufferListPointer(audioBufferList)
-            guard let data = buffers[0].mData else { return noErr }
-            generator.render(data.assumingMemoryBound(to: Float.self), Int(frameCount))
-            return noErr
-        }
     }
 
     func toggle(_ sound: Sound) {
-        if active.contains(sound) { active.remove(sound) } else { active.insert(sound) }
-        // The graph runs only while something is on; a running engine with every source at
-        // zero still renders them all.
-        if !active.isEmpty, !engine.isRunning { try? engine.start() }
-        for (each, node) in nodes { node.volume = active.contains(each) ? 1 : 0 }
-        if active.isEmpty, engine.isRunning { engine.stop() }
+        if active.contains(sound) {
+            active.remove(sound)
+            stop(sound)
+        } else {
+            active.insert(sound)
+            start(sound)
+        }
+    }
+
+    private func start(_ sound: Sound) {
+        guard players[sound] == nil, let player = makePlayer?() else { return }
+        players[sound] = player
+        loading.insert(sound)
+        player.onEvent = { [weak self] event in self?.handle(event, of: sound) }
+        if let view = player.webView { hostWebView?(view) }
+        player.load(videoId: sound.videoId)
+    }
+
+    private func stop(_ sound: Sound) {
+        loading.remove(sound)
+        guard let player = players.removeValue(forKey: sound) else { return }
+        player.onEvent = nil
+        player.unload()
+        player.webView?.removeFromSuperview()
+    }
+
+    private func handle(_ event: PlayerEvent, of sound: Sound) {
+        guard let player = players[sound] else { return }
+        switch event {
+        case .playing:
+            loading.remove(sound)
+            player.setVolume(Double(volume))
+        case .state(let snapshot):
+            // Back to the start a moment before the end, so the page never finishes the track
+            // and autoplays something else.
+            if snapshot.duration > 30, snapshot.currentTime > snapshot.duration - 1.5 { player.seek(to: 0) }
+        case .ended:
+            player.load(videoId: sound.videoId)
+        case .playbackError(_, let reason):
+            Self.log.error("ambience \(sound.rawValue, privacy: .public) failed: \(reason, privacy: .public)")
+        default:
+            break
+        }
     }
 
     func setStreaming(_ on: Bool) {
@@ -162,99 +203,5 @@ final class AmbienceService {
         volume = saved.volume
         streamVolume = saved.streamVolume
         streamURL = saved.streamURL ?? ""
-    }
-}
-
-/// One ambience sound, rendered on the audio thread from noise and a few filters: no state
-/// shared with anything else, so it is safe to drive from the render block.
-private final class AmbienceGenerator: @unchecked Sendable {
-    private let sound: AmbienceService.Sound
-    // xorshift noise
-    private var seed: UInt32 = 0x9E37_79B9
-    // pink noise (Paul Kellet's filter)
-    private var b0: Float = 0, b1: Float = 0, b2: Float = 0, b3: Float = 0, b4: Float = 0, b5: Float = 0, b6: Float = 0
-    private var brown: Float = 0
-    private var lowpass: Float = 0
-    private var highpassState: Float = 0
-    // slow movements: gusts, swells, flicker
-    private var slow: Float = 0.5, slowTarget: Float = 0.5, slowCountdown = 0
-    private var phase: Float = 0
-    // sparse events: rain drops, fire crackles
-    private var event: Float = 0
-
-    init(_ sound: AmbienceService.Sound) { self.sound = sound }
-
-    private func white() -> Float {
-        seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5
-        return Float(Int32(bitPattern: seed)) / Float(Int32.max)
-    }
-
-    private func pink(_ w: Float) -> Float {
-        b0 = 0.99886 * b0 + w * 0.0555179
-        b1 = 0.99332 * b1 + w * 0.0750759
-        b2 = 0.96900 * b2 + w * 0.1538520
-        b3 = 0.86650 * b3 + w * 0.3104856
-        b4 = 0.55000 * b4 + w * 0.5329522
-        b5 = -0.7616 * b5 - w * 0.0168980
-        let out = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362
-        b6 = w * 0.115926
-        return out * 0.11
-    }
-
-    private func brownNoise(_ w: Float) -> Float {
-        brown = (brown + 0.02 * w) / 1.02
-        return brown * 3.5
-    }
-
-    /// A value that wanders slowly between random targets, for gusts and flicker.
-    private func wander(every samples: Int, rate: Float) -> Float {
-        if slowCountdown <= 0 {
-            slowTarget = 0.5 + 0.5 * white()
-            slowCountdown = samples / 2 + Int(Float(samples) * 0.5 * (0.5 + 0.5 * white()))
-        }
-        slowCountdown -= 1
-        slow += (slowTarget - slow) * rate
-        return slow
-    }
-
-    func render(_ out: UnsafeMutablePointer<Float>, _ count: Int) {
-        for i in 0..<count {
-            let w = white()
-            var sample: Float
-            switch sound {
-            case .rain:
-                // Hiss from pink noise above a few hundred hertz, with a steady patter of drops.
-                let p = pink(w)
-                highpassState += 0.06 * (p - highpassState)
-                let hiss = (p - highpassState) * 0.9
-                if abs(white()) < 0.0015 { event = 0.5 + 0.5 * abs(white()) }
-                event *= 0.993
-                sample = hiss + event * white() * 0.5
-            case .wind:
-                // Low noise under slow gusts.
-                let b = brownNoise(w)
-                lowpass += 0.015 * (b - lowpass)
-                let gust = wander(every: 48_000 * 3, rate: 0.00003)
-                sample = lowpass * (0.35 + 0.65 * gust) * 1.8
-            case .fire:
-                // A low roar that flickers, with sparse crackles.
-                let b = brownNoise(w)
-                lowpass += 0.03 * (b - lowpass)
-                let flicker = wander(every: 48_000 / 4, rate: 0.0005)
-                if abs(white()) < 0.00025 { event = 0.6 + 0.4 * abs(white()) }
-                event *= 0.96
-                sample = lowpass * (0.5 + 0.5 * flicker) * 0.9 + event * white()
-            case .ocean:
-                // Pink noise rising and falling on a long swell.
-                phase += 1 / (48_000 * 9)
-                if phase > 1 { phase -= 1 }
-                let swell = 0.5 - 0.5 * cos(phase * 2 * .pi)
-                lowpass += 0.08 * (pink(w) - lowpass)
-                sample = lowpass * (0.15 + 0.85 * swell) * 1.6
-            case .deep:
-                sample = brownNoise(w) * 0.7
-            }
-            out[i] = max(-1, min(1, sample))
-        }
     }
 }

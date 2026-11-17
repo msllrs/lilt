@@ -1,6 +1,7 @@
 import AppKit
 import Sparkle
 import SwiftUI
+import WebKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
@@ -599,10 +600,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // which is why the panel hides rather than closes.
         // Tucked well inside the rounded glass; at the corner one peeks out as a dot because the
         // borderless window is transparent there.
-        player.hostWebView = { [weak container] webView in
+        // The ambience drawer's sounds each play on a page of their own, kept the same way.
+        let host: (WKWebView) -> Void = { [weak container] webView in
             webView.frame = NSRect(x: Theme.Radius.window, y: Theme.Radius.window, width: 1, height: 1)
             container?.addSubview(webView, positioned: .below, relativeTo: nil)
         }
+        player.hostWebView = host
+        ambience.hostWebView = host
+        ambience.makePlayer = { [dataStore = auth.dataStore] in PlayerBridge(dataStore: dataStore, ambient: true) }
 
         window.contentView = container
         if !window.setFrameUsingName(PanelWindow.autosaveName) {

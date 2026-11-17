@@ -38,6 +38,8 @@ struct AmbiencePanel: View {
                         Image(systemName: sound.symbol)
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(on ? tint : dim)
+                            // Pulses while its page loads, a few seconds, as the stream's does.
+                            .symbolEffect(.pulse, isActive: ambience.loading.contains(sound))
                             .frame(width: 28, height: 28)
                             .background(Circle().fill(tint.opacity(on ? 0.14 : 0)))
                             .contentShape(Circle())
