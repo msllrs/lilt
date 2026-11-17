@@ -14,6 +14,8 @@ struct ControlsMenuTests {
         // Each change saves the queue to the shared defaults the real app reads on its next
         // launch; put it, and the player's modes, back as they were.
         let key = "playbackState"
+        let playhead = SavedPlayhead()
+        defer { playhead.restore() }
         let saved = UserDefaults.standard.data(forKey: key)
         let (shuffled, repeating) = (player.isShuffled, player.repeatMode)
         defer {

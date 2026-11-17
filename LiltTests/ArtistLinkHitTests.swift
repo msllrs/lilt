@@ -28,6 +28,8 @@ struct ArtistLinkHitTests {
     /// playback is put back afterwards.
     private static func playerShowing(_ track: Track) -> PlayerService {
         let key = "playbackState"
+        let playhead = SavedPlayhead()
+        defer { playhead.restore() }
         let real = UserDefaults.standard.data(forKey: key)
         defer { if let real { UserDefaults.standard.set(real, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) } }
         let seeded: [String: Any] = ["queue": [try! JSONSerialization.jsonObject(with: JSONEncoder().encode(track))], "index": 0, "time": 0]

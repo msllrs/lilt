@@ -34,6 +34,8 @@ struct QueueShadowTests {
     /// The real app's saved playback is put back afterwards.
     private func withQueue(_ body: (PlayerService) async -> Void) async throws {
         let key = "playbackState"
+        let playhead = SavedPlayhead()
+        defer { playhead.restore() }
         let saved = UserDefaults.standard.data(forKey: key)
         defer { if let saved { UserDefaults.standard.set(saved, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) } }
         let now = Track(id: "now", title: "Now", artist: "Tool")

@@ -12,6 +12,8 @@ struct DockMenuTests {
     /// app's saved playback is put back afterwards.
     private func withPlayer(_ queue: [Track], _ body: (PlayerService) throws -> Void) throws {
         let key = "playbackState"
+        let playhead = SavedPlayhead()
+        defer { playhead.restore() }
         let saved = UserDefaults.standard.data(forKey: key)
         defer { if let saved { UserDefaults.standard.set(saved, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) } }
         let state: [String: Any] = ["queue": try JSONSerialization.jsonObject(with: JSONEncoder().encode(queue)), "index": 0, "time": 0]
@@ -84,6 +86,8 @@ struct DockMenuPlaybackModeTests {
 
     private func withPlayer(_ body: (PlayerService) throws -> Void) throws {
         let key = "playbackState"
+        let playhead = SavedPlayhead()
+        defer { playhead.restore() }
         let saved = UserDefaults.standard.data(forKey: key)
         defer { if let saved { UserDefaults.standard.set(saved, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) } }
         let state: [String: Any] = ["queue": try JSONSerialization.jsonObject(with: JSONEncoder().encode([song])), "index": 0, "time": 0]
@@ -126,6 +130,8 @@ struct DockMenuQueueTests {
 
     private func withPlayer(_ queue: [Track], _ body: (PlayerService) throws -> Void) throws {
         let key = "playbackState"
+        let playhead = SavedPlayhead()
+        defer { playhead.restore() }
         let saved = UserDefaults.standard.data(forKey: key)
         defer { if let saved { UserDefaults.standard.set(saved, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) } }
         let state: [String: Any] = ["queue": try JSONSerialization.jsonObject(with: JSONEncoder().encode(queue)), "index": 0, "time": 0]
@@ -167,7 +173,7 @@ struct DockMenuRecentsTests {
     /// A player on `current` and recents holding `played`, most recent first. The real app's
     /// saved playback and recents are put back afterwards.
     private func withState(current: Track, played: [Track], _ body: (PlayerService, RecentsStore) throws -> Void) throws {
-        let keys = ["playbackState", "recents"]
+        let keys = ["playbackState", PlayerService.playheadKey, "recents"]
         let saved = keys.map { UserDefaults.standard.data(forKey: $0) }
         defer {
             for (key, data) in zip(keys, saved) {

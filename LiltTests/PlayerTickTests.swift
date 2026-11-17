@@ -16,6 +16,8 @@ struct PlayerTickTests {
     /// app's saved playback is put back afterwards.
     private func withPlayer(_ body: (PlayerService) -> Void) throws {
         let key = "playbackState"
+        let playhead = SavedPlayhead()
+        defer { playhead.restore() }
         let saved = UserDefaults.standard.data(forKey: key)
         defer { if let saved { UserDefaults.standard.set(saved, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) } }
         let state: [String: Any] = ["queue": try JSONSerialization.jsonObject(with: JSONEncoder().encode([song])), "index": 0, "time": 0]

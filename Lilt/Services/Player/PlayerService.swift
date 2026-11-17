@@ -160,6 +160,13 @@ final class PlayerService {
     }
 
     private static let savedKey = "playbackState"
+    /// Where you are in the song, saved on its own every few seconds of playing so the queue
+    /// isn't encoded again with it. It names its song, so a stale one is never resumed on another.
+    static let playheadKey = "playbackPosition"
+    private struct Playhead: Codable {
+        var trackId: String
+        var time: Double
+    }
     private struct Saved: Codable {
         var queue: [Track]
         var index: Int?
@@ -598,9 +605,18 @@ final class PlayerService {
             manualCount: manualCount, sourceId: sourceId, sourceTitle: sourceTitle
         )
         UserDefaults.standard.set(try? JSONEncoder().encode(saved), forKey: Self.savedKey)
+        savePlayhead()
         // Every change to the queue, its order or its repeat lands here, so this is where the
         // standby learns what plays next.
         syncStandby()
+    }
+
+    /// Saves just the playhead, as the song plays.
+    private func savePlayhead() {
+        lastSavedTime = currentTime
+        guard let current else { UserDefaults.standard.removeObject(forKey: Self.playheadKey); return }
+        let playhead = Playhead(trackId: current.id, time: currentTime)
+        UserDefaults.standard.set(try? JSONEncoder().encode(playhead), forKey: Self.playheadKey)
     }
 
     /// Takes up the saved queue and playhead, ready to load. Internal so tests can put the app's
@@ -612,6 +628,11 @@ final class PlayerService {
         queue = saved.queue
         currentIndex = index
         currentTime = saved.time
+        if let data = UserDefaults.standard.data(forKey: Self.playheadKey),
+           let playhead = try? JSONDecoder().decode(Playhead.self, from: data),
+           playhead.trackId == saved.queue[index].id {
+            currentTime = playhead.time
+        }
         isShuffled = saved.isShuffled ?? false
         unshuffledQueue = saved.unshuffledQueue
         repeatMode = saved.repeatMode ?? .off
@@ -903,7 +924,7 @@ final class PlayerService {
             return
         }
         currentTime = s.currentTime
-        if abs(currentTime - lastSavedTime) > 5 { save() }
+        if abs(currentTime - lastSavedTime) > 5 { savePlayhead() }
         duration = s.duration
         liveTitle = s.title
         liveArtist = s.artist

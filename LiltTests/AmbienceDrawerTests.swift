@@ -43,6 +43,9 @@ struct AmbienceDrawerTests {
                 UserDefaults.standard.removeObject(forKey: key)
             }
         }
+        // Declared after, so put back first: the player above resumes on it.
+        let playhead = SavedPlayhead()
+        defer { playhead.restore() }
         let songs = ["now", "queued1", "queued2"].map { Track(id: $0, title: $0, artist: "Tool") }
         let state: [String: Any] = ["queue": try JSONSerialization.jsonObject(with: JSONEncoder().encode(songs)), "index": 0, "time": 0, "manualCount": 2]
         UserDefaults.standard.set(try JSONSerialization.data(withJSONObject: state), forKey: key)

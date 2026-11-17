@@ -90,6 +90,8 @@ struct AlbumScrollTests {
         let track = Track(id: "album-scroll-0", title: "Can You Hear the Music", artist: "Ludwig Göransson",
                           album: "Oppenheimer", durationText: "1:50", artworkURL: URL(string: cover("hero", hue: 0.07)),
                           artistId: "UC-album-scroll-artist", albumId: albumId)
+        let playhead = SavedPlayhead()
+        defer { playhead.restore() }
         let saved = UserDefaults.standard.data(forKey: "playbackState")
         defer { if let saved { UserDefaults.standard.set(saved, forKey: "playbackState") } else { UserDefaults.standard.removeObject(forKey: "playbackState") } }
         let state: [String: Any] = ["queue": [try! JSONSerialization.jsonObject(with: JSONEncoder().encode(track))], "index": 0, "time": 0]
