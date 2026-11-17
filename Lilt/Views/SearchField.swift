@@ -68,7 +68,7 @@ struct SearchField: View {
         }
         .modifier(SearchSurface())
         // An ask made before the field is in a window is dropped; ask again once it's in one.
-        .background(WindowReader(host: host) { DispatchQueue.main.async { claimIfDropped() } })
+        .background(WindowReader(host: host) { DispatchQueue.main.async { claimIfDropped("in a window") } })
         .onAppear { claimTheCaret() }
         // Give focus up when a page opens over the search root, take it back when you return.
         .onChange(of: isOnTop) { _, onTop in
@@ -100,10 +100,19 @@ struct SearchField: View {
     private func claimTheCaret() {
         guard takesTheCaret else { return }
         ask()
-        DispatchQueue.main.async { claimIfDropped() }
+        DispatchQueue.main.async { claimIfDropped("next turn") }
+        // A field revealed in a transition (a shelf's filter flowing out of its button's glass)
+        // may only be in the window once the transition ends; look again then.
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.afterTransition) { claimIfDropped("after the transition") }
     }
 
-    private func claimIfDropped() {
+    /// Just past `Theme.Motion.standard`, the transition a revealed field arrives in.
+    private static let afterTransition: TimeInterval = 0.4
+
+    private func claimIfDropped(_ when: String) {
+        if let screenId {
+            Diagnostics.shared.record(.screen, "\(screenId): filter field checks its caret (\(when)): on top \(isOnTop), takes it \(takesTheCaret), editing \(isEditing), focus state \(isFocused), window \(host.window.map { "\(type(of: $0)), first responder \(String(describing: $0.firstResponder.map { type(of: $0) }))" } ?? "none")")
+        }
         guard takesTheCaret, !isEditing else { return }
         ask()
     }
