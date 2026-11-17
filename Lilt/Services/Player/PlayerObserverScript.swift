@@ -10,7 +10,7 @@ enum PlayerObserverScript {
       const post = (type, payload) => {
         try { window.webkit.messageHandlers.lilt.postMessage(Object.assign({ type }, payload || {})); } catch (e) {}
       };
-      const state = { video: null, lastTimeUpdate: 0, pendingNav: null, hold: false, cueing: null, ytVolume: null, probed: false, errorPlayer: null, errorScreenFor: null };
+      const state = { video: null, lastTimeUpdate: 0, lastReport: 0, pendingNav: null, hold: false, cueing: null, ytVolume: null, probed: false, errorPlayer: null, errorScreenFor: null };
       // A standby page (gapless playback) is held silent and still. The flag outlives a reload
       // through sessionStorage, which belongs to this web view alone.
       const holdKey = '__liltHold';
@@ -86,6 +86,7 @@ enum PlayerObserverScript {
       const report = () => {
         const v = state.video;
         if (!v) { return; }
+        state.lastReport = Date.now();
         post('STATE_UPDATE', Object.assign({
           videoId: videoId(),
           isPlaying: !v.paused && !v.ended,
@@ -157,7 +158,10 @@ enum PlayerObserverScript {
         if (v) { attach(v); }
         watchErrors();
         if (!state.probed && playerApi()) { state.probed = true; probe('startup'); }
-        report();
+        // The check reports only what nothing else has: a paused page's late title or like.
+        // A held standby's reports would be thrown away, and a playing page's playhead has
+        // reported within the second.
+        if (!state.hold && Date.now() - state.lastReport >= 900) { report(); }
       };
       setInterval(tick, 1000);
       tick();
