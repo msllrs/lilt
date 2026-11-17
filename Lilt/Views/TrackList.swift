@@ -5,7 +5,6 @@ struct TrackRows: View {
     /// Settings ▸ Appearance ▸ Hide unavailable songs.
     static let hidesUnavailableKey = "hidesUnavailableSongs"
 
-    @Environment(PlayerService.self) private var player
     @Environment(\.hidesUnavailableSongs) private var hidesUnavailable
     let tracks: [Track]
     /// When set, render just this one track (still queued with the whole list). Lets a mixed
@@ -24,18 +23,31 @@ struct TrackRows: View {
             let _ = RowBuildCounts.noteSlot(track)
             #endif
             if only == nil || only?.id == track.id {
-                TrackRow(
-                    track: track,
-                    isCurrent: player.current?.id == track.id,
-                    isPlaying: player.isPlaying,
-                    source: source
-                ) {
-                    player.play(tracks, startingAt: index, source: source)
-                }
-                // Under a page's section header (row 0) when the page staggers its rows in.
-                .entrance(.row(index + 1))
+                QueuedTrackRow(queue: tracks, index: index, source: source)
             }
         }
+    }
+}
+
+/// One song of a list, which a click plays with the list as the queue. The player is read here,
+/// row by row, rather than by the list: a song change or a pause then reruns these small bodies
+/// and nothing around them, and hands on whether it's playing to the playing row alone, so the
+/// rest compare unchanged and aren't rebuilt.
+struct QueuedTrackRow: View {
+    let queue: [Track]
+    let index: Int
+    var source: BrowseItem? = nil
+
+    @Environment(PlayerService.self) private var player
+
+    var body: some View {
+        let track = queue[index]
+        let isCurrent = player.current?.id == track.id
+        TrackRow(track: track, isCurrent: isCurrent, isPlaying: isCurrent && player.isPlaying, source: source) {
+            player.play(queue, startingAt: index, source: source)
+        }
+        // Under a page's section header (row 0) when the page staggers its rows in.
+        .entrance(.row(index + 1))
     }
 }
 
