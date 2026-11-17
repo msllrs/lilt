@@ -44,6 +44,9 @@ final class NoteEmitterHostView: NSView {
     private var applied: NotesStyle?
     private var artworkURL: URL?
     private var cellNames: [String] = []
+    /// Whether the sway and hue animations are on: while notes are born and until the last fades.
+    private var moving = false
+    private var stillTask: Task<Void, Never>?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -64,6 +67,14 @@ final class NoteEmitterHostView: NSView {
         emitter.frame = bounds
     }
 
+    /// A layer out of a window loses its animations; back in one while notes rise, the motion
+    /// goes back on.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil, emitter.birthRate > 0, emitter.animationKeys() == nil, let applied else { return }
+        applyMotion(applied)
+    }
+
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
         applyColor()
@@ -72,17 +83,40 @@ final class NoteEmitterHostView: NSView {
     @MainActor
     func update(isPlaying: Bool, center: CGPoint, artworkURL: URL?, style: NotesStyle) {
         emitter.emitterPosition = CGPoint(x: center.x + style.sourceX, y: center.y + style.sourceY)
+        let wasPlaying = emitter.birthRate > 0
         emitter.birthRate = isPlaying ? 1 : 0
         let artworkChanged = artworkURL != self.artworkURL
         self.artworkURL = artworkURL
         if style != applied {
             applied = style
             rebuildCells(style)
-            applyMotion(style)
+            if isPlaying || moving { applyMotion(style) }
             applyColor()
         } else if artworkChanged, style.colorMode == .artwork {
             applyColor()
         }
+        if isPlaying {
+            stillTask?.cancel()
+            stillTask = nil
+            if !moving { applyMotion(style) }
+        } else if wasPlaying {
+            // The notes already in the air sway until the longest-lived has faded.
+            let lastNote = style.lifetime + style.lifetimeRange
+            stillTask?.cancel()
+            stillTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(lastNote))
+                guard !Task.isCancelled else { return }
+                self?.stopMotion()
+            }
+        }
+    }
+
+    /// The sway and hue drift run forever, and a running animation has the window server redraw
+    /// the panel every frame, so with no notes left to move they come off.
+    private func stopMotion() {
+        stillTask = nil
+        emitter.removeAllAnimations()
+        moving = false
     }
 
     private func rebuildCells(_ style: NotesStyle) {
@@ -109,6 +143,7 @@ final class NoteEmitterHostView: NSView {
     /// particle colour around the wheel. Both are animations on the emitter's cell key paths.
     private func applyMotion(_ style: NotesStyle) {
         emitter.removeAllAnimations()
+        moving = true
         for name in cellNames {
             if style.sway > 0 {
                 let swing = CABasicAnimation(keyPath: "emitterCells.\(name).emissionLongitude")
