@@ -413,6 +413,10 @@ struct NowPlayingBar: View {
         // The glyphs take a faint share of the cover's colour (less than the scrubber), and
         // it slides to the next song's like everything else.
         InterpolatedColor(accent) { accent in
+            #if DEBUG
+            let _ = PlatterBuildCounts.notePalette(player)
+            let _ = PlatterBuildCounts.notePlayhead(player)
+            #endif
             let palette = coverPalette(accent)
             let tint = palette.control ?? palette.mono
             let dim = palette.dimControl
@@ -492,6 +496,10 @@ struct NowPlayingBar: View {
         // share of the accent), the times like the tertiary lines, and the colour slides to the
         // next song's rather than switching.
         InterpolatedColor(accent) { accent in
+            #if DEBUG
+            let _ = PlatterBuildCounts.notePalette(player)
+            let _ = PlatterBuildCounts.notePlayhead(player)
+            #endif
             let palette = coverPalette(accent)
             let line = platter.scrubberLikeControls ? palette.control : accent.map { palette.mono.mix(with: $0, by: platter.scrubberTint) }
             let times = palette[keyPath: Self.timeRole]
@@ -603,3 +611,18 @@ private struct BleedingRect: Shape {
     let dx: CGFloat
     func path(in rect: CGRect) -> Path { Path(rect.insetBy(dx: -dx, dy: 0)) }
 }
+
+#if DEBUG
+/// How many times the platter has worked out its scrubber's palette from the cover, and built
+/// its playhead, by player. Tests read it to check that the clock moving rebuilds the playhead
+/// alone, and not at all while nobody can see the panel. Keyed by player, so tests running
+/// alongside don't count each other's.
+@MainActor
+enum PlatterBuildCounts {
+    static var palettes: [ObjectIdentifier: Int] = [:]
+    static var playheads: [ObjectIdentifier: Int] = [:]
+
+    static func notePalette(_ player: PlayerService) { palettes[ObjectIdentifier(player), default: 0] += 1 }
+    static func notePlayhead(_ player: PlayerService) { playheads[ObjectIdentifier(player), default: 0] += 1 }
+}
+#endif
