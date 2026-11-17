@@ -391,7 +391,6 @@ final class YTMusicClient {
         libraryCache = (content, complete ? .now : .distantPast)
         persist()
         Self.prefetchArtwork(of: content)
-        ImageCache.shared.prefetch((content.playlists + content.albums + content.artists).prefix(24).map(\.artworkURL))
         return content
     }
 
@@ -499,15 +498,20 @@ final class YTMusicClient {
         return filled
     }
 
-    /// The library changes rarely and is bounded, so every cover is fetched and decoded ahead
-    /// of the scroll, not the first dozen: a fast scroll then finds them all in memory.
+    /// The library changes rarely and is bounded, so its covers are fetched and decoded ahead
+    /// of the scroll, not the first dozen: a fast scroll then finds them in memory.
     private static func prefetchArtwork(of content: LibraryContent) {
         ImageCache.shared.prefetch(coversAhead(of: content))
     }
 
-    /// The library's covers fetched ahead of the scroll.
+    /// How many of each shelf's covers are fetched ahead. Decoded at a row's size, the three
+    /// shelves' come to about 30 MB, a fifth of the cache, so even a library of thousands
+    /// can't push out the covers on screen, as every cover of a big one did at the hero's size.
+    static let coversAheadPerShelf = 400
+
+    /// The library's covers fetched ahead of the scroll: each shelf's first `coversAheadPerShelf`.
     static func coversAhead(of content: LibraryContent) -> [URL?] {
-        (content.playlists + content.albums + content.artists).map(\.artworkURL)
+        [content.playlists, content.albums, content.artists].flatMap { $0.prefix(coversAheadPerShelf).map(\.artworkURL) }
     }
 
     /// Whether an album or playlist is in the library, as far as the cached library knows.
