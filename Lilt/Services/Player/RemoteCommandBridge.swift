@@ -26,6 +26,10 @@ final class RemoteCommandBridge {
     private(set) var isListeningForResume = false
     private var resumeTarget: Any?
     private var artworkURL: URL?
+    #if DEBUG
+    /// How many times it has looked at the player again, for tests.
+    private(set) var updates = 0
+    #endif
 
     init(player: PlayerService) {
         self.player = player
@@ -50,6 +54,9 @@ final class RemoteCommandBridge {
     }
 
     private func update() {
+        #if DEBUG
+        updates += 1
+        #endif
         let wanted = player.current != nil && !player.hasWebSession
         if wanted != active {
             active = wanted
