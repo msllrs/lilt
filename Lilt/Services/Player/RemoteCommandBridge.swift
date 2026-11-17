@@ -36,21 +36,23 @@ final class RemoteCommandBridge {
         observe()
     }
 
+    /// Brings everything up to date, then watches for what would change it.
     private func observe() {
+        update()
         withObservationTracking {
             _ = player.current?.id
             _ = player.hasWebSession
             _ = player.isPlaying
-            _ = player.currentTime
-            _ = player.duration
             _ = player.isPausedRemotely
-        } onChange: { [weak self] in
-            Task { @MainActor in
-                self?.update()
-                self?.observe()
+            // The clock is only in Lilt's own entry. With the web session's up, following it
+            // would start a task twice a second to find nothing to do.
+            if active {
+                _ = player.currentTime
+                _ = player.duration
             }
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observe() }
         }
-        update()
     }
 
     private func update() {
