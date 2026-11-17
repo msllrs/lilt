@@ -20,12 +20,19 @@ final class ImageCache {
     private var totalCost = 0
     private var tick: UInt64 = 0
     private struct Entry {
+        let url: URL
         let image: NSImage
         let cost: Int
         var lastUsed: UInt64
+        /// The longest side it was decoded to fit, and whether that was the whole of the
+        /// source (which had fewer pixels than asked for, so there is nothing larger to get).
+        let pixels: Int
+        let whole: Bool
+
+        func serves(_ wanted: Int) -> Bool { whole || pixels >= wanted }
     }
-    /// Decoded pixels. Covers are decoded no larger than needed (see `load`), so this holds
-    /// several hundred of them.
+    /// Decoded pixels. Covers are decoded no larger than they're drawn (see `load`), so this
+    /// holds thousands of rows' covers, or several hundred heroes'.
     private static let costLimit = 160 * 1024 * 1024
     /// Where making room stops: a quarter of the budget freed at a time.
     private static let lowWaterMark = costLimit / 4 * 3
@@ -37,7 +44,12 @@ final class ImageCache {
     private var dominants: [String: (r: CGFloat, g: CGFloat, b: CGFloat)?] = [:]
     /// base key → URLs of the variants currently cached.
     private var variants: [String: [URL]] = [:]
-    private var inflight: [URL: Task<DecodedArtwork?, Never>] = [:]
+    /// Decodes on their way, by URL and the size asked for.
+    private var inflight: [Flight: Task<DecodedArtwork?, Never>] = [:]
+    private struct Flight: Hashable {
+        let url: URL
+        let pixels: Int
+    }
     private let session: URLSession
 
     /// Diagnostics: covers that have been stored, so a miss on one of them can be told apart
@@ -52,8 +64,12 @@ final class ImageCache {
         session = URLSession(configuration: config)
     }
 
-    /// The cover decoded with at least `pixels` on its longer side, or nil.
-    func cached(_ url: URL, pixels: Int) -> NSImage? { cached(url) }
+    /// The cover decoded with at least `pixels` on its longer side (or the whole of a smaller
+    /// source), or nil: a row's small decode isn't what the hero draws.
+    func cached(_ url: URL, pixels: Int) -> NSImage? {
+        guard images[url.absoluteString]?.serves(pixels) == true else { return nil }
+        return cached(url)
+    }
 
     /// The URLs kept for the cover's other sizes, for tests.
     func variants(of url: URL) -> [URL] { variants[Self.baseKey(url)] ?? [] }
@@ -61,8 +77,17 @@ final class ImageCache {
     /// What anything draws a cover at without saying: the hero at 140pt on a 2x display.
     nonisolated static let defaultPixels = 288
 
-    /// The side, in pixels, a cover drawn at `points` is decoded at.
-    nonisolated static func pixels(forPoints points: CGFloat) -> Int { defaultPixels }
+    /// Covers are decoded for a 2x display; a 1x one draws from the same decode with pixels
+    /// to spare.
+    nonisolated static let backingScale: CGFloat = 2
+
+    /// The side, in pixels, a cover drawn at `points` is decoded at: a row's 40pt cover at 80,
+    /// where decoded for the hero it cost eight times the memory, and a few hundred library
+    /// covers filled the cache and pushed out the ones on screen.
+    nonisolated static func pixels(forPoints points: CGFloat) -> Int { Int((points * backingScale).rounded(.up)) }
+
+    /// What a row's cover is decoded at, the size covers are fetched ahead at.
+    nonisolated static let rowPixels = pixels(forPoints: Theme.Size.rowArtwork)
 
     func cached(_ url: URL) -> NSImage? {
         let key = url.absoluteString
@@ -84,6 +109,7 @@ final class ImageCache {
         for (key, entry) in images.sorted(by: { $0.value.lastUsed < $1.value.lastUsed }) {
             images[key] = nil
             totalCost -= entry.cost
+            forgetVariant(entry.url)
             Self.log.debug("evicting \(key, privacy: .public) (\(entry.cost / 1024)KB)")
             if totalCost + cost <= Self.lowWaterMark { break }
         }
@@ -168,10 +194,10 @@ final class ImageCache {
     }
 
     /// Warm the cache for artwork that's about to appear, so rows render on their first frame
-    /// instead of popping in one by one.
-    func prefetch(_ urls: [URL?]) {
-        for case let url? in urls where cached(url) == nil && inflight[url] == nil {
-            Task { _ = await load(url) }
+    /// instead of popping in one by one. Decoded at `pixels`, a row's size unless said.
+    func prefetch(_ urls: [URL?], pixels: Int = rowPixels) {
+        for case let url? in urls where cached(url, pixels: pixels) == nil && inflight[Flight(url: url, pixels: pixels)] == nil {
+            Task { _ = await load(url, maxPixels: pixels) }
         }
     }
 
@@ -198,6 +224,13 @@ final class ImageCache {
         return Color(nsColor: adjusted)
     }
 
+    /// A rendition thrown out of the cache is no longer one to stand in.
+    private func forgetVariant(_ url: URL) {
+        let base = Self.baseKey(url)
+        variants[base]?.removeAll { $0 == url }
+        if variants[base]?.isEmpty == true { variants[base] = nil }
+    }
+
     /// Any cached rendition of the same artwork, regardless of size.
     func anyVariant(for url: URL) -> NSImage? {
         let key = Self.baseKey(url)
@@ -214,27 +247,34 @@ final class ImageCache {
     /// 2x display by default; the Dock tile asks for more. The server's rendition can be far
     /// bigger (576px playlist art, 1280px video thumbnails), and decoded at that size a cover
     /// cost up to 3.7MB, so a couple of hundred of them overran any sensible budget.
+    /// A cover already decoded at least that large is the answer; a smaller one is decoded
+    /// again at this size, and replaces it.
     func load(_ url: URL, maxPixels: Int = defaultPixels) async -> NSImage? {
-        if let hit = cached(url) { return hit }
-        if let task = inflight[url] { return await task.value?.image }
+        if let hit = cached(url, pixels: maxPixels) { return hit }
+        let flight = Flight(url: url, pixels: maxPixels)
+        if let task = inflight[flight] { return await task.value?.image }
         let task = Task<DecodedArtwork?, Never>.detached(priority: .utility) { [session] in
             guard let (data, _) = try? await session.data(from: url) else { return nil }
             return DecodedArtwork(data, maxPixels: maxPixels)
         }
-        inflight[url] = task
+        inflight[flight] = task
         let decoded = await task.value
-        inflight[url] = nil
+        inflight[flight] = nil
         guard let decoded else { return nil }
-        store(decoded.image, for: url, average: decoded.average, edge: decoded.edge, dominant: decoded.dominant)
+        // A decode as large or larger landed meanwhile (the hero's, while a row's was out): it stays.
+        if let kept = cached(url, pixels: maxPixels) { return kept }
+        store(decoded.image, for: url, pixels: maxPixels, whole: decoded.whole, average: decoded.average, edge: decoded.edge, dominant: decoded.dominant)
         return decoded.image
     }
 
-    /// Caches an image that arrived some other way, measuring it here.
+    /// Caches an image that arrived some other way, measuring it here. It serves drawings up
+    /// to its own size.
     func store(_ image: NSImage, for url: URL) {
-        store(image, for: url, average: Self.averageColor(of: image), edge: Self.edgeLuminance(of: image), dominant: Self.dominantColor(of: image))
+        let pixels = Int(max(image.size.width, image.size.height))
+        store(image, for: url, pixels: pixels, whole: false, average: Self.averageColor(of: image), edge: Self.edgeLuminance(of: image), dominant: Self.dominantColor(of: image))
     }
 
-    private func store(_ image: NSImage, for url: URL, average: (r: CGFloat, g: CGFloat, b: CGFloat)?, edge: CGFloat?, dominant: (r: CGFloat, g: CGFloat, b: CGFloat)?) {
+    private func store(_ image: NSImage, for url: URL, pixels: Int, whole: Bool, average: (r: CGFloat, g: CGFloat, b: CGFloat)?, edge: CGFloat?, dominant: (r: CGFloat, g: CGFloat, b: CGFloat)?) {
         // The image's size is its pixel size (decoded images are built that way, and anything
         // else is 72dpi); the representation's pixel counts come back at display scale and
         // charged every cover four times over, so the budget held a quarter of what it should.
@@ -243,10 +283,12 @@ final class ImageCache {
         if let old = images[key] { totalCost -= old.cost }
         evict(toFit: cost)
         tick += 1
-        images[key] = Entry(image: image, cost: cost, lastUsed: tick)
+        images[key] = Entry(url: url, image: image, cost: cost, lastUsed: tick, pixels: pixels, whole: whole)
         totalCost += cost
         everStored.insert(key)
-        variants[Self.baseKey(url), default: []].append(url)
+        // Once per URL: stored again at another decode, it's the same rendition.
+        let base = Self.baseKey(url)
+        if variants[base]?.contains(url) != true { variants[base, default: []].append(url) }
         if let average { averages[url.absoluteString] = average }
         if let edge { edges[url.absoluteString] = edge }
         dominants[url.absoluteString] = dominant
@@ -400,6 +442,8 @@ private struct DecodedArtwork: @unchecked Sendable {
     let average: (r: CGFloat, g: CGFloat, b: CGFloat)?
     let edge: CGFloat?
     let dominant: (r: CGFloat, g: CGFloat, b: CGFloat)?
+    /// The source had fewer pixels than asked for, so this is all of it.
+    let whole: Bool
 
     init?(_ data: Data, maxPixels: Int) {
         let options: [CFString: Any] = [
@@ -411,6 +455,7 @@ private struct DecodedArtwork: @unchecked Sendable {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
         image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        whole = max(cgImage.width, cgImage.height) < maxPixels
         average = ImageCache.averageColor(of: image)
         edge = ImageCache.edgeLuminance(of: image)
         dominant = ImageCache.dominantColor(of: image)

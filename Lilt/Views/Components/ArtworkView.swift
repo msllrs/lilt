@@ -45,11 +45,13 @@ struct ArtworkView: View {
         self.radius = radius
         self.context = context
         self.spin = spin
-        // Seed synchronously so a cache hit renders on the first frame.
+        // Seed synchronously so a cache hit renders on the first frame. The same cover decoded
+        // smaller (a row's, under the hero) stands in like another size of it.
+        let pixels = ImageCache.pixels(forPoints: size)
         let seed = MainActor.assumeIsolated { () -> (NSImage?, Bool) in
             guard let url else { return (nil, false) }
-            if let hit = ImageCache.shared.cached(url) { return (hit, false) }
-            if let variant = ImageCache.shared.anyVariant(for: url) { return (variant, true) }
+            if let hit = ImageCache.shared.cached(url, pixels: pixels) { return (hit, false) }
+            if let variant = ImageCache.shared.cached(url) ?? ImageCache.shared.anyVariant(for: url) { return (variant, true) }
             return (nil, false)
         }
         _image = State(initialValue: seed.0)
@@ -138,14 +140,17 @@ struct ArtworkView: View {
             .animation(Theme.Motion.quick, value: isStandIn)
     }
 
+    /// What this drawing decodes its cover at.
+    private var pixels: Int { ImageCache.pixels(forPoints: size) }
+
     private func load() async {
         guard let url else { image = nil; return }
-        if let hit = ImageCache.shared.cached(url) {
+        if let hit = ImageCache.shared.cached(url, pixels: pixels) {
             image = hit
             isStandIn = false
             return
         }
-        if let variant = ImageCache.shared.anyVariant(for: url) {
+        if let variant = ImageCache.shared.cached(url) ?? ImageCache.shared.anyVariant(for: url) {
             image = variant
             isStandIn = true
         } else if image != nil {
@@ -153,7 +158,7 @@ struct ArtworkView: View {
             // dropping to the placeholder while the real one loads.
             isStandIn = true
         }
-        guard let loaded = await ImageCache.shared.load(url, maxPixels: ImageCache.pixels(forPoints: size)), !Task.isCancelled else { return }
+        guard let loaded = await ImageCache.shared.load(url, maxPixels: pixels), !Task.isCancelled else { return }
         withAnimation(Theme.Motion.quick) {
             image = loaded
             isStandIn = false

@@ -721,9 +721,11 @@ final class YTMusicClient {
                     pageFetched[item.id] = now()
                 }
             }
+            // The hero's cover at the hero's size, and the row's own, which flies there as the
+            // page opens; the rows' at theirs.
+            ImageCache.shared.prefetch([page.item.artworkURL, item.artworkURL], pixels: ImageCache.defaultPixels)
             ImageCache.shared.prefetch(
-                [page.item.artworkURL] + page.tracks.prefix(20).map(\.artworkURL)
-                    + page.sections.flatMap { $0.items.prefix(8).map(\.artworkURL) }
+                page.tracks.prefix(20).map(\.artworkURL) + page.sections.flatMap { $0.items.prefix(8).map(\.artworkURL) }
             )
             return page
         }
