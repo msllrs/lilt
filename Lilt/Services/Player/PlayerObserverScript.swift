@@ -127,6 +127,15 @@ enum PlayerObserverScript {
         keepHeld();
         report();
       };
+      // A fresh page's <video> is taken up on its first media event rather than at the next
+      // check: YouTube creates it and starts it playing within the second, and its listeners
+      // (PLAYING among them) would otherwise miss that start. Taken up on the document, in the
+      // capture phase, the element's own listeners are in place before the event reaches it.
+      const adopt = (e) => {
+        const v = e.target;
+        if (v instanceof HTMLVideoElement && v !== state.video && v === document.querySelector('video')) { attach(v); }
+      };
+      ['loadstart', 'play', 'playing'].forEach((e) => document.addEventListener(e, adopt, true));
       // What the page's player offers for gapless playback, for the DEBUG log: whether YouTube
       // would stitch songs into one stream here (it decides by browser: Chrome 74+ or Firefox
       // 68+), and which of its queue and preload methods exist.
