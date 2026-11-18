@@ -37,8 +37,8 @@ targets:
       properties:
         CFBundleName: Lilt
         CFBundleDisplayName: Lilt
-        CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "2"
         LSApplicationCategoryType: public.app-category.music
         NSPrincipalClass: NSApplication
         NSHumanReadableCopyright: ""
