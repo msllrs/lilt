@@ -23,25 +23,41 @@ Lilt is deliberately light. It plays through a hidden YouTube Music web view (so
 - **Dock icon** — The app icon carries the current cover on its disc, with the cover's colour on the plate
 - **Recents** — Recently played tracks and recently viewed pages, one click away from the search field
 - **Keyboard and media keys** — Space, ⌘→ and ⌘← drive playback from the panel (and the Controls menu); the Mac's play/pause and track keys reach Lilt through Now Playing like any other player
-- **Picks up where you left off** — Queue, playhead, view and window size survive relaunches
+- **Gapless playback** — The next song waits in a second player, so albums run on without a gap
+- **Ambience** — Option-click the platter's cover for a drawer of rain, wind, fire, ocean and deep noise to play under the music, each with its own level, plus live air traffic control from a handful of busy airports or a stream URL of your own
+- **Sleep timer** — Controls ▸ Sleep Timer pauses the music after 15 minutes, 30 minutes or an hour, and survives a relaunch
+- **Song notifications** — Optionally post the title, artist and cover when the song changes, but not when you changed it yourself
+- **Explicit and unavailable songs** — An E badge where YouTube Music shows one; songs it greys out are dimmed and skipped, or hidden altogether
+- **AirPods** — Taking them out pauses, and putting them back resumes, as macOS does for its own players
+- **Appearance** — System, light or dark theme, a Frosted-to-Clear slider for the player's glass, and optional always-visible song lengths
+- **Picks up where you left off** — Queue, playhead, view, window size and a running sleep timer survive relaunches
+- **Updates** — Signed and notarized, with Sparkle for Check for Updates…
 
-## Tweak panel
+## Developer panel
 
-Debug builds include a panel (`⌥⌘T`) with live sliders for every finish value: spotlight, keyline, ambient shadows, platter tint, play-capsule cast, music notes, header blur, page ambient and the Dock tile. **Copy values** puts a Swift snippet on the clipboard to paste back into `ArtworkStyle` as the new defaults.
+Debug builds include a panel (Controls ▸ Developer Panel…, `⌥⌘T`) with live sliders for every finish value: spotlight, keyline, ambient shadows, platter glass and tint, play-capsule cast, music notes, header blur, page ambient, page motion and the Dock tile. **Copy values** puts a Swift snippet on the clipboard to paste back into `ArtworkStyle` as the new defaults.
 
 ## Shortcuts
 
 | Shortcut | Action |
 | --- | --- |
+| `⌃⌥⌘L` | Show Lilt from anywhere (change it in Settings) |
 | `⌘⇧L` | Show Lilt |
 | `⌘W` | Hide |
 | `⌘⇧M` | Mini player |
 | `⌘L` | Library |
 | `⌘[` | Back |
+| `⌘F` | Filter a library shelf |
+| `⌘R` | Refresh |
+| `Esc` | Clear the search |
 | `Space` | Play / pause (when not typing) |
 | `⌘→` / `⌘←` | Next / previous |
 | `⌘⇧S` / `⌘⇧R` | Shuffle / repeat |
-| `⌥⌘T` | Tweak panel (debug builds) |
+| `⌥⌘T` | Developer panel (debug builds) |
+
+## Install
+
+Download the latest DMG from [Releases](https://github.com/msllrs/lilt/releases) and drag Lilt to Applications. Sign in to YouTube Music on first launch.
 
 ## Build from source
 
@@ -53,7 +69,7 @@ cd lilt
 make run
 ```
 
-`make build`, `make test` and `make open` (generates and opens the Xcode project) are also there. The project is signed ad hoc; sign in to YouTube Music on first launch.
+`make build`, `make test` and `make open` (generates and opens the Xcode project) are also there. Debug builds are signed ad hoc. `make notarize` builds a Developer ID release and notarizes it, and `make dmg` then wraps it in a notarized disk image.
 
 ## How it works
 
