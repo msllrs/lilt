@@ -8,7 +8,7 @@ A small native macOS player for YouTube Music: one Liquid Glass column that live
 
 Lilt is deliberately light. It plays through a hidden YouTube Music web view (so your subscription, DRM and history all work as normal) and talks to the same API the site uses for search, browsing and your library. Everything you see is native SwiftUI and AppKit: no browser chrome, no web UI, nothing that fights the content behind it.
 
-<img src="Resources/screenshot.png" alt="Lilt panel" width="352">
+<img src="Resources/screenshot.png" alt="Lilt panel playing a song over an album page" width="392">
 
 ## Features
 
