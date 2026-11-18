@@ -230,30 +230,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func queueDidChange() {
         autoHideQueueIfEmpty()
         guard navigation.isMiniPlayer, navigation.isQueueVisible, let panel else { return }
-        let target = miniHeight(reveal: 1)
+        let target = miniHeight(queueReveal: 1, ambienceReveal: navigation.ambienceReveal)
         if target != panel.frame.height { resizeWindow(mini: true, queueReveal: 1, animated: true, curve: Theme.Motion.queueCurve) }
     }
 
-    /// Window height for the mini player: the platter with the list shown as far as `reveal`
-    /// says. Built from the platter's base height and the list's known extent rather than the
-    /// measured height, which mid-animation is whatever it's passing through. The window is the
-    /// platter: no inset below it, or the frame's shadow outlines a strip.
-    private func miniHeight(reveal: CGFloat) -> CGFloat {
-        navigation.platterBaseHeight + ambienceExtent + reveal * queueExtent
+    /// Window height for the mini player: the platter with the drawer and the list shown as far
+    /// as their reveals say. Built from the platter's base height and the known extents rather
+    /// than the measured height, which mid-animation is whatever it's passing through. The window
+    /// is the platter: no inset below it, or the frame's shadow outlines a strip.
+    private func miniHeight(queueReveal: CGFloat, ambienceReveal: CGFloat) -> CGFloat {
+        navigation.platterBaseHeight + ambienceReveal * AmbiencePanel.extent + queueReveal * queueExtent
     }
 
-    /// What the platter grows by to show the ambience drawer.
-    private var ambienceExtent: CGFloat { navigation.isAmbienceVisible ? Theme.Space.sm + AmbiencePanel.height : 0 }
-
-    /// Opens or closes the ambience drawer below the scrubber; in mini the window grows with it
-    /// on the same spring as the list.
+    /// Opens or closes the ambience drawer below the scrubber. In mini the window and the
+    /// drawer ride one spring, as the list does; expanded, the platter just grows upward.
     func setAmbienceVisible(_ visible: Bool) {
         guard visible != navigation.isAmbienceVisible else { return }
-        navigation.isAmbienceVisible = visible
-        if navigation.isMiniPlayer { resizeWindow(mini: true, animated: true, curve: Theme.Motion.queueCurve(opening: visible)) }
+        if navigation.isMiniPlayer {
+            resizeWindow(
+                mini: true,
+                queueReveal: navigation.isQueueVisible ? 1 : 0,
+                ambienceReveal: visible ? 1 : 0,
+                animated: true,
+                curve: Theme.Motion.queueCurve(opening: visible)
+            )
+        }
+        withAnimation(Theme.Motion.queue(opening: visible)) {
+            navigation.isAmbienceVisible = visible
+            navigation.ambienceReveal = visible ? 1 : 0
+        }
     }
 
-    private func resizeWindow(mini: Bool, queueReveal: CGFloat? = nil, animated: Bool = false, curve: FrameCurve = Theme.Motion.frameCurve) {
+    private func resizeWindow(mini: Bool, queueReveal: CGFloat? = nil, ambienceReveal: CGFloat? = nil, animated: Bool = false, curve: FrameCurve = Theme.Motion.frameCurve) {
         guard let panel else { return }
         let current = panel.frame
         let screen = panel.screen ?? NSScreen.main ?? NSScreen.screens[0]
@@ -263,7 +271,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // frame caught mid-animation (a collapse started during an expand would record a
         // half-grown height and the next expand would stop there).
         if mini, Self.remembersExpandedHeight(collapsingFrom: current.height, launching: !miniEverApplied, animating: navigation.isFrameAnimating) { expandedHeight = current.height }
-        let height = mini ? miniHeight(reveal: queueReveal ?? (navigation.isQueueVisible ? 1 : 0)) : expandedHeight
+        let height = mini
+            ? miniHeight(
+                queueReveal: queueReveal ?? (navigation.isQueueVisible ? 1 : 0),
+                ambienceReveal: ambienceReveal ?? navigation.ambienceReveal
+            )
+            : expandedHeight
         let target = Self.onScreen(NSRect(x: current.minX, y: current.minY, width: current.width, height: height), near: screen)
         let cornerRadius = mini ? Theme.Radius.panel : Theme.Radius.window
         navigation.expandedFrameHeight = expandedHeight

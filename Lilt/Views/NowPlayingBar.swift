@@ -76,6 +76,9 @@ struct NowPlayingBar: View {
     /// The list stays mounted for a moment after it has closed, so its spring out completes.
     @State private var queueLingers = false
     @State private var lingering: Task<Void, Never>?
+    /// The drawer stays mounted for a moment after it has closed, so its spring out completes.
+    @State private var ambienceLingers = false
+    @State private var ambienceLingering: Task<Void, Never>?
 
     /// Hover as the pointer actually stands once the window has stopped moving under it.
     private func settleHover() {
@@ -95,10 +98,19 @@ struct NowPlayingBar: View {
             // list's eventual height instead of chasing the animation.
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { navigation.platterBaseHeight = $0 + Theme.Space.barPadding * 2 }
             // The ambience drawer, under the scrubber, opened with an option-click on the cover.
-            if navigation.isAmbienceVisible {
+            // It reveals the way the list does: mounted while it opens or lingers shut, its
+            // height and opacity following `ambienceReveal`, so the platter and, in mini, the
+            // window ride one curve.
+            let ambienceReveal = navigation.ambienceReveal
+            if navigation.isAmbienceVisible || ambienceReveal > 0 || ambienceLingers {
                 InterpolatedColor(accent) { AmbiencePanel(accent: $0) }
                     .padding(.top, Theme.Space.sm)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    // Never below nothing, should a curve overshoot on the way shut.
+                    .frame(height: max(AmbiencePanel.extent * ambienceReveal, 0), alignment: .top)
+                    // Cut off below as it's revealed, as the list is.
+                    .clipShape(BleedingRect(dx: Theme.Space.barPadding))
+                    .opacity(min(max(ambienceReveal, 0), 1))
+                    .allowsHitTesting(ambienceReveal > 0.5)
             }
             // The list is always here, shown as far as `queueReveal` says: pulled out by the
             // grab handle, or sprung to an end. It hangs from under the scrubber, cut off below.
@@ -131,6 +143,18 @@ struct NowPlayingBar: View {
                     try? await Task.sleep(for: .milliseconds(500))
                     guard !Task.isCancelled else { return }
                     queueLingers = false
+                }
+            }
+        }
+        .onChange(of: navigation.isAmbienceVisible || navigation.ambienceReveal > 0) { _, showing in
+            ambienceLingering?.cancel()
+            if showing {
+                ambienceLingers = true
+            } else {
+                ambienceLingering = Task {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    guard !Task.isCancelled else { return }
+                    ambienceLingers = false
                 }
             }
         }
@@ -472,8 +496,7 @@ struct NowPlayingBar: View {
         Button {
             // Option-click: the ambience drawer, the platter's one hidden door.
             if NSEvent.modifierFlags.contains(.option) {
-                let opening = !navigation.isAmbienceVisible
-                withAnimation(Theme.Motion.queue(opening: opening)) { AppDelegate.shared?.setAmbienceVisible(opening) }
+                AppDelegate.shared?.setAmbienceVisible(!navigation.isAmbienceVisible)
                 return
             }
             // In mini there is no column to show the album in: expand first, then open it.

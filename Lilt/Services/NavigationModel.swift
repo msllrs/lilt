@@ -58,6 +58,9 @@ final class NavigationModel {
     var platterBaseHeight: CGFloat = 140
     /// The ambience drawer is open below the scrubber (option-click on the cover). Not persisted.
     var isAmbienceVisible = false
+    /// How much of the ambience drawer is showing, 0 to 1: where `isAmbienceVisible` says once
+    /// settled, and in between while it springs open or shut. Not persisted.
+    var ambienceReveal: CGFloat = 0
     /// The up-next list is open below the scrubber. Toggled by double-clicking the platter;
     /// goes through `AppDelegate.setQueueVisible` so the mini window can grow first.
     var isQueueVisible = false

@@ -5,6 +5,8 @@ import SwiftUI
 struct AmbiencePanel: View {
     /// Fixed, so the mini window can be sized for it before it has laid out (see QueueList).
     static let height: CGFloat = 1 + Theme.Space.sm + 28 + Theme.Space.sm + 28
+    /// The drawer plus the gap above it: what the platter grows by to show it in full.
+    static var extent: CGFloat { Theme.Space.sm + height }
     /// The box a custom address gets: the menu's chevron and the URL field. A chosen feed shows
     /// just its name and chevron, as wide as they need.
     static let stationWidth: CGFloat = 104
