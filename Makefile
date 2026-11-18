@@ -1,7 +1,7 @@
 export DEVELOPER_DIR ?= /Applications/Xcode.app/Contents/Developer
 DERIVED := build
 
-.PHONY: gen build test run open clean release notarize
+.PHONY: gen build test run open clean release notarize dmg
 
 gen:
 	xcodegen generate
@@ -16,10 +16,12 @@ run: build
 	open $(DERIVED)/Build/Products/Debug/Lilt.app
 
 # A build for other people: Release, signed with Developer ID and the hardened runtime, zipped
-# for notarization. `make notarize` then submits it, staples the ticket and re-zips.
+# for notarization. `make notarize` then submits it, staples the ticket and re-zips. `make dmg`
+# then wraps the stapled app in a notarized disk image.
 RELEASE := build-release
 APP := $(RELEASE)/Build/Products/Release/Lilt.app
 ZIP := $(RELEASE)/Lilt.zip
+DMG := $(RELEASE)/Lilt.dmg
 # `xcrun notarytool store-credentials lilt-notary` creates this once (Apple ID + app-specific
 # password, or an App Store Connect API key), kept in the keychain.
 NOTARY_PROFILE := lilt-notary
@@ -57,3 +59,22 @@ notarize: release
 	ditto -c -k --keepParent "$(APP)" "$(ZIP)"
 	spctl --assess --type execute --verbose=2 "$(APP)"
 	@echo "notarized and stapled: $(ZIP)"
+
+# A disk image of the app `make notarize` stapled, with an Applications link to drag it onto.
+# The image is signed and notarized itself, so it opens cleanly offline too.
+dmg:
+	xcrun stapler validate "$(APP)"
+	rm -rf "$(RELEASE)/dmg" "$(DMG)"
+	mkdir "$(RELEASE)/dmg"
+	ditto "$(APP)" "$(RELEASE)/dmg/Lilt.app"
+	ln -s /Applications "$(RELEASE)/dmg/Applications"
+	hdiutil create -volname Lilt -srcfolder "$(RELEASE)/dmg" -fs HFS+ -format UDZO -ov "$(DMG)"
+	rm -rf "$(RELEASE)/dmg"
+	codesign --force --timestamp --sign "$(IDENTITY)" "$(DMG)"
+	xcrun notarytool submit "$(DMG)" --keychain-profile $(NOTARY_PROFILE) --wait --output-format json > "$(RELEASE)/notarize-dmg.json"; \
+	status=$$(/usr/bin/plutil -extract status raw -o - "$(RELEASE)/notarize-dmg.json"); id=$$(/usr/bin/plutil -extract id raw -o - "$(RELEASE)/notarize-dmg.json"); \
+	echo "notarization $$status ($$id)"; \
+	if [ "$$status" != "Accepted" ]; then xcrun notarytool log $$id --keychain-profile $(NOTARY_PROFILE); exit 1; fi
+	xcrun stapler staple "$(DMG)"
+	spctl --assess --type open --context context:primary-signature --verbose=2 "$(DMG)"
+	@echo "notarized and stapled: $(DMG)"
