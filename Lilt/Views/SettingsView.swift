@@ -191,7 +191,7 @@ private struct NotificationsSection: View {
 
     var body: some View {
         Section {
-            Toggle("Show a notification when the song changes", isOn: Binding(get: { enabled }, set: setEnabled))
+            Toggle("Show a notification when the song changes", isOn: Binding(get: { enabled }, set: { setEnabled($0) }))
         } header: {
             Text("Notifications")
         } footer: {
@@ -295,7 +295,7 @@ private struct GeneralSection: View {
 
     var body: some View {
         Section {
-            Toggle("Open at login", isOn: Binding(get: { status == .enabled || status == .requiresApproval }, set: setOpensAtLogin))
+            Toggle("Open at login", isOn: Binding(get: { status == .enabled || status == .requiresApproval }, set: { setOpensAtLogin($0) }))
             Toggle(isOn: $focusesSearch) {
                 Text("Focus search automatically")
                 Text("Showing the panel puts the caret in Search, ready to type. Otherwise click the field first.")

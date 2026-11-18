@@ -42,14 +42,14 @@ final class SongNotifier: NSObject, UNUserNotificationCenterDelegate {
         withObservationTracking {
             _ = player.current?.id
         } onChange: { [weak self] in
+            guard let self else { return }
             // Called as the song changes, inside whatever caused it, so a click that did it is
             // still the current event here (it won't be once the task below runs).
             let own = MainActor.assumeIsolated {
-                guard let self else { return false }
                 let panel = self.panel()
                 return Self.isOwnAction(NSApp.currentEvent, in: panel, panelInFront: panel.map(Self.isInFront) ?? false)
             }
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.songChanged(byOwnAction: own)
                 self?.observe()
             }
