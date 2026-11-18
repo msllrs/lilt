@@ -6,7 +6,8 @@ import WebKit
 /// Background sound under the music: long recordings of rain, wind, fire, ocean and deep noise
 /// from YouTube Music, each on a hidden page of its own while it is on, and a live stream of the
 /// listener's choosing, air traffic control or otherwise. The pages stay out of Now Playing and
-/// the history (see `PlayerBridge`'s ambient mode), and keep going when the music pauses.
+/// the history (see `PlayerBridge`'s ambient mode), and keep going when the music is paused by
+/// hand. When the system pauses it instead (headphones taken out), they go quiet with it.
 @MainActor
 @Observable
 final class AmbienceService {
@@ -84,6 +85,10 @@ final class AmbienceService {
 
     /// Anything audible from here.
     var isOn: Bool { !active.isEmpty || isStreaming }
+    /// The system paused the music while the bed was on (headphones taken out): the switches
+    /// stay as they are, but their pages are paused, and the feed is reloaded when the music
+    /// plays again.
+    private(set) var isHeldForSystemPause = false
 
     private static let log = Logger(subsystem: "com.msllrs.Lilt", category: "ambience")
     private var streamPage: (any StreamPaging)?
@@ -111,9 +116,13 @@ final class AmbienceService {
             active.remove(sound)
             stop(sound)
         } else {
+            // Switching a sound on while the music is paused by the system is a request to hear
+            // the bed again, so it and the rest come back now.
+            if isHeldForSystemPause { releaseAfterSystemPause() }
             active.insert(sound)
             start(sound)
         }
+        clearHoldIfSilent()
     }
 
     private func start(_ sound: Sound) {
@@ -140,7 +149,11 @@ final class AmbienceService {
         switch event {
         case .playing:
             loading.remove(sound)
+            // The page can finish loading after the system pause asked it to pause, while its
+            // script wasn't there yet; a page that starts now goes quiet again.
+            if isHeldForSystemPause { player.pause() }
         case .state(let snapshot):
+            if isHeldForSystemPause, snapshot.isPlaying { player.pause() }
             // Back to the start a moment before the end, so the page never finishes the track
             // and autoplays something else.
             if snapshot.duration > 30, snapshot.currentTime > snapshot.duration - 1.5 { player.seek(to: 0) }
@@ -154,8 +167,40 @@ final class AmbienceService {
     }
 
     func setStreaming(_ on: Bool) {
-        isStreaming = on
-        if on { startStream() } else { stopStream() }
+        if on, isHeldForSystemPause {
+            // Like switching a sound on: the listener wants to hear it, so bring the bed back.
+            isStreaming = true
+            releaseAfterSystemPause()
+        } else {
+            isStreaming = on
+            if on { startStream() } else { stopStream() }
+        }
+        clearHoldIfSilent()
+    }
+
+    /// The system paused the music (headphones taken out, say): hold the bed silent, with the
+    /// drawer's switches still on, until the music plays again. Pausing the feed's page would
+    /// leave it buffered behind live, so it is stopped and reloaded on release.
+    func holdForSystemPause() {
+        guard isOn, !isHeldForSystemPause else { return }
+        isHeldForSystemPause = true
+        for player in players.values { player.pause() }
+        stopStreamPage()
+        streamState = .off
+    }
+
+    /// The music is playing again: let the held sounds and feed go on.
+    func releaseAfterSystemPause() {
+        guard isHeldForSystemPause else { return }
+        isHeldForSystemPause = false
+        guard isOn else { return }
+        for player in players.values { player.play() }
+        if isStreaming { startStream() }
+    }
+
+    /// Nothing left to hold.
+    private func clearHoldIfSilent() {
+        if !isOn { isHeldForSystemPause = false }
     }
 
     private func stopStream() {
@@ -181,6 +226,11 @@ final class AmbienceService {
         }
         // One page at a time: a new URL takes over from the last.
         stopStreamPage()
+        // Held for a system pause: remember the address, but don't sound it until release.
+        guard !isHeldForSystemPause else {
+            streamState = .off
+            return
+        }
         streamState = .connecting
         let page = makeStreamPage()
         page.onEvent = { [weak self] event in self?.handle(event) }

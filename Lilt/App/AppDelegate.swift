@@ -68,6 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         observeCurrentForDockMenu()
         observeWindowTitle()
         observeQueue()
+        observeSystemPauseForAmbience()
         SleepTimerStore.restore(into: player)
         observeSleepTimer()
         remoteCommands = RemoteCommandBridge(player: player)
@@ -209,6 +210,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             Task { @MainActor in
                 self?.queueDidChange()
                 self?.observeQueue()
+            }
+        }
+    }
+
+    /// The system's pause isn't Lilt's own: pausing the music by hand leaves the bed under it
+    /// running, but headphones coming out should take the ambience quiet too. It comes back
+    /// with the music.
+    private func observeSystemPauseForAmbience() {
+        withObservationTracking {
+            _ = player.isPausedRemotely
+            _ = player.isPlaying
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.player.isPausedRemotely {
+                    self.ambience.holdForSystemPause()
+                } else if self.player.isPlaying {
+                    self.ambience.releaseAfterSystemPause()
+                }
+                self.observeSystemPauseForAmbience()
             }
         }
     }
